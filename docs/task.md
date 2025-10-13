@@ -147,7 +147,7 @@ npm run dev
 
 ### PR Checklist
 
-- [ ] `firebase emulators:start` works from `collabcanvas/`; Emulator UI accessible at http://localhost:4000
+- [x] `firebase emulators:start` works from `collabcanvas/`; Emulator UI accessible at http://localhost:4000
 - [ ] App boots at http://localhost:5173; `src/firebase.ts` talks to emulators in dev
 - [ ] Dummy Firestore/RTDB read/write succeeds
 
@@ -192,10 +192,10 @@ On signup: create Firestore `users/{uid}` with random color
 
 ### PR Checklist
 
-- [ ] Can sign up/log in/log out
-- [ ] Username stored & displayed
-- [ ] Cursor color assigned once on signup
-- [ ] Auth persists on refresh
+- [x] Can sign up/log in/log out
+- [x] Username stored & displayed
+- [x] Cursor color assigned once on signup
+- [x] Auth persists on refresh
 
 ---
 

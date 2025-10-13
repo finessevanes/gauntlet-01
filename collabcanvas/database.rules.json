@@ -1,0 +1,15 @@
+{
+  "rules": {
+    "sessions": {
+      "main": {
+        "users": {
+          "$userId": {
+            ".read": "auth != null",
+            ".write": "auth != null && auth.uid == $userId"
+          }
+        }
+      }
+    }
+  }
+}
+

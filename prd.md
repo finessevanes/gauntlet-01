@@ -317,21 +317,32 @@ Firebase (Auth, Firestore, RTDB)
 
 #### Project Structure
 
+**⚠️ Important:** This app lives in the `collabcanvas/` subdirectory within the `gauntlet-01` root project. All development commands should be run from `collabcanvas/` directory.
+
 ```
-src/
-  components/      # UI components
-  contexts/        # React contexts
-  hooks/           # Custom hooks
-  services/        # Service layer
-    authService.ts
-    canvasService.ts
-    cursorService.ts
-    presenceService.ts
-  utils/           # Helper functions
-  firebase.ts      # Firebase initialization
+gauntlet-01/                  (root project)
+├── prd.md
+├── task.md
+├── architecture.md
+└── collabcanvas/             (YOUR WORKING DIRECTORY)
+    ├── src/
+    │   ├── components/      # UI components
+    │   ├── contexts/        # React contexts
+    │   ├── hooks/           # Custom hooks
+    │   ├── services/        # Service layer
+    │   │   ├── authService.ts
+    │   │   ├── canvasService.ts
+    │   │   ├── cursorService.ts
+    │   │   └── presenceService.ts
+    │   ├── utils/           # Helper functions
+    │   └── firebase.ts      # Firebase initialization
+    ├── firebase.json
+    ├── firestore.rules
+    ├── database.rules.json
+    └── package.json
 ```
 
-**Gate:** Emulators running, can read/write test data locally.
+**Gate:** Emulators running from `collabcanvas/`, can read/write test data locally.
 
 ---
 
@@ -955,7 +966,12 @@ const handleMouseUp = async () => {
 
 ### Local Development with Emulators
 
+**⚠️ All commands run from `collabcanvas/` directory:**
+
 ```bash
+# Change to app directory first
+cd collabcanvas
+
 # Terminal 1: Start Firebase Emulators
 firebase emulators:start
 
@@ -963,6 +979,7 @@ firebase emulators:start
 npm run dev
 
 # Emulator UI available at: http://localhost:4000
+# React app available at: http://localhost:5173
 ```
 
 **Benefits:**
@@ -990,7 +1007,12 @@ npm run dev
 
 ### Deployment Workflow
 
+**⚠️ All commands run from `collabcanvas/` directory:**
+
 ```bash
+# Change to app directory first
+cd collabcanvas
+
 # 1. Build production bundle
 npm run build
 
@@ -1153,17 +1175,19 @@ vercel --prod
 
 ### Setup Checklist
 
+**⚠️ Remember:** All npm/firebase commands run from `collabcanvas/` directory
+
 - [ ] Firebase project created
 - [ ] Email/Password auth enabled in Firebase Console
 - [ ] (Optional) Google Sign-In enabled
 - [ ] Firestore database created
 - [ ] Realtime Database created
-- [ ] Firebase CLI installed: `npm install -g firebase-tools`
-- [ ] Firebase emulators initialized: `firebase init emulators`
-- [ ] React + Vite project scaffolded
-- [ ] Firebase SDK installed: `npm install firebase`
-- [ ] Konva installed: `npm install konva react-konva`
-- [ ] Additional libraries: `npm install lodash react-hot-toast`
+- [ ] Firebase CLI installed: `npm install -g firebase-tools` (global, run from anywhere)
+- [ ] Firebase emulators initialized from `collabcanvas/`: `firebase init emulators`
+- [ ] React + Vite project scaffolded in `collabcanvas/`
+- [ ] Firebase SDK installed from `collabcanvas/`: `npm install firebase`
+- [ ] Konva installed from `collabcanvas/`: `npm install konva react-konva`
+- [ ] Additional libraries from `collabcanvas/`: `npm install lodash react-hot-toast`
 - [ ] Vercel account created and linked to GitHub
 
 ### Architecture Checklist

@@ -4,71 +4,78 @@
 
 ## Project File Structure (TS + Service Layer)
 
+**Note:** This app lives in `/collabcanvas` subdirectory within the `gauntlet-01` root project. All commands below should be run from the `collabcanvas/` directory unless otherwise specified.
+
 ```
-collabcanvas/
-├── public/
-│   └── index.html
-├── src/
-│   ├── components/
-│   │   ├── Auth/
-│   │   │   ├── Login.tsx
-│   │   │   ├── Signup.tsx
-│   │   │   └── AuthProvider.tsx
-│   │   ├── Canvas/
-│   │   │   ├── Canvas.tsx
-│   │   │   ├── ColorToolbar.tsx
-│   │   │   └── CursorLayer.tsx
-│   │   ├── Collaboration/
-│   │   │   ├── Cursor.tsx
-│   │   │   ├── PresenceList.tsx
-│   │   │   └── UserPresenceBadge.tsx
-│   │   └── Layout/
-│   │       ├── Navbar.tsx
-│   │       └── AppShell.tsx
-│   ├── contexts/
-│   │   ├── AuthContext.tsx
-│   │   └── CanvasContext.tsx
-│   ├── hooks/
-│   │   ├── useAuth.ts
-│   │   ├── useCanvas.ts
-│   │   ├── useCursors.ts
-│   │   └── usePresence.ts
-│   ├── services/
-│   │   ├── authService.ts
-│   │   ├── canvasService.ts
-│   │   ├── cursorService.ts
-│   │   └── presenceService.ts
-│   ├── utils/
-│   │   ├── constants.ts
-│   │   └── helpers.ts
-│   ├── firebase.ts
-│   ├── App.tsx
-│   ├── main.tsx
-│   └── index.css
-├── tests/
-│   ├── setup.ts
-│   ├── unit/
-│   │   ├── services/
-│   │   │   ├── authService.test.ts
-│   │   │   ├── canvasService.test.ts
-│   │   │   └── presenceCursor.test.ts
-│   │   └── utils/
-│   │       └── helpers.test.ts
-│   └── integration/
-│       ├── auth-flow.test.ts
-│       ├── cursor-presence.test.ts
-│       └── shapes-locking.test.ts
-├── .env
-├── .env.example
-├── .gitignore
-├── package.json
-├── vite.config.ts
-├── tsconfig.json
-├── firebase.json
-├── firestore.rules
-├── database.rules.json
-├── .firebaserc
-└── README.md
+gauntlet-01/                    (root project directory)
+├── prd.md
+├── task.md
+├── architecture.md
+├── package.json                (root level)
+└── collabcanvas/               (React app - YOUR WORKING DIRECTORY)
+    ├── public/
+    │   └── index.html
+    ├── src/
+    │   ├── components/
+    │   │   ├── Auth/
+    │   │   │   ├── Login.tsx
+    │   │   │   ├── Signup.tsx
+    │   │   │   └── AuthProvider.tsx
+    │   │   ├── Canvas/
+    │   │   │   ├── Canvas.tsx
+    │   │   │   ├── ColorToolbar.tsx
+    │   │   │   └── CursorLayer.tsx
+    │   │   ├── Collaboration/
+    │   │   │   ├── Cursor.tsx
+    │   │   │   ├── PresenceList.tsx
+    │   │   │   └── UserPresenceBadge.tsx
+    │   │   └── Layout/
+    │   │       ├── Navbar.tsx
+    │   │       └── AppShell.tsx
+    │   ├── contexts/
+    │   │   ├── AuthContext.tsx
+    │   │   └── CanvasContext.tsx
+    │   ├── hooks/
+    │   │   ├── useAuth.ts
+    │   │   ├── useCanvas.ts
+    │   │   ├── useCursors.ts
+    │   │   └── usePresence.ts
+    │   ├── services/
+    │   │   ├── authService.ts
+    │   │   ├── canvasService.ts
+    │   │   ├── cursorService.ts
+    │   │   └── presenceService.ts
+    │   ├── utils/
+    │   │   ├── constants.ts
+    │   │   └── helpers.ts
+    │   ├── firebase.ts
+    │   ├── App.tsx
+    │   ├── main.tsx
+    │   └── index.css
+    ├── tests/
+    │   ├── setup.ts
+    │   ├── unit/
+    │   │   ├── services/
+    │   │   │   ├── authService.test.ts
+    │   │   │   ├── canvasService.test.ts
+    │   │   │   └── presenceCursor.test.ts
+    │   │   └── utils/
+    │   │       └── helpers.test.ts
+    │   └── integration/
+    │       ├── auth-flow.test.ts
+    │       ├── cursor-presence.test.ts
+    │       └── shapes-locking.test.ts
+    ├── .env
+    ├── .env.example
+    ├── .gitignore
+    ├── package.json
+    ├── vite.config.ts
+    ├── tsconfig.json
+    ├── firebase.json
+    ├── firestore.rules
+    ├── database.rules.json
+    ├── .firebaserc
+    └── README.md
 ```
 
 ---
@@ -78,23 +85,32 @@ collabcanvas/
 **Branch:** `setup/emulators-and-scaffold`
 **Goal:** Local-first dev with Firebase Emulators + Vite React TS scaffold
 
+**⚠️ Working Directory:** All commands in PR #0 and beyond run from `collabcanvas/` unless specified otherwise.
+
 ### Tasks
 
 #### 0.1: Scaffold project (React + Vite + TS)
 
 ```bash
+# Run from gauntlet-01 root (one-time setup)
 npm create vite@latest collabcanvas -- --template react-ts
 ```
 
 Add recommended deps:
 ```bash
+# Run from collabcanvas/ directory
+cd collabcanvas
 npm install firebase konva react-konva lodash react-hot-toast
 ```
 
 #### 0.2: Firebase CLI + Emulators
 
 ```bash
+# Install globally (run from anywhere, one-time)
 npm i -g firebase-tools
+
+# Initialize emulators (run from collabcanvas/)
+cd collabcanvas
 firebase init emulators
 ```
 
@@ -104,7 +120,7 @@ Configure emulators:
 - RTDB: 9000
 - Emulator UI: 4000
 
-Create `firebase.json` with emulator targets & `firestore.rules`, `database.rules.json`
+Create `firebase.json` with emulator targets & `firestore.rules`, `database.rules.json` (all in `collabcanvas/`)
 
 #### 0.3: Firebase init file
 
@@ -120,12 +136,19 @@ Create `src/firebase.ts`:
 
 #### 0.5: README bootstrap
 
-Document local dev instructions (two terminals: emulators + `npm run dev`)
+Document local dev instructions in `collabcanvas/README.md`:
+```bash
+# Terminal 1 (from collabcanvas/)
+firebase emulators:start
+
+# Terminal 2 (from collabcanvas/)
+npm run dev
+```
 
 ### PR Checklist
 
-- [ ] `firebase emulators:start` works; Emulator UI accessible
-- [ ] App boots; `src/firebase.ts` talks to emulators in dev
+- [ ] `firebase emulators:start` works from `collabcanvas/`; Emulator UI accessible at http://localhost:4000
+- [ ] App boots at http://localhost:5173; `src/firebase.ts` talks to emulators in dev
 - [ ] Dummy Firestore/RTDB read/write succeeds
 
 ---

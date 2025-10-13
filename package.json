@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "firebase": "^12.4.0",
+    "konva": "^10.0.2",
+    "lodash": "^4.17.21",
+    "react-hot-toast": "^2.6.0",
+    "react-konva": "^19.0.10"
+  }
+}

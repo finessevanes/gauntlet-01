@@ -35,7 +35,7 @@ npm install --save-dev @types/lodash
 - Single project mode enabled
 
 #### `.firebaserc`
-- Set default project alias: `collabcanvas-demo`
+- Set default project alias: `collab-canvas-e0bc3`
 
 #### `firestore.rules`
 - Users can only write their own user document

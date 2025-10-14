@@ -26,16 +26,29 @@ npm run dev
 ### 3. Test Shape Creation
 
 1. **Log in** with an existing account
-2. **Select a color** from the toolbar (Red, Blue, Green, or Yellow)
-3. **Click and drag** on the canvas
-4. **See the preview** with dashed border
-5. **Release** to create the shape
+2. **Switch to Draw Mode:** Click the "✏️ Draw" button in the toolbar
+3. **Select a color** from the color picker (Red, Blue, Green, or Yellow)
+4. **Click and drag** on the canvas
+5. **See the preview** with dashed border
+6. **Release** to create the shape
+
+### 4. Test Panning
+
+1. **Switch to Pan Mode:** Click the "✋ Pan" button in the toolbar
+2. **Click and drag** on the canvas to move around
+3. **Use mouse wheel** to zoom in/out
 
 ---
 
 ## ✨ What's New in PR #4
 
 ### Core Features
+
+- ✅ **Mode toggle: Pan vs Draw**
+  - ✋ Pan mode (default): Click and drag to move canvas
+  - ✏️ Draw mode: Click and drag to create rectangles
+  - Clear visual cursor feedback (grab vs crosshair)
+  - Color picker only shows in Draw mode
 
 - ✅ **Click-and-drag rectangle creation**
   - Visual preview while dragging
@@ -51,7 +64,7 @@ npm run dev
   
 - ✅ **Works with zoom/pan**
   - Correct coordinate transformation
-  - Drawing disables stage panning
+  - No conflicts between panning and drawing
 
 ### Technical Implementation
 
@@ -60,36 +73,48 @@ npm run dev
 - `src/hooks/useCanvas.ts` - Convenience hook
 
 **Modified Files:**
-- `src/contexts/CanvasContext.tsx` - Shape state management
+- `src/contexts/CanvasContext.tsx` - Shape state + mode toggle
 - `src/components/Canvas/Canvas.tsx` - Drawing logic + rendering
+- `src/components/Canvas/ColorToolbar.tsx` - Mode toggle UI
 
 ---
 
 ## 🎯 Quick Test Scenarios
 
-### Test 1: Basic Creation (30 seconds)
-1. Select Blue
-2. Draw a rectangle
-3. ✅ Shape appears solid blue
+### Test 1: Mode Toggle (30 seconds)
+1. Default is Pan mode (✋ highlighted)
+2. Click and drag → canvas pans
+3. Click "Draw" button → cursor changes to crosshair
+4. Click "Pan" button → cursor changes to grab
+5. ✅ Mode toggle works
 
-### Test 2: Multi-Color (1 minute)
-1. Red → draw → red shape
-2. Green → draw → green shape
-3. Yellow → draw → yellow shape
-4. Blue → draw → blue shape
-5. ✅ All 4 colors work
+### Test 2: Basic Shape Creation (30 seconds)
+1. Click "Draw" mode
+2. Select Blue color
+3. Draw a rectangle
+4. ✅ Shape appears solid blue
 
-### Test 3: Multi-User Sync (2 minutes)
+### Test 3: Multi-Color (1 minute)
+1. Stay in Draw mode
+2. Red → draw → red shape
+3. Green → draw → green shape
+4. Yellow → draw → yellow shape
+5. Blue → draw → blue shape
+6. ✅ All 4 colors work
+
+### Test 4: Multi-User Sync (2 minutes)
 1. Open **incognito window** → http://localhost:5173
 2. Log in as different user
-3. User A creates red shape → User B sees it
-4. User B creates blue shape → User A sees it
-5. ✅ Real-time sync working
+3. Both users switch to Draw mode
+4. User A creates red shape → User B sees it
+5. User B creates blue shape → User A sees it
+6. ✅ Real-time sync working
 
-### Test 4: Persistence (30 seconds)
-1. Create 3 shapes
-2. Refresh page (Cmd+R)
-3. ✅ All shapes still there
+### Test 5: Persistence (30 seconds)
+1. Switch to Draw mode
+2. Create 3 shapes
+3. Refresh page (Cmd+R)
+4. ✅ All shapes still there
 
 ---
 
@@ -97,9 +122,10 @@ npm run dev
 
 ### In the Browser
 - **Navbar:** Shows your username + color dot
-- **Toolbar:** 4 color buttons below navbar
+- **Toolbar:** Mode toggle (Pan/Draw) + color picker (when in Draw mode)
 - **Canvas:** White 5000×5000 area with grid
 - **Shapes:** Rectangles with black borders
+- **Cursor:** Changes based on mode (grab/grabbing in Pan, crosshair in Draw)
 
 ### In Firestore Emulator UI
 1. Open http://localhost:4000
@@ -124,9 +150,14 @@ npm run dev
 - ✅ Check Firestore emulator UI for documents
 
 ### Preview not showing?
+- ✅ Make sure you're in **Draw mode** (✏️ button highlighted)
 - ✅ Make sure you're clicking on background (not on a shape)
 - ✅ Try zooming in if canvas is very small on screen
-- ✅ Check selectedColor is set (toolbar button highlighted)
+- ✅ Check selectedColor is set (color button highlighted)
+
+### Can't pan the canvas?
+- ✅ Make sure you're in **Pan mode** (✋ button highlighted)
+- ✅ Click the "Pan" button in the toolbar to switch modes
 
 ### Multi-user sync not working?
 - ✅ Make sure both windows logged in as **different users**
@@ -162,11 +193,13 @@ npm run build
 ## 🎉 Success!
 
 If you can:
-1. ✅ Create shapes by dragging
-2. ✅ See preview while dragging
-3. ✅ Switch between 4 colors
-4. ✅ Open 2 windows and see shapes sync
-5. ✅ Refresh and shapes persist
+1. ✅ Toggle between Pan and Draw modes
+2. ✅ See correct cursor for each mode
+3. ✅ Create shapes by dragging in Draw mode
+4. ✅ Pan canvas in Pan mode
+5. ✅ Switch between 4 colors
+6. ✅ Open 2 windows and see shapes sync
+7. ✅ Refresh and shapes persist
 
 **Then PR #4 is working perfectly! 🎊**
 

@@ -14,6 +14,39 @@ Implemented rectangle creation via click-and-drag with live preview and real-tim
 
 ## Features Implemented
 
+### ✅ 4.0: Mode Toggle System
+**Files:** `src/contexts/CanvasContext.tsx`, `src/components/Canvas/ColorToolbar.tsx`, `src/components/Canvas/Canvas.tsx`
+
+Implemented a toggle between Pan and Draw modes to eliminate conflicts between panning and drawing:
+
+**Pan Mode (Default):**
+- Click and drag to move the canvas
+- Stage is draggable
+- Cursor shows: `grab` (ready) → `grabbing` (during drag)
+- Color picker hidden
+
+**Draw Mode:**
+- Click and drag to create rectangles
+- Stage dragging disabled
+- Cursor shows: `crosshair`
+- Color picker visible
+
+**Context State:**
+- `isDrawMode: boolean` - Current mode state
+- `setIsDrawMode(mode)` - Toggle between modes
+
+**UI Implementation:**
+- Two prominent buttons in toolbar: "✋ Pan" and "✏️ Draw"
+- Active mode highlighted with blue border
+- Color picker conditionally rendered in Draw mode only
+- Visual cursor feedback for each mode
+
+**Benefits:**
+- Clear separation of concerns
+- No accidental mode conflicts
+- Intuitive user experience
+- Better discoverability than modifier keys
+
 ### ✅ 4.1: Data Model
 - Firestore collection: `canvases/main/shapes/{shapeId}`
 - Shape document fields:
@@ -49,6 +82,7 @@ Implemented methods:
 Implemented event handlers:
 
 **`handleMouseDown`:**
+- Only activates in Draw mode (`if (!isDrawMode) return`)
 - Detects click on canvas background (not on existing shapes)
 - Records start position in canvas coordinates
 - Accounts for zoom and pan transformations
@@ -67,9 +101,11 @@ Implemented event handlers:
 - Ignores tiny accidental clicks
 
 **Key Behaviors:**
-- Stage dragging disabled while drawing (`draggable={!isDrawing}`)
+- Stage dragging controlled by mode (`draggable={!isDrawMode}`)
+- Only draggable in Pan mode, disabled in Draw mode
 - Coordinate transformation accounts for zoom/pan
 - Preview updates in real-time during drag
+- Mouse leave resets drawing state to prevent stuck states
 
 ### ✅ 4.4: Shape Rendering
 **File:** `src/components/Canvas/Canvas.tsx`
@@ -117,6 +153,8 @@ Implemented event handlers:
 **File:** `src/contexts/CanvasContext.tsx`
 
 Extended `CanvasContext` with:
+- `isDrawMode: boolean` - Current mode (Pan vs Draw)
+- `setIsDrawMode()` - Toggle between modes
 - `shapes: ShapeData[]` - Array of all shapes
 - `createShape()` - Wrapper for service method
 - `updateShape()` - Wrapper for service method
@@ -190,11 +228,15 @@ if (previewRect.width < MIN_SHAPE_SIZE || previewRect.height < MIN_SHAPE_SIZE) {
 
 `MIN_SHAPE_SIZE = 10` pixels (from `constants.ts`)
 
-### Stage Dragging vs Drawing
-To prevent conflicts:
-- Stage `draggable` prop set to `!isDrawing`
-- While drawing, stage cannot be panned
-- After mouseup, stage dragging re-enabled
+### Mode Toggle: Pan vs Draw
+To prevent conflicts between panning and drawing:
+- Stage `draggable` prop set to `!isDrawMode`
+- **Pan mode:** Stage draggable, drawing disabled
+- **Draw mode:** Stage locked, drawing enabled
+- Visual cursor feedback:
+  - Pan mode: `grab` → `grabbing` (during drag)
+  - Draw mode: `crosshair`
+- Clear UI toggle buttons in toolbar
 
 ---
 
@@ -229,26 +271,32 @@ npm run dev
 
 1. Open http://localhost:5173
 2. Log in with existing account
-3. Select a color from toolbar (Red, Blue, Green, Yellow)
-4. Click and drag on canvas → should see dashed preview
-5. Release → shape appears solid
-6. Refresh page → shapes persist
+3. **Switch to Draw mode** by clicking "✏️ Draw" button
+4. Select a color from picker (Red, Blue, Green, Yellow)
+5. Click and drag on canvas → should see dashed preview
+6. Release → shape appears solid
+7. **Switch to Pan mode** by clicking "✋ Pan" button
+8. Click and drag → canvas pans
+9. Refresh page → shapes persist
 
 ### 3. Test Multi-User Sync
 
 1. Open 2 browser windows (normal + incognito)
 2. Log in as different users in each
-3. User A creates a shape
-4. User B should see it appear within <100ms
-5. Try creating shapes simultaneously
-6. All shapes persist across refreshes
+3. Both users switch to Draw mode
+4. User A creates a shape
+5. User B should see it appear within <100ms
+6. Try creating shapes simultaneously
+7. All shapes persist across refreshes
 
 ### 4. Test Edge Cases
 
+- **Mode toggle:** Switch between Pan and Draw modes
 - **Tiny shapes:** Click without dragging → no shape created
 - **Negative drags:** Drag left/up → shape creates correctly
 - **Zoomed in/out:** Shapes position correctly regardless of zoom
-- **Panning:** Can still pan canvas when not drawing
+- **Panning:** Works correctly in Pan mode
+- **No conflicts:** Drawing in Draw mode doesn't interfere with Pan mode
 
 ---
 
@@ -260,12 +308,12 @@ npm run dev
 - `PR-4-SUMMARY.md` - This file
 
 ### Modified Files
-- `src/contexts/CanvasContext.tsx` - Added shape management
-- `src/components/Canvas/Canvas.tsx` - Added drawing logic and shape rendering
+- `src/contexts/CanvasContext.tsx` - Added shape management + mode toggle
+- `src/components/Canvas/Canvas.tsx` - Added drawing logic, shape rendering, mode handling
+- `src/components/Canvas/ColorToolbar.tsx` - Added mode toggle buttons
 
 ### Unchanged (Already Correct)
 - `firestore.rules` - Shape security rules already in place
-- `src/components/Canvas/ColorToolbar.tsx` - Already uses CanvasContext
 - `src/utils/constants.ts` - MIN_SHAPE_SIZE already defined
 
 ---

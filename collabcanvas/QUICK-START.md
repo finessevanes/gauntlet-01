@@ -19,23 +19,29 @@ npm run dev
 ```
 - App: http://localhost:5173
 
-## Testing PR #2 Features
+## Testing Current Features
 
 ### 1. Login/Signup
 - Use any email/password (emulators accept any credentials)
 - Example: test@test.com / password123
 
 ### 2. Canvas Controls
-- **Pan:** Click and drag on the canvas
+- **Mode Toggle:** Click "✋ Pan" or "✏️ Draw" buttons in toolbar
+- **Pan Mode (default):** Click and drag to move canvas
+- **Draw Mode:** Click and drag to create rectangles
 - **Zoom:** Scroll wheel up/down
-- **Color Selection:** Click colored buttons in toolbar
+- **Color Selection:** Pick colors in Draw mode
 
 ### 3. What to Look For
 ✅ White canvas with gray grid (5000×5000)
-✅ Blue color selected by default
-✅ Smooth panning when dragging
+✅ Mode toggle buttons visible in toolbar
+✅ Pan mode: Cursor shows grab/grabbing hand
+✅ Draw mode: Cursor shows crosshair, color picker visible
+✅ Smooth panning when dragging in Pan mode
+✅ Shape creation with preview in Draw mode
 ✅ Zoom centered on mouse cursor
 ✅ Info overlay showing zoom % and position
+✅ Real-time sync of shapes across users
 ✅ No lag or stutter
 
 ## Current Feature Status
@@ -45,9 +51,9 @@ npm run dev
 | #0 | Firebase Emulators | ✅ Complete |
 | #1 | Authentication | ✅ Complete |
 | #2 | Canvas + Pan/Zoom + Colors | ✅ Complete |
-| #3 | Cursors + Presence | ⏳ Next |
-| #4 | Shape Creation | ⏳ Planned |
-| #5 | Locking + Drag | ⏳ Planned |
+| #3 | Cursors + Presence | ✅ Complete |
+| #4 | Shape Creation + Mode Toggle | ✅ Complete |
+| #5 | Locking + Drag | ⏳ Next |
 
 ## Browser DevTools Tips
 
@@ -120,23 +126,27 @@ collabcanvas/
 
 ## What's Next?
 
-### PR #3: Real-Time Cursors + Presence
-- See other users' cursors in real-time
-- Online user list
-- Uses Firebase Realtime Database
-- 20-30 FPS cursor updates
+### PR #5: Shape Locking + Drag to Move
+- Lock shapes on first click (5-second timeout)
+- Drag locked shapes to move them
+- Visual indicators (green=me, red=others)
+- Toast notifications for conflicts
+- Uses Firestore transactions
 
 ### Testing with Multiple Users
-1. Open 2+ browser windows
+1. Open 2+ browser windows (normal + incognito)
 2. Login with different accounts
-3. Watch cursors move in real-time
-4. See presence list update
+3. Switch to Draw mode and create shapes
+4. Watch shapes sync in real-time
+5. See cursors move across users
+6. Check presence list for online users
 
 ---
 
 **Need Help?** Check the documentation:
-- `PR-2-SUMMARY.md` - Implementation details
-- `PR-2-TEST-PLAN.md` - Comprehensive testing guide
+- `PR-4-QUICK-START.md` - PR #4 quick start guide
+- `PR-4-SUMMARY.md` - Implementation details
+- `PR-4-TEST-PLAN.md` - Comprehensive testing guide
 - `docs/task.md` - Full task list
 - `docs/prd.md` - Product requirements
 

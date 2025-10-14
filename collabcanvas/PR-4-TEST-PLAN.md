@@ -124,20 +124,30 @@ Wait for:
 
 ---
 
-### Test 6: Drawing vs Panning
+### Test 6: Drawing vs Panning (Mode Toggle)
 
 **Test Steps:**
-1. ✅ **Draw shape:** Click and drag → should draw, not pan
+1. ✅ **Default Pan Mode:** On load, toolbar shows "✋ Pan" button highlighted
+   - Expected: Cursor shows open hand (grab)
+2. ✅ **Test panning:** Click and drag anywhere
+   - Expected: Canvas pans, cursor changes to grabbing hand
+3. ✅ **Switch to Draw Mode:** Click "✏️ Draw" button in toolbar
+   - Expected: Draw button highlighted, color picker appears, cursor shows crosshair
+4. ✅ **Draw shape:** Click and drag
    - Expected: Preview shows, stage doesn't move
-2. ✅ **Release:** Release mouse
-   - Expected: Shape created, can now pan again
-3. ✅ **Pan stage:** Click and drag background (not on shape)
-   - Expected: Stage pans (when not drawing)
+5. ✅ **Verify no pan:** While in Draw mode, canvas should not pan
+6. ✅ **Switch back to Pan Mode:** Click "✋ Pan" button
+   - Expected: Pan button highlighted, color picker hides, cursor shows grab
+7. ✅ **Test panning again:** Click and drag
+   - Expected: Canvas pans normally
 
 **Pass Criteria:**
-- ✅ Drawing disables stage dragging
-- ✅ After drawing, stage dragging re-enabled
-- ✅ No conflict between drawing and panning
+- ✅ Mode toggle buttons work correctly
+- ✅ Pan mode: canvas pans, cursor shows grab/grabbing
+- ✅ Draw mode: shapes create, cursor shows crosshair
+- ✅ Color picker only visible in Draw mode
+- ✅ Clear visual indication of current mode
+- ✅ No conflict between modes
 
 ---
 
@@ -323,10 +333,11 @@ Wait for:
 
 ## Known Issues / Expected Behavior
 
-1. **Stage panning disabled while drawing:** This is intentional to prevent conflicts
-2. **Last-write-wins for concurrent edits:** Simple MVP approach, will be improved in PR #5
-3. **No shape deletion yet:** Out of scope for PR #4
-4. **Basic error handling:** Only console logs for now, toasts coming in PR #5
+1. **Mode toggle required:** Users must switch between Pan and Draw modes - this is intentional UX design
+2. **Default is Pan mode:** Users start in Pan mode and must click "Draw" to create shapes
+3. **Last-write-wins for concurrent edits:** Simple MVP approach, will be improved in PR #5
+4. **No shape deletion yet:** Out of scope for PR #4
+5. **Basic error handling:** Only console logs for now, toasts coming in PR #5
 
 ---
 

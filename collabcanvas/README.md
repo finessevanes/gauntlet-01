@@ -188,8 +188,10 @@ Open multiple browser windows to simulate multiple users:
 3. **Different Browser**: http://localhost:5173 (User C)
 
 Test scenarios:
+- Switch between Pan and Draw modes
 - Create shapes simultaneously
-- Lock same shape within 50ms
+- Watch real-time cursor sync
+- Lock same shape within 50ms (coming in PR #5)
 - Disconnect/reconnect during edits
 - Refresh browser mid-drag
 
@@ -205,10 +207,10 @@ Or use the Emulator UI to clear specific collections.
 ## 🎯 MVP Features (PR #0 - #7)
 
 - ✅ **PR #0**: Tooling & Firebase Emulators Setup
-- ⏳ **PR #1**: Authentication (Email/Password, User Profiles)
-- ⏳ **PR #2**: Canvas Core (Pan/Zoom, Color Toolbar)
-- ⏳ **PR #3**: Cursor Sync + Presence (RTDB)
-- ⏳ **PR #4**: Shape Creation & Sync (Click-and-Drag Rectangles)
+- ✅ **PR #1**: Authentication (Email/Password, User Profiles)
+- ✅ **PR #2**: Canvas Core (Pan/Zoom, Color Toolbar)
+- ✅ **PR #3**: Cursor Sync + Presence (RTDB)
+- ✅ **PR #4**: Shape Creation & Sync (Click-and-Drag Rectangles) + Mode Toggle (Pan vs Draw)
 - ⏳ **PR #5**: Shape Locking + Drag Movement
 - ⏳ **PR #6**: Security Rules, Tests, Polish
 - ⏳ **PR #7**: Deployment (Vercel + Production Testing)

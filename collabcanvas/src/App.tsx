@@ -5,7 +5,6 @@ import Signup from './components/Auth/Signup';
 import AppShell from './components/Layout/AppShell';
 import Canvas from './components/Canvas/Canvas';
 import { CanvasProvider } from './contexts/CanvasContext';
-import { Toaster } from 'react-hot-toast';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 
@@ -36,7 +35,6 @@ function App() {
   return (
     <ErrorBoundary>
       <CanvasProvider>
-        <Toaster />
         <AppShell>
           <Canvas />
         </AppShell>

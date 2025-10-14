@@ -25,7 +25,7 @@ interface CanvasContextType {
   shapes: ShapeData[];
   createShape: (shapeInput: ShapeCreateInput) => Promise<string>;
   updateShape: (shapeId: string, updates: Partial<ShapeData>) => Promise<void>;
-  lockShape: (shapeId: string, userId: string) => Promise<boolean>;
+  lockShape: (shapeId: string, userId: string) => Promise<{ success: boolean; lockedByUsername?: string }>;
   unlockShape: (shapeId: string) => Promise<void>;
   
   // Loading state
@@ -75,7 +75,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.updateShape(shapeId, updates);
   };
 
-  const lockShape = async (shapeId: string, userId: string): Promise<boolean> => {
+  const lockShape = async (shapeId: string, userId: string): Promise<{ success: boolean; lockedByUsername?: string }> => {
     return await canvasService.lockShape(shapeId, userId);
   };
 

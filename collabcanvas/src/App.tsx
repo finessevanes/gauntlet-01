@@ -5,6 +5,7 @@ import Signup from './components/Auth/Signup';
 import AppShell from './components/Layout/AppShell';
 import Canvas from './components/Canvas/Canvas';
 import { CanvasProvider } from './contexts/CanvasContext';
+import { Toaster } from 'react-hot-toast';
 import './App.css';
 
 function App() {
@@ -33,6 +34,7 @@ function App() {
   // If authenticated, show main app with canvas
   return (
     <CanvasProvider>
+      <Toaster />
       <AppShell>
         <Canvas />
       </AppShell>

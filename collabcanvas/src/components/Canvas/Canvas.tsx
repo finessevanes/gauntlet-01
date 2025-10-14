@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react';
-import { Stage, Layer, Rect } from 'react-konva';
+import { useRef, useState, useEffect } from 'react';
+import { Stage, Layer, Rect, Group, Text } from 'react-konva';
 import { useCanvasContext } from '../../contexts/CanvasContext';
 import { useCursors } from '../../hooks/useCursors';
 import { useAuth } from '../../hooks/useAuth';
 import CursorLayer from '../Collaboration/CursorLayer';
+import toast from 'react-hot-toast';
 import { 
   CANVAS_WIDTH, 
   CANVAS_HEIGHT, 
@@ -12,6 +13,7 @@ import {
   MIN_SHAPE_SIZE
 } from '../../utils/constants';
 import type Konva from 'konva';
+import type { ShapeData } from '../../services/canvasService';
 
 export default function Canvas() {
   const { user } = useAuth();
@@ -24,6 +26,9 @@ export default function Canvas() {
     isDrawMode,
     shapes,
     createShape,
+    updateShape,
+    lockShape,
+    unlockShape,
     shapesLoading
   } = useCanvasContext();
   
@@ -40,42 +45,150 @@ export default function Canvas() {
     width: number; 
     height: number 
   } | null>(null);
+
+  // Selection and locking state
+  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
+  const [lockTimeoutId, setLockTimeoutId] = useState<number | null>(null);
   
   // Cursor tracking
   const { cursors, handleMouseMove: handleCursorMove, handleMouseLeave } = useCursors(stageRef);
 
+  // Auto-timeout unlock after 5s of inactivity
+  useEffect(() => {
+    return () => {
+      // Cleanup timeout on unmount
+      if (lockTimeoutId) {
+        clearTimeout(lockTimeoutId);
+      }
+    };
+  }, [lockTimeoutId]);
+
+  // Deselect and unlock when selected shape is deleted/changed externally
+  useEffect(() => {
+    if (selectedShapeId) {
+      const shapeStillExists = shapes.find(s => s.id === selectedShapeId);
+      if (!shapeStillExists) {
+        handleDeselectShape();
+      }
+    }
+  }, [shapes, selectedShapeId]);
+
+  // Helper: Clear any existing lock timeout
+  const clearLockTimeout = () => {
+    if (lockTimeoutId) {
+      clearTimeout(lockTimeoutId);
+      setLockTimeoutId(null);
+    }
+  };
+
+  // Helper: Start auto-unlock timeout (5s)
+  const startLockTimeout = (shapeId: string) => {
+    clearLockTimeout();
+    const timeoutId = setTimeout(async () => {
+      console.log('⏰ Auto-unlocking shape due to 5s timeout:', shapeId);
+      await unlockShape(shapeId);
+      setSelectedShapeId(null);
+    }, 5000);
+    setLockTimeoutId(timeoutId);
+  };
+
+  // Helper: Deselect shape and unlock
+  const handleDeselectShape = async () => {
+    if (selectedShapeId) {
+      console.log('🔓 Deselecting and unlocking shape:', selectedShapeId);
+      await unlockShape(selectedShapeId);
+      setSelectedShapeId(null);
+      clearLockTimeout();
+    }
+  };
+
+  // Helper: Handle shape click (attempt to lock)
+  const handleShapeClick = async (shapeId: string) => {
+    if (!user) return;
+
+    // If clicking on already selected shape, do nothing
+    if (selectedShapeId === shapeId) {
+      // Refresh the lock timeout
+      clearLockTimeout();
+      startLockTimeout(shapeId);
+      return;
+    }
+
+    // Deselect current shape first
+    if (selectedShapeId) {
+      await handleDeselectShape();
+    }
+
+    // Attempt to lock the clicked shape
+    const result = await lockShape(shapeId, user.uid);
+    
+    if (result.success) {
+      console.log('✅ Successfully locked shape:', shapeId);
+      setSelectedShapeId(shapeId);
+      startLockTimeout(shapeId);
+    } else {
+      // Show toast notification with username
+      const username = result.lockedByUsername || 'another user';
+      toast.error(`Shape locked by ${username}`, {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  // Helper: Get lock status for a shape
+  const getShapeLockStatus = (shape: ShapeData): 'locked-by-me' | 'locked-by-other' | 'unlocked' => {
+    if (!user) return 'unlocked';
+    
+    if (shape.lockedBy === user.uid) {
+      return 'locked-by-me';
+    } else if (shape.lockedBy && shape.lockedAt) {
+      // Check if lock is still valid (< 5s)
+      const lockAge = Date.now() - shape.lockedAt.toMillis();
+      if (lockAge < 5000) {
+        return 'locked-by-other';
+      }
+    }
+    
+    return 'unlocked';
+  };
+
   // Drawing handlers: Click-and-drag to create rectangles
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    // Only allow drawing if in draw mode
-    if (!isDrawMode) return;
-
     const stage = stageRef.current;
     if (!stage) return;
 
-    // Only start drawing if clicking on the background (not on a shape)
-    // Check if we clicked on the Stage, Layer, or background rect (has name 'background')
+    // Check if we clicked on the background
     const clickedOnBackground = 
       e.target === stage || 
       e.target.getType() === 'Layer' ||
       e.target.name() === 'background' ||
       e.target.name() === 'grid';
 
-    if (!clickedOnBackground) return;
+    if (clickedOnBackground) {
+      // Deselect any selected shape when clicking on background
+      if (selectedShapeId) {
+        handleDeselectShape();
+      }
 
-    const pointerPosition = stage.getPointerPosition();
-    if (!pointerPosition) return;
+      // Only start drawing if in draw mode
+      if (!isDrawMode) return;
 
-    // Convert screen coordinates to canvas coordinates
-    let x = (pointerPosition.x - stage.x()) / stage.scaleX();
-    let y = (pointerPosition.y - stage.y()) / stage.scaleY();
+      const pointerPosition = stage.getPointerPosition();
+      if (!pointerPosition) return;
 
-    // Clamp starting position to canvas bounds
-    x = Math.max(0, Math.min(CANVAS_WIDTH, x));
-    y = Math.max(0, Math.min(CANVAS_HEIGHT, y));
+      // Convert screen coordinates to canvas coordinates
+      let x = (pointerPosition.x - stage.x()) / stage.scaleX();
+      let y = (pointerPosition.y - stage.y()) / stage.scaleY();
 
-    setIsDrawing(true);
-    setDrawStart({ x, y });
-    setPreviewRect(null);
+      // Clamp starting position to canvas bounds
+      x = Math.max(0, Math.min(CANVAS_WIDTH, x));
+      y = Math.max(0, Math.min(CANVAS_HEIGHT, y));
+
+      setIsDrawing(true);
+      setDrawStart({ x, y });
+      setPreviewRect(null);
+    }
   };
 
   const handleMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -161,6 +274,45 @@ export default function Canvas() {
     setIsDrawing(false);
     setDrawStart(null);
     setPreviewRect(null);
+  };
+
+  // Shape drag handlers
+  const handleShapeDragStart = (e: Konva.KonvaEventObject<DragEvent>, shapeId: string) => {
+    e.cancelBubble = true; // Prevent stage from also receiving drag events
+    console.log('🎯 Shape drag started:', shapeId);
+    // Refresh lock timeout when dragging starts
+    clearLockTimeout();
+  };
+
+  const handleShapeDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+    e.cancelBubble = true; // Prevent stage from also receiving drag events
+    // Refresh lock timeout during drag
+    clearLockTimeout();
+    
+    // Optional: Could add real-time position updates here for smoother sync
+    // But for MVP, we'll just update on drag end
+  };
+
+  const handleShapeDragEnd = async (e: Konva.KonvaEventObject<DragEvent>, shapeId: string) => {
+    e.cancelBubble = true; // Prevent stage from also receiving drag events
+    const node = e.target;
+    const newX = node.x();
+    const newY = node.y();
+
+    console.log('🎯 Shape drag ended:', shapeId, 'New position:', newX, newY);
+
+    // Update shape position in Firestore
+    try {
+      await updateShape(shapeId, { x: newX, y: newY });
+      console.log('✅ Shape position updated in Firestore');
+    } catch (error) {
+      console.error('❌ Failed to update shape position:', error);
+    }
+
+    // Unlock the shape after drag
+    await unlockShape(shapeId);
+    setSelectedShapeId(null);
+    clearLockTimeout();
   };
 
   // Handle mouse leaving canvas - reset drawing state to prevent stuck dragging
@@ -298,18 +450,80 @@ export default function Canvas() {
           ))}
 
           {/* Render all shapes from Firestore */}
-          {!shapesLoading && shapes.map((shape) => (
-            <Rect
-              key={shape.id}
-              x={shape.x}
-              y={shape.y}
-              width={shape.width}
-              height={shape.height}
-              fill={shape.color}
-              stroke="#000000"
-              strokeWidth={1}
-            />
-          ))}
+          {!shapesLoading && shapes.map((shape) => {
+            const lockStatus = getShapeLockStatus(shape);
+            const isLockedByMe = lockStatus === 'locked-by-me';
+            const isLockedByOther = lockStatus === 'locked-by-other';
+            const isSelected = selectedShapeId === shape.id;
+
+            return (
+              <Group 
+                key={shape.id} 
+                x={shape.x} 
+                y={shape.y}
+                draggable={isLockedByMe}
+                onDragStart={(e) => handleShapeDragStart(e, shape.id)}
+                onDragMove={(e) => handleShapeDragMove(e)}
+                onDragEnd={(e) => handleShapeDragEnd(e, shape.id)}
+              >
+                {/* Main shape */}
+                <Rect
+                  width={shape.width}
+                  height={shape.height}
+                  fill={shape.color}
+                  opacity={isLockedByOther ? 0.5 : 1}
+                  stroke={isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
+                  strokeWidth={isLockedByMe || isLockedByOther ? 3 : 1}
+                  onClick={() => handleShapeClick(shape.id)}
+                  onTap={() => handleShapeClick(shape.id)}
+                />
+
+                {/* Lock icon for shapes locked by others */}
+                {isLockedByOther && (
+                  <Group x={shape.width / 2 - 15} y={shape.height / 2 - 15}>
+                    {/* Lock icon background */}
+                    <Rect
+                      width={30}
+                      height={30}
+                      fill="rgba(239, 68, 68, 0.9)"
+                      cornerRadius={4}
+                    />
+                    {/* Lock icon text (🔒) */}
+                    <Text
+                      text="🔒"
+                      fontSize={20}
+                      x={5}
+                      y={3}
+                      listening={false}
+                    />
+                  </Group>
+                )}
+
+                {/* Selected indicator for locked-by-me shapes */}
+                {isSelected && isLockedByMe && (
+                  <Group>
+                    {/* Corner resize handles (visual only for MVP) */}
+                    {[
+                      { x: -4, y: -4 },
+                      { x: shape.width - 4, y: -4 },
+                      { x: -4, y: shape.height - 4 },
+                      { x: shape.width - 4, y: shape.height - 4 },
+                    ].map((pos, i) => (
+                      <Rect
+                        key={i}
+                        x={pos.x}
+                        y={pos.y}
+                        width={8}
+                        height={8}
+                        fill="#10b981"
+                        listening={false}
+                      />
+                    ))}
+                  </Group>
+                )}
+              </Group>
+            );
+          })}
 
           {/* Preview rectangle while drawing */}
           {previewRect && (

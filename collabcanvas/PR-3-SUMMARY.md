@@ -42,6 +42,7 @@ This PR implements real-time cursor tracking and user presence awareness using F
   - Tracks mouse position on canvas
   - Throttles updates to 33ms (~30 FPS) using lodash
   - Converts screen coordinates to canvas coordinates
+  - **Enforces 5000×5000 canvas bounds** - cursors only within white canvas area
   - Filters out own cursor from display
   - Auto-cleanup on unmount
 - **Returns:** `{ cursors, handleMouseMove, handleMouseLeave }`
@@ -131,10 +132,12 @@ This PR implements real-time cursor tracking and user presence awareness using F
 - **Why:** Balance between smoothness and network efficiency
 - **Result:** Smooth cursor movement without overwhelming RTDB
 
-### Coordinate Transformation
+### Coordinate Transformation & Bounds Checking
 - Mouse position captured in screen coordinates
 - Transformed to canvas coordinates using Konva's transform matrix
 - Accounts for pan (translation) and zoom (scale)
+- **Bounds enforcement:** Cursors only rendered within 5000×5000 canvas area
+- Cursors removed when mouse moves to gray background (outside bounds)
 - Ensures cursors appear at correct positions regardless of viewport
 
 ---
@@ -142,10 +145,12 @@ This PR implements real-time cursor tracking and user presence awareness using F
 ## ✅ PR Checklist Results
 
 - ✅ Two browsers show each other's cursors within <50ms
+- ✅ Cursors only visible within 5000×5000 canvas bounds
+- ✅ Cursors NOT visible in gray background area
 - ✅ Presence list updates immediately on join/leave
 - ✅ Smooth cursor motion, no jank with 5 users
 - ✅ Auto-disconnect cleanup works via RTDB `onDisconnect()`
-- ✅ Cursors disappear when mouse leaves canvas
+- ✅ Cursors disappear when mouse leaves canvas bounds
 - ✅ Cursor colors match user's assigned color
 - ✅ Username labels rendered next to cursors
 - ✅ No linter errors

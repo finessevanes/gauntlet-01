@@ -72,9 +72,11 @@ npm run dev
 - ✅ Smooth movement (30 FPS)
 - ✅ Latency <50ms
 
-### 2. Cursor Appearance/Disappearance
-- ✅ Move mouse off canvas → cursor disappears
-- ✅ Move mouse back on canvas → cursor reappears
+### 2. Cursor Appearance/Disappearance (Canvas Bounds)
+- ✅ Move mouse in white canvas area (5000×5000) → cursor visible
+- ✅ Move mouse to gray background → cursor disappears
+- ✅ Move mouse back to white canvas → cursor reappears
+- ✅ Cursors ONLY show within canvas bounds
 
 ### 3. Pan & Zoom
 - ✅ Drag canvas to pan

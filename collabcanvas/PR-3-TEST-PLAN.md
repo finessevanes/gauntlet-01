@@ -34,18 +34,22 @@
 
 ### Test 2: Cursor Appearance/Disappearance ✅
 
-**Objective:** Verify cursors show/hide correctly
+**Objective:** Verify cursors show/hide correctly within canvas bounds
 
 **Steps:**
 1. With two users connected (from Test 1)
-2. In Browser A, move mouse over canvas
-3. Move mouse off canvas
-4. Move mouse back on canvas
+2. In Browser A, move mouse over the white 5000×5000 canvas area
+3. Move mouse into the gray background area (outside canvas bounds)
+4. Move mouse back into the white canvas area
+5. Move mouse completely off the browser window
 
 **Expected Results:**
-- ✅ Cursor appears when mouse enters canvas
-- ✅ Cursor disappears when mouse leaves canvas
+- ✅ Cursor appears when mouse enters canvas bounds (5000×5000 white area)
+- ✅ Cursor disappears when mouse moves to gray background (outside bounds)
+- ✅ Cursor reappears when mouse returns to white canvas area
+- ✅ Cursor disappears when mouse leaves browser window entirely
 - ✅ Other user sees these changes in real-time
+- ✅ Cursors are NEVER visible in gray background area
 
 ---
 

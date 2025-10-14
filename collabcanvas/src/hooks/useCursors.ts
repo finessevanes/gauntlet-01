@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { throttle } from 'lodash';
 import { cursorService, type CursorsMap } from '../services/cursorService';
 import { useAuth } from './useAuth';
-import { CURSOR_UPDATE_INTERVAL } from '../utils/constants';
+import { CURSOR_UPDATE_INTERVAL, CANVAS_WIDTH, CANVAS_HEIGHT } from '../utils/constants';
 
 export function useCursors(stageRef: React.RefObject<any>) {
   const { user, userProfile } = useAuth();
@@ -63,7 +63,19 @@ export function useCursors(stageRef: React.RefObject<any>) {
       transform.invert();
       const canvasPos = transform.point(pointerPosition);
 
-      // Update cursor position via throttled function
+      // Check if cursor is within canvas bounds (5000×5000)
+      if (
+        canvasPos.x < 0 || 
+        canvasPos.x > CANVAS_WIDTH || 
+        canvasPos.y < 0 || 
+        canvasPos.y > CANVAS_HEIGHT
+      ) {
+        // Outside canvas bounds - remove cursor
+        cursorService.removeCursor(user.uid);
+        return;
+      }
+
+      // Inside canvas bounds - update cursor position via throttled function
       throttledUpdateRef.current(canvasPos.x, canvasPos.y);
     },
     [user, userProfile, stageRef]

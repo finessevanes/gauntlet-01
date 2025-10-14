@@ -98,6 +98,8 @@ All tasks from PR #3 specification have been implemented and tested.
 
 ### Required Features
 - ✅ Two browsers show each other's cursors within <50ms
+- ✅ Cursors only visible within 5000×5000 canvas bounds
+- ✅ Cursors NOT visible in gray background area
 - ✅ Presence list updates immediately on join/leave
 - ✅ Smooth cursor motion, no jank with 5 users
 - ✅ Auto-disconnect cleanup via RTDB onDisconnect()

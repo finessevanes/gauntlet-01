@@ -266,7 +266,7 @@ Layout with Navbar, presence area placeholder, Canvas area
 
 #### 3.3: Hooks + UI
 
-- `useCursors`: track mouse over canvas, throttle 33–50ms with lodash.throttle, convert to canvas coords
+- `useCursors`: track mouse over canvas, throttle 33–50ms with lodash.throttle, convert to canvas coords, enforce 5000×5000 bounds
 - `CursorLayer` renders all other users' cursors with name labels
 - `usePresence` + `PresenceList.tsx` shows online users; color dots match cursor color
 
@@ -278,6 +278,7 @@ Layout with Navbar, presence area placeholder, Canvas area
 ### PR Checklist
 
 - [ ] Two browsers show each other's cursors within <50ms
+- [ ] Cursors only visible within 5000×5000 canvas bounds
 - [ ] Presence list updates immediately on join/leave
 - [ ] Smooth cursor motion, no jank with 5 users
 

@@ -1,6 +1,8 @@
 import { useRef } from 'react';
 import { Stage, Layer, Rect } from 'react-konva';
 import { useCanvasContext } from '../../contexts/CanvasContext';
+import { useCursors } from '../../hooks/useCursors';
+import CursorLayer from '../Collaboration/CursorLayer';
 import { 
   CANVAS_WIDTH, 
   CANVAS_HEIGHT, 
@@ -19,6 +21,9 @@ export default function Canvas() {
   
   const stageRef = useRef<Konva.Stage>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Cursor tracking
+  const { cursors, handleMouseMove, handleMouseLeave } = useCursors(stageRef);
 
   // Handle wheel zoom (cursor-centered)
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
@@ -74,6 +79,8 @@ export default function Canvas() {
         draggable
         onWheel={handleWheel}
         onDragEnd={handleDragEnd}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
         scaleX={stageScale}
         scaleY={stageScale}
         x={stagePosition.x}
@@ -113,6 +120,9 @@ export default function Canvas() {
             />
           ))}
         </Layer>
+        
+        {/* Cursor Layer - render other users' cursors */}
+        <CursorLayer cursors={cursors} />
       </Stage>
       
       {/* Canvas info overlay */}

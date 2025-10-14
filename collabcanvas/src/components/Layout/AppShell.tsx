@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import Navbar from './Navbar';
 import ColorToolbar from '../Canvas/ColorToolbar';
 import PresenceList from '../Collaboration/PresenceList';

@@ -48,7 +48,7 @@ export function useCursors(stageRef: React.RefObject<any>) {
 
   // Handle mouse move on canvas
   const handleMouseMove = useCallback(
-    (e: any) => {
+    (_e: any) => {
       if (!user || !userProfile || !stageRef.current || !throttledUpdateRef.current) {
         return;
       }

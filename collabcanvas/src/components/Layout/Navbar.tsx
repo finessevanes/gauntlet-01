@@ -18,15 +18,17 @@ export default function Navbar() {
       <div style={styles.container}>
         <div style={styles.leftSection}>
           <h1 style={styles.logo}>CollabCanvas</h1>
-          <div style={styles.userBadge}>
-            <div
-              style={{
-                ...styles.colorDot,
-                backgroundColor: userProfile.cursorColor,
-              }}
-            />
-            <span style={styles.username}>{userProfile.username}</span>
-          </div>
+          {userProfile && (
+            <div style={styles.userBadge}>
+              <div
+                style={{
+                  ...styles.colorDot,
+                  backgroundColor: userProfile.cursorColor,
+                }}
+              />
+              <span style={styles.username}>{userProfile.username}</span>
+            </div>
+          )}
         </div>
 
         <button onClick={handleLogout} style={styles.logoutButton}>

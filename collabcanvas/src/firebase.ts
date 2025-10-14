@@ -49,8 +49,9 @@ const database = getDatabase(app);
 
 // Connect to emulators in development mode
 const isDevelopment = import.meta.env.MODE === 'development';
+const useEmulators = import.meta.env.VITE_USE_EMULATORS === 'true';
 
-if (isDevelopment) {
+if (isDevelopment && useEmulators) {
   console.log('🔧 Running in development mode - connecting to Firebase Emulators');
   
   // Connect Auth Emulator

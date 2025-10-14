@@ -102,13 +102,12 @@ export default function Canvas() {
     }
   };
 
-  // Helper: Handle shape click (attempt to lock)
-  const handleShapeClick = async (shapeId: string) => {
+  // Helper: Handle shape mousedown (lock BEFORE drag starts - fixes production latency race)
+  const handleShapeMouseDown = async (shapeId: string) => {
     if (!user) return;
 
-    // If clicking on already selected shape, do nothing
+    // If clicking on already selected shape, refresh timeout
     if (selectedShapeId === shapeId) {
-      // Refresh the lock timeout
       clearLockTimeout();
       startLockTimeout(shapeId);
       return;
@@ -119,7 +118,8 @@ export default function Canvas() {
       await handleDeselectShape();
     }
 
-    // Attempt to lock the clicked shape
+    // Attempt to lock the shape (fires BEFORE drag gesture starts)
+    // This gives lock time to complete during natural mousedown→drag pause (~100-300ms)
     const result = await lockShape(shapeId, user.uid);
     
     if (result.success) {
@@ -462,6 +462,8 @@ export default function Canvas() {
                 x={shape.x} 
                 y={shape.y}
                 draggable={isLockedByMe}
+                onMouseDown={() => handleShapeMouseDown(shape.id)}
+                onTouchStart={() => handleShapeMouseDown(shape.id)}
                 onDragStart={(e) => handleShapeDragStart(e, shape.id)}
                 onDragMove={(e) => handleShapeDragMove(e)}
                 onDragEnd={(e) => handleShapeDragEnd(e, shape.id)}
@@ -474,8 +476,6 @@ export default function Canvas() {
                   opacity={isLockedByOther ? 0.5 : 1}
                   stroke={isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
                   strokeWidth={isLockedByMe || isLockedByOther ? 3 : 1}
-                  onClick={() => handleShapeClick(shape.id)}
-                  onTap={() => handleShapeClick(shape.id)}
                 />
 
                 {/* Lock icon for shapes locked by others */}

@@ -36,8 +36,8 @@ class AuthService {
       );
       const user = userCredential.user;
 
-      // Generate random cursor color
-      const cursorColor = generateUserColor();
+      // Generate cursor color (attempts to avoid duplicates)
+      const cursorColor = await generateUserColor();
 
       // Create user profile in Firestore
       const userProfile: UserProfile = {

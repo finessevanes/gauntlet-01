@@ -229,7 +229,8 @@ PR_BODY_FILE=$(mktemp)
     
     # If we have doc files, extract key sections
     if [ ${#DOC_FILES[@]} -gt 0 ]; then
-        print_step "Extracting content from documentation files..."
+        # Note: Extracting content from documentation files (print to stderr to avoid PR body)
+        >&2 echo -e "${GREEN}▶${NC} Extracting content from documentation files..."
         
         # Read the summary file
         SUMMARY_FILE="${DOC_FILES[0]}"
@@ -258,7 +259,8 @@ PR_BODY_FILE=$(mktemp)
         fi
         
     else
-        print_warning "No documentation files, using commit messages..."
+        # Note: Using commits (print to stderr to avoid PR body)
+        >&2 echo -e "${YELLOW}⚠${NC} No documentation files found, using commit messages..."
         echo "This PR includes the following changes:"
         echo ""
         git log --oneline ${BASE_BRANCH}..${CURRENT_BRANCH} 2>/dev/null | sed 's/^/- /'

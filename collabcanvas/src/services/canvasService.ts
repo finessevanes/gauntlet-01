@@ -70,7 +70,6 @@ class CanvasService {
       const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
       await setDoc(shapeRef, shapeData);
 
-      console.log('✅ Shape created:', shapeId);
       return shapeId;
     } catch (error) {
       console.error('❌ Error creating shape:', error);
@@ -88,8 +87,6 @@ class CanvasService {
         ...updates,
         updatedAt: serverTimestamp(),
       });
-
-      console.log('✅ Shape updated:', shapeId);
     } catch (error) {
       console.error('❌ Error updating shape:', error);
       throw error;
@@ -122,7 +119,7 @@ class CanvasService {
 
         // If lock is still fresh (< 5s), deny the lock
         if (lockAge < LOCK_TIMEOUT_MS) {
-          console.log(`🔒 Shape ${shapeId} is locked by ${shapeData.lockedBy} (${lockAge}ms ago)`);
+          console.log(`🔒 Shape locked by another user (${lockAge}ms ago)`);
           
           // Get the username of who has it locked
           const usersRef = collection(firestore, 'users');
@@ -132,7 +129,7 @@ class CanvasService {
           
           return { success: false, lockedByUsername };
         } else {
-          console.log(`⏰ Lock timeout (${lockAge}ms), stealing lock from ${shapeData.lockedBy}`);
+          console.log(`⏰ Lock expired (${lockAge}ms), acquiring lock`);
         }
       }
 
@@ -143,7 +140,6 @@ class CanvasService {
         updatedAt: serverTimestamp(),
       });
 
-      console.log('🔒 Shape locked:', shapeId, 'by:', userId);
       return { success: true };
     } catch (error) {
       console.error('❌ Error locking shape:', error);
@@ -162,8 +158,6 @@ class CanvasService {
         lockedAt: null,
         updatedAt: serverTimestamp(),
       });
-
-      console.log('🔓 Shape unlocked:', shapeId);
     } catch (error) {
       console.error('❌ Error unlocking shape:', error);
       throw error;
@@ -190,7 +184,6 @@ class CanvasService {
             } as ShapeData);
           });
 
-          console.log(`📊 Received ${shapes.length} shape(s) from Firestore`);
           callback(shapes);
         },
         (error) => {
@@ -223,7 +216,6 @@ class CanvasService {
         } as ShapeData);
       });
 
-      console.log(`📊 Fetched ${shapes.length} shape(s)`);
       return shapes;
     } catch (error) {
       console.error('❌ Error fetching shapes:', error);
@@ -246,7 +238,7 @@ class CanvasService {
       
       await Promise.all(deletePromises);
       
-      console.log(`💣 Deleted ${snapshot.docs.length} shape(s)`);
+      console.log(`💣 Bomb: Deleted ${snapshot.docs.length} shape(s)`);
     } catch (error) {
       console.error('❌ Error deleting all shapes:', error);
       throw error;

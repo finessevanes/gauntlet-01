@@ -29,32 +29,33 @@ export default function PasswordRequirements({ password }: PasswordRequirementsP
 
 const styles = {
   container: {
-    marginTop: '0.5rem',
-    padding: '0.75rem',
-    backgroundColor: '#f9fafb',
-    borderRadius: '6px',
-    border: '1px solid #e5e7eb',
+    marginTop: '4px',
+    padding: '8px',
+    backgroundColor: '#e0e0e0',
+    border: 'none',
+    boxShadow: 'inset 1px 1px 2px rgba(0,0,0,0.2)',
   },
   requirement: {
     display: 'flex',
     alignItems: 'center',
-    fontSize: '0.875rem',
-    fontWeight: '500' as const,
-    marginBottom: '0.25rem',
+    fontSize: '11px',
+    fontWeight: '600' as const,
+    marginBottom: '2px',
     transition: 'color 0.2s ease',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
   },
   icon: {
     marginRight: '0.5rem',
-    fontSize: '1rem',
+    fontSize: '12px',
     fontWeight: 'bold' as const,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '1.25rem',
-    height: '1.25rem',
+    width: '1rem',
+    height: '1rem',
   },
   label: {
-    lineHeight: '1.25rem',
+    lineHeight: '1rem',
   },
 };
 

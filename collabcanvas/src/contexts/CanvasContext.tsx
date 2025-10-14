@@ -57,7 +57,6 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    console.log('🔄 Setting up shape subscription...');
     setShapesLoading(true);
 
     const unsubscribe: Unsubscribe = canvasService.subscribeToShapes((updatedShapes) => {
@@ -67,7 +66,6 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
 
     // Cleanup subscription on unmount or user change
     return () => {
-      console.log('🔚 Cleaning up shape subscription');
       unsubscribe();
     };
   }, [user]);

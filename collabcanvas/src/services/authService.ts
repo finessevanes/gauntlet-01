@@ -1,6 +1,8 @@
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
   type User,
@@ -84,6 +86,69 @@ class AuthService {
   }
 
   /**
+   * Sign in with Google OAuth
+   */
+  async signInWithGoogle(): Promise<UserProfile> {
+    try {
+      const provider = new GoogleAuthProvider();
+      const userCredential: UserCredential = await signInWithPopup(auth, provider);
+      const user = userCredential.user;
+
+      // Check if user profile already exists
+      let userProfile = await this.getUserProfile(user.uid);
+
+      if (!userProfile) {
+        // New user - create profile
+        const username = this.extractUsernameFromGoogle(user);
+        const cursorColor = await generateUserColor();
+
+        userProfile = {
+          uid: user.uid,
+          username,
+          email: user.email || '',
+          cursorColor,
+          createdAt: serverTimestamp(),
+        };
+
+        await setDoc(doc(firestore, 'users', user.uid), userProfile);
+      }
+
+      return userProfile;
+    } catch (error: any) {
+      console.error('Google sign-in error:', error);
+      
+      // User cancelled the popup
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        throw new Error('Sign-in cancelled');
+      }
+      
+      throw new Error(this.getErrorMessage(error));
+    }
+  }
+
+  /**
+   * Extract username from Google user data
+   * Priority: displayName -> email prefix -> fallback
+   */
+  private extractUsernameFromGoogle(user: User): string {
+    // Try display name first
+    if (user.displayName && user.displayName.trim().length > 0) {
+      return user.displayName.trim();
+    }
+
+    // Try email prefix
+    if (user.email) {
+      const emailPrefix = user.email.split('@')[0];
+      if (emailPrefix.length >= 2) {
+        return emailPrefix;
+      }
+    }
+
+    // Fallback to generic username
+    return `User_${Math.floor(Math.random() * 10000)}`;
+  }
+
+  /**
    * Log out the current user
    */
   async logout(): Promise<void> {
@@ -150,6 +215,15 @@ class AuthService {
         return 'Too many failed attempts. Please try again later';
       case 'auth/network-request-failed':
         return 'Network error. Please check your connection';
+      case 'auth/popup-closed-by-user':
+      case 'auth/cancelled-popup-request':
+        return 'Sign-in cancelled';
+      case 'auth/popup-blocked':
+        return 'Popup blocked. Please allow popups for this site';
+      case 'auth/account-exists-with-different-credential':
+        return 'An account already exists with the same email';
+      case 'auth/unauthorized-domain':
+        return 'This domain is not authorized for OAuth operations';
       default:
         return error.message || 'Authentication failed';
     }

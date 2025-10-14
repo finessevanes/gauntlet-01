@@ -97,42 +97,6 @@ Traditional "update docs at the end" doesn't work with AI agents. Instead, we di
 
 ---
 
-## Real Example: How This Accelerated CollabCanvas
-
-### PR #3: Cursor Sync (2-3 hours)
-
-**Test Plan Written First:**
-- Revealed canvas bounds issue (cursors showing in gray area)
-- Caught coordinate transformation edge case
-- Defined 20-30 FPS target before implementation
-
-**Result:** Zero bugs in production, passed all 15 test cases first try.
-
-### PR #5: Shape Locking (2 hours)
-
-**Quick-Start Doc:**
-- 2 browsers, 5 steps, see lock in <2 minutes
-- Enabled rapid iteration on lock timeout logic
-- Made reviewer validation instant
-
-**Result:** Lock mechanism worked perfectly with 5 concurrent users.
-
-### Semver Bug (saved 3 hours)
-
-**Documented in TROUBLESHOOTING.md:**
-- Next time it happened, just searched "semver"
-- Copy-pasted fix commands
-- 30 seconds vs 1 hour of debugging
-
-### Lock Race Condition
-
-**Documented as "known limitation":**
-- Stopped us from over-engineering
-- Saved 4+ hours on premature optimization
-- Clear path to upgrade post-MVP (Firestore transactions)
-
----
-
 ## How to Use With AI Agents (Cursor/Claude)
 
 ### Step 1: Start with Test Plan

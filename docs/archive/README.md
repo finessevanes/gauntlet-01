@@ -4,7 +4,7 @@ This folder contains the detailed, per-PR documentation created during CollabCan
 
 ## What's Here
 
-**43 documents** from 7 pull requests (PR #0-7), showing the complete development journey from initial setup to production deployment.
+**51 documents** from 19+ pull requests (PR #1-19+), showing the complete development journey from initial setup to production deployment and beyond.
 
 ## Purpose of This Archive
 
@@ -243,12 +243,12 @@ docs/archive/
 
 ## Stats
 
-**Total Documents:** 43  
-**Total PRs:** 7  
-**Time Frame:** ~24 hours (MVP development)  
+**Total Documents:** 51  
+**Total PRs:** 19+  
+**Time Frame:** ~24 hours (initial MVP) + enhancements  
 **Lines of Documentation:** ~6,000+  
-**Lines of Code:** ~3,000  
-**Doc-to-Code Ratio:** 2:1 (high, but worth it!)
+**Lines of Code:** ~3,500  
+**Doc-to-Code Ratio:** ~2:1 (high, but worth it!)
 
 ---
 
@@ -325,7 +325,7 @@ When adapting this pattern for your project, expect similar evolution. Start sim
 ---
 
 Built during CollabCanvas MVP (October 2025)  
-43 docs, 7 PRs, 24 hours, 1 successful MVP 🚀
+51 docs, 19+ PRs, MVP + enhancements 🚀
 
 ---
 

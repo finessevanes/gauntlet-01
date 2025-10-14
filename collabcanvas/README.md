@@ -30,12 +30,30 @@ cp .env.example .env
 
 For local development, the default dummy values in `.env` are sufficient since we're using emulators.
 
-#### 3. Start Firebase Emulators
+#### 3. Start Everything (One Command)
 
-Open a **first terminal** and start the Firebase Emulators:
+**⚡ Easiest way - Run both emulators and dev server:**
 
 ```bash
-npx firebase emulators:start
+./start-dev.sh
+```
+
+This automatically starts:
+- Firebase Emulators (Auth, Firestore, Realtime Database)
+- Vite dev server
+- Opens http://localhost:4000 (Emulator UI) and http://localhost:5173 (App)
+
+**Check if services are running:**
+```bash
+./check-services.sh
+```
+
+#### OR: Manual Setup (Two Terminals)
+
+**Terminal 1 - Start Firebase Emulators:**
+
+```bash
+npm run emulators
 ```
 
 This will start:
@@ -46,15 +64,15 @@ This will start:
 
 Wait for the message: `All emulators ready!`
 
-#### 4. Start Development Server
-
-Open a **second terminal** and start the Vite dev server:
+**Terminal 2 - Start Development Server:**
 
 ```bash
 npm run dev
 ```
 
 The app will be available at http://localhost:5173
+
+> **⚠️ IMPORTANT**: Both emulators AND dev server MUST be running for the app to work!
 
 ### 🧪 Emulator UI
 
@@ -159,23 +177,118 @@ npm run test:integration  # Run integration tests
 - All authenticated users can read all cursor/presence data
 - Users can only write to their own cursor/presence node (`/sessions/main/users/{userId}`)
 
+## 🌐 Live Demo
+
+**Production URL:** _Coming soon - Deploy following the guide below_
+
+Try it out with multiple browser windows to see real-time collaboration in action!
+
+---
+
 ## 🚢 Deployment
 
-### Production Setup
+### Quick Deploy to Vercel
 
-1. Create a Firebase project at https://console.firebase.google.com
-2. Enable Authentication (Email/Password)
-3. Create Firestore database
-4. Create Realtime Database
-5. Update `.env` with your production Firebase config
-6. Deploy to Vercel:
+**Prerequisites:**
+- Firebase project configured (Auth, Firestore, RTDB enabled)
+- Vercel account created
+- Firebase security rules deployed
+
+**Deployment Steps:**
+
+#### 1. Build Locally (Test First)
 
 ```bash
 npm run build
+npm run preview  # Test at http://localhost:4173
+```
+
+#### 2. Deploy to Vercel
+
+**Option A: Vercel CLI (Recommended)**
+
+```bash
+# Install Vercel CLI globally
+npm i -g vercel
+
+# Login to Vercel
+vercel login
+
+# Deploy from collabcanvas directory
+cd collabcanvas
 vercel --prod
 ```
 
-7. Add your Vercel domain to Firebase Auth authorized domains
+**Option B: GitHub Integration**
+
+1. Push code to GitHub
+2. Go to [Vercel Dashboard](https://vercel.com/dashboard)
+3. Click **Import Project**
+4. Connect your GitHub repository
+5. Set root directory to `collabcanvas`
+6. Deploy
+
+#### 3. Configure Environment Variables
+
+In Vercel Dashboard → Settings → Environment Variables, add:
+
+```bash
+VITE_FIREBASE_API_KEY=your-api-key
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+VITE_FIREBASE_APP_ID=your-app-id
+VITE_FIREBASE_DATABASE_URL=https://your-project.firebaseio.com
+```
+
+#### 4. Configure Firebase Auth
+
+1. Go to [Firebase Console](https://console.firebase.google.com)
+2. Navigate to **Authentication** → **Settings** → **Authorized domains**
+3. Add your Vercel domain (e.g., `your-app.vercel.app`)
+
+#### 5. Deploy Firebase Rules
+
+```bash
+# Deploy security rules to Firebase
+firebase deploy --only firestore:rules,database
+```
+
+### Full Deployment Guide
+
+For complete step-by-step instructions, see [PR-7-DEPLOYMENT-GUIDE.md](./PR-7-DEPLOYMENT-GUIDE.md)
+
+---
+
+## 🧪 Production Testing
+
+After deployment, verify the following:
+
+**Authentication:**
+- [ ] Sign up works
+- [ ] Login works
+- [ ] Auth persists on refresh
+
+**Real-Time Features:**
+- [ ] Open 2+ browsers
+- [ ] See each other's cursors (<50ms latency)
+- [ ] Presence list updates on join/leave
+- [ ] Cursors smooth at 20-30 FPS
+
+**Canvas Features:**
+- [ ] Pan and zoom work smoothly
+- [ ] Create rectangles with click-and-drag
+- [ ] Shapes sync across users (<100ms)
+- [ ] Shapes persist after refresh
+
+**Performance:**
+- [ ] 60 FPS during interactions
+- [ ] Test with 5+ concurrent users
+- [ ] Test with 50+ shapes
+- [ ] No console errors
+
+---
 
 ## 📋 Development Workflow
 
@@ -211,9 +324,9 @@ Or use the Emulator UI to clear specific collections.
 - ✅ **PR #2**: Canvas Core (Pan/Zoom, Color Toolbar)
 - ✅ **PR #3**: Cursor Sync + Presence (RTDB)
 - ✅ **PR #4**: Shape Creation & Sync (Click-and-Drag Rectangles) + Mode Toggle (Pan vs Draw)
-- ⏳ **PR #5**: Shape Locking + Drag Movement
-- ⏳ **PR #6**: Security Rules, Tests, Polish
-- ⏳ **PR #7**: Deployment (Vercel + Production Testing)
+- ✅ **PR #5**: Shape Locking + Drag Movement
+- ✅ **PR #6**: Security Rules, Tests, Polish
+- ✅ **PR #7**: Deployment (Vercel + Production Testing)
 
 ## 🐛 Troubleshooting
 

@@ -11,6 +11,10 @@ interface CanvasContextType {
   selectedColor: string;
   setSelectedColor: (color: string) => void;
   
+  // Drawing mode
+  isDrawMode: boolean;
+  setIsDrawMode: (isDrawMode: boolean) => void;
+  
   // Stage transform
   stageScale: number;
   setStageScale: (scale: number) => void;
@@ -33,6 +37,7 @@ const CanvasContext = createContext<CanvasContextType | undefined>(undefined);
 export function CanvasProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_COLOR);
+  const [isDrawMode, setIsDrawMode] = useState(false); // Default: Pan mode
   const [stageScale, setStageScale] = useState(1);
   const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 });
   const [shapes, setShapes] = useState<ShapeData[]>([]);
@@ -81,6 +86,8 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   const value = {
     selectedColor,
     setSelectedColor,
+    isDrawMode,
+    setIsDrawMode,
     stageScale,
     setStageScale,
     stagePosition,

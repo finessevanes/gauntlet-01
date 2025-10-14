@@ -21,6 +21,7 @@ export default function Canvas() {
     stagePosition, 
     setStagePosition,
     selectedColor,
+    isDrawMode,
     shapes,
     createShape,
     shapesLoading
@@ -31,6 +32,7 @@ export default function Canvas() {
   
   // Drawing state
   const [isDrawing, setIsDrawing] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
   const [previewRect, setPreviewRect] = useState<{ 
     x: number; 
@@ -44,6 +46,9 @@ export default function Canvas() {
 
   // Drawing handlers: Click-and-drag to create rectangles
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    // Only allow drawing if in draw mode
+    if (!isDrawMode) return;
+
     const stage = stageRef.current;
     if (!stage) return;
 
@@ -61,8 +66,12 @@ export default function Canvas() {
     if (!pointerPosition) return;
 
     // Convert screen coordinates to canvas coordinates
-    const x = (pointerPosition.x - stage.x()) / stage.scaleX();
-    const y = (pointerPosition.y - stage.y()) / stage.scaleY();
+    let x = (pointerPosition.x - stage.x()) / stage.scaleX();
+    let y = (pointerPosition.y - stage.y()) / stage.scaleY();
+
+    // Clamp starting position to canvas bounds
+    x = Math.max(0, Math.min(CANVAS_WIDTH, x));
+    y = Math.max(0, Math.min(CANVAS_HEIGHT, y));
 
     setIsDrawing(true);
     setDrawStart({ x, y });
@@ -83,8 +92,12 @@ export default function Canvas() {
     if (!pointerPosition) return;
 
     // Convert screen coordinates to canvas coordinates
-    const currentX = (pointerPosition.x - stage.x()) / stage.scaleX();
-    const currentY = (pointerPosition.y - stage.y()) / stage.scaleY();
+    let currentX = (pointerPosition.x - stage.x()) / stage.scaleX();
+    let currentY = (pointerPosition.y - stage.y()) / stage.scaleY();
+
+    // Clamp current position to canvas bounds
+    currentX = Math.max(0, Math.min(CANVAS_WIDTH, currentX));
+    currentY = Math.max(0, Math.min(CANVAS_HEIGHT, currentY));
 
     // Calculate preview rectangle dimensions (handle negative drags)
     const x = Math.min(drawStart.x, currentX);
@@ -112,14 +125,29 @@ export default function Canvas() {
       return;
     }
 
+    // Clamp shape to canvas bounds (ensure it doesn't extend outside)
+    const clampedX = Math.max(0, Math.min(CANVAS_WIDTH, previewRect.x));
+    const clampedY = Math.max(0, Math.min(CANVAS_HEIGHT, previewRect.y));
+    const clampedWidth = Math.min(previewRect.width, CANVAS_WIDTH - clampedX);
+    const clampedHeight = Math.min(previewRect.height, CANVAS_HEIGHT - clampedY);
+
+    // Double-check minimum size after clamping
+    if (clampedWidth < MIN_SHAPE_SIZE || clampedHeight < MIN_SHAPE_SIZE) {
+      console.log('Shape too small after clamping, ignoring');
+      setIsDrawing(false);
+      setDrawStart(null);
+      setPreviewRect(null);
+      return;
+    }
+
     // Create the shape via CanvasService
     try {
       await createShape({
         type: 'rectangle',
-        x: previewRect.x,
-        y: previewRect.y,
-        width: previewRect.width,
-        height: previewRect.height,
+        x: clampedX,
+        y: clampedY,
+        width: clampedWidth,
+        height: clampedHeight,
         color: selectedColor,
         createdBy: user.uid,
       });
@@ -133,6 +161,30 @@ export default function Canvas() {
     setIsDrawing(false);
     setDrawStart(null);
     setPreviewRect(null);
+  };
+
+  // Handle mouse leaving canvas - reset drawing state to prevent stuck dragging
+  const handleCanvasMouseLeave = () => {
+    // Reset drawing state if user leaves canvas while drawing
+    if (isDrawing) {
+      setIsDrawing(false);
+      setDrawStart(null);
+      setPreviewRect(null);
+    }
+    
+    // Reset panning state
+    setIsPanning(false);
+    
+    // Still call cursor tracking cleanup
+    handleMouseLeave();
+  };
+
+  // Get cursor style based on current interaction mode
+  const getCursorStyle = () => {
+    if (isDrawing) return 'crosshair'; // Drawing a shape
+    if (isPanning) return 'grabbing'; // Actively panning
+    if (isDrawMode) return 'crosshair'; // Draw mode: ready to draw
+    return 'grab'; // Pan mode: ready to pan
   };
 
   // Handle wheel zoom (cursor-centered)
@@ -169,30 +221,40 @@ export default function Canvas() {
     setStagePosition(newPos);
   };
 
+  // Handle drag start to show panning cursor
+  const handleDragStart = () => {
+    setIsPanning(true);
+  };
+
   // Handle drag end to update position
   const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
     setStagePosition({
       x: e.target.x(),
       y: e.target.y(),
     });
+    setIsPanning(false);
   };
 
   return (
     <div 
       ref={containerRef}
-      style={styles.canvasContainer}
+      style={{
+        ...styles.canvasContainer,
+        cursor: getCursorStyle(),
+      }}
     >
       <Stage
         ref={stageRef}
         width={window.innerWidth}
         height={window.innerHeight - 130} // Account for navbar and toolbar
-        draggable={!isDrawing} // Disable dragging while drawing
+        draggable={!isDrawMode} // Only allow dragging in pan mode
         onWheel={handleWheel}
+        onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
+        onMouseLeave={handleCanvasMouseLeave}
         scaleX={stageScale}
         scaleY={stageScale}
         x={stagePosition.x}

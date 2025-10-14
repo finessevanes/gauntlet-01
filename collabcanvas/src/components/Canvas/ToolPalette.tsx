@@ -43,7 +43,11 @@ export default function ToolPalette() {
             title={tool.name}
             aria-label={tool.name}
           >
-            {tool.icon}
+            {tool.id === 'rectangle' ? (
+              <div style={styles.rectangleIcon} />
+            ) : (
+              tool.icon
+            )}
           </button>
         ))}
       </div>
@@ -92,7 +96,7 @@ const styles = {
   toolButton: {
     width: '54px',
     height: '54px',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#d8d8d8',
     border: 'none',
     cursor: 'pointer',
     display: 'flex',
@@ -105,8 +109,15 @@ const styles = {
     borderRadius: '3px',
     fontWeight: 'bold' as const,
   },
+  rectangleIcon: {
+    width: '32px',
+    height: '24px',
+    backgroundColor: 'transparent',
+    border: '2px dashed #000000',
+    boxSizing: 'border-box' as const,
+  },
   activeTool: {
-    backgroundColor: '#d0d0d0',
+    backgroundColor: '#c0c0c0',
     boxShadow: 'inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #ffffff',
   },
   colorDisplay: {

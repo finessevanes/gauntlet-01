@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { throttle } from 'lodash';
 import { cursorService, type CursorsMap } from '../services/cursorService';
+import { presenceService, type PresenceMap } from '../services/presenceService';
 import { useAuth } from './useAuth';
 import { CURSOR_UPDATE_INTERVAL, CANVAS_WIDTH, CANVAS_HEIGHT } from '../utils/constants';
 
 export function useCursors(stageRef: React.RefObject<any>) {
   const { user, userProfile } = useAuth();
   const [cursors, setCursors] = useState<CursorsMap>({});
+  const [presence, setPresence] = useState<PresenceMap>({});
   const throttledUpdateRef = useRef<ReturnType<typeof throttle> | null>(null);
 
   // Subscribe to all cursors
@@ -15,6 +17,19 @@ export function useCursors(stageRef: React.RefObject<any>) {
 
     const unsubscribe = cursorService.subscribeToCursors((updatedCursors) => {
       setCursors(updatedCursors);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user]);
+
+  // Subscribe to presence to filter out offline users' cursors
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubscribe = presenceService.subscribeToPresence((updatedPresence) => {
+      setPresence(updatedPresence);
     });
 
     return () => {
@@ -97,11 +112,19 @@ export function useCursors(stageRef: React.RefObject<any>) {
     };
   }, [user]);
 
-  // Filter out own cursor
+  // Filter out own cursor AND cursors from offline users
   const otherUsersCursors = Object.entries(cursors).reduce((acc, [userId, cursor]) => {
-    if (userId !== user?.uid) {
+    // Don't show own cursor
+    if (userId === user?.uid) {
+      return acc;
+    }
+    
+    // Only show cursor if user is online
+    const userPresence = presence[userId];
+    if (userPresence && userPresence.online) {
       acc[userId] = cursor;
     }
+    
     return acc;
   }, {} as CursorsMap);
 

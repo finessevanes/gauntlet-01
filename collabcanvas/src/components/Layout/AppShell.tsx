@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import Navbar from './Navbar';
 import ColorToolbar from '../Canvas/ColorToolbar';
-import PresenceList from '../Collaboration/PresenceList';
 
 interface AppShellProps {
   children: ReactNode;
@@ -15,9 +14,6 @@ export default function AppShell({ children }: AppShellProps) {
         <ColorToolbar />
         <div style={styles.canvasArea}>
           {children}
-          <aside style={styles.sidebar}>
-            <PresenceList />
-          </aside>
         </div>
       </div>
     </div>
@@ -44,14 +40,6 @@ const styles = {
     flex: 1,
     overflow: 'hidden',
     position: 'relative' as const,
-  },
-  sidebar: {
-    position: 'absolute' as const,
-    top: '1rem',
-    right: '1rem',
-    zIndex: 10,
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-    borderRadius: '8px',
   },
 };
 

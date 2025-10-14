@@ -28,7 +28,22 @@ export default function Login({ onSwitchToSignup }: LoginProps) {
       await login(email, password);
       toast.success('Welcome back!');
     } catch (error: any) {
-      toast.error(error.message || 'Login failed');
+      // Use generic error message for authentication failures to prevent user enumeration
+      const authErrors = [
+        'No account found with this email',
+        'Incorrect password',
+        'Invalid email or password',
+        'User profile not found'
+      ];
+      
+      const isAuthError = authErrors.some(msg => error.message?.includes(msg));
+      
+      if (isAuthError) {
+        toast.error('The email and password combination is incorrect. Please try again.');
+      } else {
+        // Show specific errors for other cases (network, too many attempts, etc.)
+        toast.error(error.message || 'Login failed');
+      }
     } finally {
       setIsSubmitting(false);
     }

@@ -181,7 +181,7 @@ npm run dev
 
 ---
 
-### Test 4.2: Timeout Reset on Interaction
+### Test 4.2: Timeout Reset on Interaction [TESTED UP TO HERE: MOVING FORWARD]
 **Steps:**
 1. User A: Lock a shape
 2. Wait 3 seconds

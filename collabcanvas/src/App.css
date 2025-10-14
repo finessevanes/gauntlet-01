@@ -38,8 +38,7 @@ button:active:not(:disabled) {
 
 /* Input focus styles */
 input:focus {
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  outline: none;
 }
 
 /* Link hover effect */

@@ -8,18 +8,24 @@ interface Tool {
 }
 
 export default function ToolPalette() {
-  const { isDrawMode, setIsDrawMode, selectedColor } = useCanvasContext();
+  const { isDrawMode, setIsDrawMode, isBombMode, setIsBombMode, selectedColor } = useCanvasContext();
 
   const tools: Tool[] = [
-    { id: 'pan', icon: '✋', name: 'Pan / Move Canvas', active: !isDrawMode },
+    { id: 'pan', icon: '✋', name: 'Pan / Move Canvas', active: !isDrawMode && !isBombMode },
     { id: 'rectangle', icon: '▭', name: 'Rectangle / Draw', active: isDrawMode },
+    { id: 'bomb', icon: '💣', name: 'Bomb / Clear Canvas', active: isBombMode },
   ];
 
   const handleToolClick = (toolId: string) => {
     if (toolId === 'rectangle') {
       setIsDrawMode(true);
+      setIsBombMode(false);
     } else if (toolId === 'pan') {
       setIsDrawMode(false);
+      setIsBombMode(false);
+    } else if (toolId === 'bomb') {
+      setIsDrawMode(false);
+      setIsBombMode(true);
     }
   };
 

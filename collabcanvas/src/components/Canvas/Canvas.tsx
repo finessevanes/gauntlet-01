@@ -24,11 +24,13 @@ export default function Canvas() {
     setStagePosition,
     selectedColor,
     isDrawMode,
+    isBombMode,
     shapes,
     createShape,
     updateShape,
     lockShape,
     unlockShape,
+    deleteAllShapes,
     shapesLoading
   } = useCanvasContext();
   
@@ -49,6 +51,9 @@ export default function Canvas() {
   // Selection and locking state
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
   const [lockTimeoutId, setLockTimeoutId] = useState<number | null>(null);
+  
+  // Bomb explosion state
+  const [explosionPos, setExplosionPos] = useState<{ x: number; y: number } | null>(null);
   
   // Cursor tracking
   const { cursors, handleMouseMove: handleCursorMove, handleMouseLeave } = useCursors(stageRef);
@@ -160,6 +165,35 @@ export default function Canvas() {
     return 'unlocked';
   };
 
+  // Bomb explosion handler
+  const handleBombClick = async (x: number, y: number) => {
+    if (!user) return;
+
+    // Show explosion effect at click position
+    setExplosionPos({ x, y });
+    
+    // Play explosion animation and delete all shapes
+    try {
+      await deleteAllShapes();
+      console.log('💣 Bomb exploded! All shapes deleted.');
+      toast.success('💥 Boom! Canvas cleared!', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to delete shapes:', error);
+      toast.error('Failed to clear canvas', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+
+    // Clear explosion effect after animation
+    setTimeout(() => {
+      setExplosionPos(null);
+    }, 800);
+  };
+
   // Drawing handlers: Click-and-drag to create rectangles
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current;
@@ -178,9 +212,6 @@ export default function Canvas() {
         handleDeselectShape();
       }
 
-      // Only start drawing if in draw mode
-      if (!isDrawMode) return;
-
       const pointerPosition = stage.getPointerPosition();
       if (!pointerPosition) return;
 
@@ -188,9 +219,18 @@ export default function Canvas() {
       let x = (pointerPosition.x - stage.x()) / stage.scaleX();
       let y = (pointerPosition.y - stage.y()) / stage.scaleY();
 
-      // Clamp starting position to canvas bounds
+      // Clamp to canvas bounds
       x = Math.max(0, Math.min(CANVAS_WIDTH, x));
       y = Math.max(0, Math.min(CANVAS_HEIGHT, y));
+
+      // Handle bomb mode - place bomb and explode
+      if (isBombMode) {
+        handleBombClick(x, y);
+        return;
+      }
+
+      // Only start drawing if in draw mode
+      if (!isDrawMode) return;
 
       setIsDrawing(true);
       setDrawStart({ x, y });
@@ -372,6 +412,7 @@ export default function Canvas() {
   const getCursorStyle = () => {
     if (isDrawing) return 'crosshair'; // Drawing a shape
     if (isPanning) return 'grabbing'; // Actively panning
+    if (isBombMode) return 'crosshair'; // Bomb mode: ready to place bomb
     if (isDrawMode) return 'crosshair'; // Draw mode: ready to draw
     return 'grab'; // Pan mode: ready to pan
   };
@@ -436,7 +477,7 @@ export default function Canvas() {
         ref={stageRef}
         width={window.innerWidth - 70} // Account for tool palette
         height={window.innerHeight - 131} // Account for title bar, menu bar, color palette, status bar
-        draggable={!isDrawMode} // Only allow dragging in pan mode
+        draggable={!isDrawMode && !isBombMode} // Only allow dragging in pan mode
         onWheel={handleWheel}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
@@ -552,6 +593,30 @@ export default function Canvas() {
               dash={[10, 5]}
               listening={false}
             />
+          )}
+
+          {/* Explosion effect when bomb is placed */}
+          {explosionPos && (
+            <Group x={explosionPos.x} y={explosionPos.y}>
+              {/* Outer explosion ring */}
+              <Text
+                text="💥"
+                fontSize={80}
+                x={-40}
+                y={-40}
+                opacity={0.9}
+                listening={false}
+              />
+              {/* Inner explosion */}
+              <Text
+                text="💣"
+                fontSize={40}
+                x={-20}
+                y={-20}
+                opacity={0.8}
+                listening={false}
+              />
+            </Group>
           )}
         </Layer>
         

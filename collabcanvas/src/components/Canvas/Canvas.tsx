@@ -277,13 +277,15 @@ export default function Canvas() {
   };
 
   // Shape drag handlers
-  const handleShapeDragStart = (shapeId: string) => {
+  const handleShapeDragStart = (e: Konva.KonvaEventObject<DragEvent>, shapeId: string) => {
+    e.cancelBubble = true; // Prevent stage from also receiving drag events
     console.log('🎯 Shape drag started:', shapeId);
     // Refresh lock timeout when dragging starts
     clearLockTimeout();
   };
 
-  const handleShapeDragMove = () => {
+  const handleShapeDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+    e.cancelBubble = true; // Prevent stage from also receiving drag events
     // Refresh lock timeout during drag
     clearLockTimeout();
     
@@ -292,6 +294,7 @@ export default function Canvas() {
   };
 
   const handleShapeDragEnd = async (e: Konva.KonvaEventObject<DragEvent>, shapeId: string) => {
+    e.cancelBubble = true; // Prevent stage from also receiving drag events
     const node = e.target;
     const newX = node.x();
     const newY = node.y();
@@ -454,7 +457,15 @@ export default function Canvas() {
             const isSelected = selectedShapeId === shape.id;
 
             return (
-              <Group key={shape.id} x={shape.x} y={shape.y}>
+              <Group 
+                key={shape.id} 
+                x={shape.x} 
+                y={shape.y}
+                draggable={isLockedByMe}
+                onDragStart={(e) => handleShapeDragStart(e, shape.id)}
+                onDragMove={(e) => handleShapeDragMove(e)}
+                onDragEnd={(e) => handleShapeDragEnd(e, shape.id)}
+              >
                 {/* Main shape */}
                 <Rect
                   width={shape.width}
@@ -463,12 +474,8 @@ export default function Canvas() {
                   opacity={isLockedByOther ? 0.5 : 1}
                   stroke={isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
                   strokeWidth={isLockedByMe || isLockedByOther ? 3 : 1}
-                  draggable={isLockedByMe && !isDrawMode}
                   onClick={() => handleShapeClick(shape.id)}
                   onTap={() => handleShapeClick(shape.id)}
-                  onDragStart={() => handleShapeDragStart(shape.id)}
-                  onDragMove={handleShapeDragMove}
-                  onDragEnd={(e) => handleShapeDragEnd(e, shape.id)}
                 />
 
                 {/* Lock icon for shapes locked by others */}

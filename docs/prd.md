@@ -55,6 +55,7 @@ A real-time collaborative design canvas that enables multiple users to simultane
 - Each cursor has a unique color (assigned per user)
 - Update frequency: 20-30 FPS (33-50ms) via RTDB
 - Store in RTDB: `/sessions/main/users/{userId}/cursor`
+- **Canvas bounds only:** Cursors only visible within 5000×5000 canvas area (not in gray background)
 
 #### Presence Awareness
 
@@ -656,7 +657,8 @@ Additional features:
 - [ ] User A moves cursor → User B sees cursor move at 20-30 FPS
 - [ ] User B moves cursor → User A sees cursor with name label
 - [ ] Both cursors have different colors
-- [ ] Cursors disappear when user moves off canvas
+- [ ] Cursors disappear when user moves off canvas (5000×5000 bounds)
+- [ ] Cursors NOT visible in gray background area outside canvas
 - [ ] Presence list shows both users online
 - [ ] User A disconnects → User B sees them go offline immediately (RTDB onDisconnect)
 - [ ] Cursor latency is <50ms

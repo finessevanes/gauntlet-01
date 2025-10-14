@@ -6,6 +6,7 @@ import AppShell from './components/Layout/AppShell';
 import Canvas from './components/Canvas/Canvas';
 import { CanvasProvider } from './contexts/CanvasContext';
 import { Toaster } from 'react-hot-toast';
+import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 
 function App() {
@@ -33,12 +34,14 @@ function App() {
 
   // If authenticated, show main app with canvas
   return (
-    <CanvasProvider>
-      <Toaster />
-      <AppShell>
-        <Canvas />
-      </AppShell>
-    </CanvasProvider>
+    <ErrorBoundary>
+      <CanvasProvider>
+        <Toaster />
+        <AppShell>
+          <Canvas />
+        </AppShell>
+      </CanvasProvider>
+    </ErrorBoundary>
   );
 }
 

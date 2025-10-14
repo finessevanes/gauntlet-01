@@ -12,7 +12,7 @@ export default function ToolPalette() {
 
   const tools: Tool[] = [
     { id: 'pan', icon: '✋', name: 'Pan / Move Canvas', active: !isDrawMode && !isBombMode },
-    { id: 'rectangle', icon: '▭', name: 'Rectangle / Draw', active: isDrawMode },
+    { id: 'rectangle', icon: '⬜', name: 'Rectangle / Draw', active: isDrawMode },
     { id: 'bomb', icon: '💣', name: 'Bomb / Clear Canvas', active: isBombMode },
   ];
 
@@ -52,7 +52,7 @@ export default function ToolPalette() {
       <div style={styles.colorDisplay}>
         <div style={styles.colorSquares}>
           {/* Primary and secondary color overlapping squares (Paint style) */}
-          <div style={{ position: 'relative', width: '40px', height: '40px' }}>
+          <div style={{ position: 'relative', width: '50px', height: '50px' }}>
             <div style={{
               ...styles.primaryColor,
               backgroundColor: selectedColor,
@@ -98,19 +98,23 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '24px',
+    fontSize: '28px',
     padding: 0,
     transition: 'none',
     boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
     borderRadius: '3px',
+    fontWeight: 'bold' as const,
   },
   activeTool: {
     backgroundColor: '#d0d0d0',
     boxShadow: 'inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #ffffff',
   },
   colorDisplay: {
-    marginTop: '4px',
-    padding: '4px',
+    marginTop: '8px',
+    padding: '6px',
+    backgroundColor: '#e0e0e0',
+    borderRadius: '4px',
+    boxShadow: 'inset 1px 1px 2px rgba(0,0,0,0.2)',
   },
   colorSquares: {
     display: 'flex',
@@ -120,19 +124,19 @@ const styles = {
     position: 'absolute' as const,
     top: 0,
     left: 0,
-    width: '28px',
-    height: '28px',
-    border: '1px solid #000000',
-    boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
+    width: '34px',
+    height: '34px',
+    border: '2px solid #000000',
+    boxShadow: 'inset -1px -1px 0 0 rgba(0,0,0,0.3), inset 1px 1px 0 0 rgba(255,255,255,0.5), 0 2px 4px rgba(0,0,0,0.2)',
   },
   secondaryColor: {
     position: 'absolute' as const,
     bottom: 0,
     right: 0,
-    width: '28px',
-    height: '28px',
-    border: '1px solid #000000',
-    boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
+    width: '34px',
+    height: '34px',
+    border: '2px solid #000000',
+    boxShadow: 'inset -1px -1px 0 0 rgba(0,0,0,0.3), inset 1px 1px 0 0 rgba(255,255,255,0.5), 0 2px 4px rgba(0,0,0,0.2)',
   },
 };
 

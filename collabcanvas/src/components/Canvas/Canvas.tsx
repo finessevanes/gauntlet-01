@@ -24,7 +24,9 @@ export default function Canvas() {
     setStagePosition,
     selectedColor,
     isDrawMode,
+    setIsDrawMode,
     isBombMode,
+    setIsBombMode,
     shapes,
     createShape,
     updateShape,
@@ -54,6 +56,7 @@ export default function Canvas() {
   
   // Bomb explosion state
   const [explosionPos, setExplosionPos] = useState<{ x: number; y: number } | null>(null);
+  const [previousMode, setPreviousMode] = useState<'draw' | 'pan'>('pan');
   
   // Cursor tracking
   const { cursors, handleMouseMove: handleCursorMove, handleMouseLeave } = useCursors(stageRef);
@@ -165,6 +168,14 @@ export default function Canvas() {
     return 'unlocked';
   };
 
+  // Track previous mode when switching to bomb mode
+  useEffect(() => {
+    if (isBombMode) {
+      // Save current mode before switching to bomb
+      setPreviousMode(isDrawMode ? 'draw' : 'pan');
+    }
+  }, [isBombMode, isDrawMode]);
+
   // Bomb explosion handler
   const handleBombClick = async (x: number, y: number) => {
     if (!user) return;
@@ -188,9 +199,16 @@ export default function Canvas() {
       });
     }
 
-    // Clear explosion effect after animation
+    // Clear explosion effect and return to previous mode after animation
     setTimeout(() => {
       setExplosionPos(null);
+      // Return to previous mode (draw or pan)
+      if (previousMode === 'draw') {
+        setIsDrawMode(true);
+      } else {
+        setIsDrawMode(false);
+      }
+      setIsBombMode(false);
     }, 800);
   };
 
@@ -412,7 +430,7 @@ export default function Canvas() {
   const getCursorStyle = () => {
     if (isDrawing) return 'crosshair'; // Drawing a shape
     if (isPanning) return 'grabbing'; // Actively panning
-    if (isBombMode) return 'crosshair'; // Bomb mode: ready to place bomb
+    if (isBombMode) return 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewport=\'0 0 40 40\' style=\'font-size:32px\'><text y=\'32\'>💣</text></svg>") 16 16, crosshair'; // Bomb mode: show bomb cursor
     if (isDrawMode) return 'crosshair'; // Draw mode: ready to draw
     return 'grab'; // Pan mode: ready to pan
   };

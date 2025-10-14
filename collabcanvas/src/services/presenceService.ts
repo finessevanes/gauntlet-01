@@ -14,13 +14,13 @@ export interface PresenceMap {
 
 class PresenceService {
   private presencePath = '/sessions/main/users';
+  private lastOnlineUsers: string[] = [];
 
   /**
    * Mark a user as online
    */
   async setOnline(userId: string, username: string, color: string): Promise<void> {
     try {
-      console.log('📡 [Presence] Setting user online:', { userId, username, color });
       const presenceRef = ref(database, `${this.presencePath}/${userId}/presence`);
       
       await set(presenceRef, {
@@ -29,7 +29,6 @@ class PresenceService {
         username,
         color,
       });
-      console.log('✅ [Presence] Successfully set user online');
     } catch (error) {
       console.error('❌ [Presence] Failed to set user online:', error);
       throw error;
@@ -56,15 +55,12 @@ class PresenceService {
    * @returns Unsubscribe function
    */
   subscribeToPresence(callback: (presence: PresenceMap) => void): () => void {
-    console.log('📡 [Presence] Subscribing to presence updates at:', this.presencePath);
     const usersRef = ref(database, this.presencePath);
 
     const handleValue = (snapshot: any) => {
       const data = snapshot.val();
-      console.log('📥 [Presence] Received presence data:', data);
       
       if (!data) {
-        console.log('⚠️ [Presence] No presence data found');
         callback({});
         return;
       }
@@ -77,7 +73,21 @@ class PresenceService {
         }
       });
 
-      console.log('✅ [Presence] Processed presence map:', presence);
+      // Log online users only when the list changes
+      const onlineUsers = Object.entries(presence)
+        .filter(([_, user]) => user.online)
+        .map(([_, user]) => user.username)
+        .sort();
+      
+      const hasChanged = 
+        onlineUsers.length !== this.lastOnlineUsers.length ||
+        onlineUsers.some((username, i) => username !== this.lastOnlineUsers[i]);
+      
+      if (hasChanged) {
+        console.log('👥 Online users:', onlineUsers.length > 0 ? onlineUsers.join(', ') : 'none');
+        this.lastOnlineUsers = onlineUsers;
+      }
+
       callback(presence);
     };
 
@@ -91,7 +101,6 @@ class PresenceService {
 
     // Return unsubscribe function
     return () => {
-      console.log('📡 [Presence] Unsubscribing from presence updates');
       off(usersRef, 'value', handleValue);
     };
   }
@@ -102,7 +111,6 @@ class PresenceService {
    */
   async setupDisconnectHandler(userId: string): Promise<void> {
     try {
-      console.log('📡 [Presence] Setting up disconnect handler for:', userId);
       const presenceRef = ref(database, `${this.presencePath}/${userId}/presence`);
       const cursorRef = ref(database, `${this.presencePath}/${userId}/cursor`);
 
@@ -116,7 +124,6 @@ class PresenceService {
 
       // Also clean up cursor on disconnect
       await onDisconnect(cursorRef).remove();
-      console.log('✅ [Presence] Disconnect handler set up successfully');
     } catch (error) {
       console.error('❌ [Presence] Failed to setup disconnect handler:', error);
       throw error;

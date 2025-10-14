@@ -48,7 +48,6 @@ class CursorService {
    * @returns Unsubscribe function
    */
   subscribeToCursors(callback: (cursors: CursorsMap) => void): () => void {
-    console.log('📡 [Cursor] Subscribing to cursor updates at:', this.cursorsPath);
     const usersRef = ref(database, this.cursorsPath);
 
     const handleValue = (snapshot: any) => {
@@ -80,7 +79,6 @@ class CursorService {
 
     // Return unsubscribe function
     return () => {
-      console.log('📡 [Cursor] Unsubscribing from cursor updates');
       off(usersRef, 'value', handleValue);
     };
   }

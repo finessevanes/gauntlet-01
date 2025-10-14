@@ -93,7 +93,6 @@ export default function Canvas() {
   const startLockTimeout = (shapeId: string) => {
     clearLockTimeout();
     const timeoutId = setTimeout(async () => {
-      console.log('⏰ Auto-unlocking shape due to 5s timeout:', shapeId);
       await unlockShape(shapeId);
       setSelectedShapeId(null);
     }, 5000);
@@ -103,7 +102,6 @@ export default function Canvas() {
   // Helper: Deselect shape and unlock
   const handleDeselectShape = async () => {
     if (selectedShapeId) {
-      console.log('🔓 Deselecting and unlocking shape:', selectedShapeId);
       await unlockShape(selectedShapeId);
       setSelectedShapeId(null);
       clearLockTimeout();
@@ -136,7 +134,6 @@ export default function Canvas() {
       if (!result.success) {
         // Lock failed - another user has it
         // Revert optimistic selection
-        console.log('🔒 Lock failed, reverting selection');
         setSelectedShapeId(null);
         clearLockTimeout();
         
@@ -145,8 +142,6 @@ export default function Canvas() {
           duration: 2000,
           position: 'top-center',
         });
-      } else {
-        console.log('✅ Successfully locked shape:', shapeId);
       }
     });
   };
@@ -186,7 +181,6 @@ export default function Canvas() {
     // Play explosion animation and delete all shapes
     try {
       await deleteAllShapes();
-      console.log('💣 Bomb exploded! All shapes deleted.');
       toast.success('💥 Boom! Canvas cleared!', {
         duration: 2000,
         position: 'top-center',
@@ -296,7 +290,6 @@ export default function Canvas() {
 
     // Ignore tiny shapes (accidental clicks)
     if (previewRect.width < MIN_SHAPE_SIZE || previewRect.height < MIN_SHAPE_SIZE) {
-      console.log('Shape too small, ignoring');
       setIsDrawing(false);
       setDrawStart(null);
       setPreviewRect(null);
@@ -311,7 +304,6 @@ export default function Canvas() {
 
     // Double-check minimum size after clamping
     if (clampedWidth < MIN_SHAPE_SIZE || clampedHeight < MIN_SHAPE_SIZE) {
-      console.log('Shape too small after clamping, ignoring');
       setIsDrawing(false);
       setDrawStart(null);
       setPreviewRect(null);
@@ -329,8 +321,6 @@ export default function Canvas() {
         color: selectedColor,
         createdBy: user.uid,
       });
-
-      console.log('✅ Shape created successfully');
     } catch (error) {
       console.error('❌ Failed to create shape:', error);
     }
@@ -344,7 +334,6 @@ export default function Canvas() {
   // Shape drag handlers
   const handleShapeDragStart = (e: Konva.KonvaEventObject<DragEvent>, shapeId: string) => {
     e.cancelBubble = true; // Prevent stage from also receiving drag events
-    console.log('🎯 Shape drag started:', shapeId);
     // Refresh lock timeout when dragging starts
     clearLockTimeout();
   };
@@ -394,12 +383,9 @@ export default function Canvas() {
     node.x(newX);
     node.y(newY);
 
-    console.log('🎯 Shape drag ended:', shapeId, 'Final position:', newX, newY);
-
     // Update shape position in Firestore
     try {
       await updateShape(shapeId, { x: newX, y: newY });
-      console.log('✅ Shape position updated in Firestore');
     } catch (error) {
       console.error('❌ Failed to update shape position:', error);
     }

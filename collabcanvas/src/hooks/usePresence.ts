@@ -9,18 +9,14 @@ export function usePresence() {
   // Subscribe to presence updates
   useEffect(() => {
     if (!user) {
-      console.log('⚠️ [usePresence] No user, skipping subscription');
       return;
     }
 
-    console.log('📡 [usePresence] Setting up presence subscription');
     const unsubscribe = presenceService.subscribeToPresence((updatedPresence) => {
-      console.log('📥 [usePresence] Received presence update:', updatedPresence);
       setPresence(updatedPresence);
     });
 
     return () => {
-      console.log('📡 [usePresence] Unsubscribing from presence');
       unsubscribe();
     };
   }, [user]);
@@ -28,15 +24,8 @@ export function usePresence() {
   // Set up presence and disconnect handler when user logs in
   useEffect(() => {
     if (!user || !userProfile) {
-      console.log('⚠️ [usePresence] No user or userProfile, skipping setup');
       return;
     }
-
-    console.log('🔧 [usePresence] Setting up presence for:', {
-      userId: user.uid,
-      username: userProfile.username,
-      color: userProfile.cursorColor,
-    });
 
     const setupPresence = async () => {
       try {
@@ -49,7 +38,6 @@ export function usePresence() {
 
         // Setup disconnect handler for automatic cleanup
         await presenceService.setupDisconnectHandler(user.uid);
-        console.log('✅ [usePresence] Presence setup complete');
       } catch (error) {
         console.error('❌ [usePresence] Failed to setup presence:', error);
       }
@@ -60,7 +48,6 @@ export function usePresence() {
     // Cleanup on unmount or logout
     return () => {
       if (user) {
-        console.log('🔧 [usePresence] Cleaning up presence for:', user.uid);
         presenceService.setOffline(user.uid).catch((error) => {
           console.error('❌ [usePresence] Failed to set offline:', error);
         });

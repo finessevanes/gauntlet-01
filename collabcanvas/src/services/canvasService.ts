@@ -32,12 +32,28 @@ export type ShapeUpdateInput = Partial<Pick<ShapeData, 'x' | 'y' | 'width' | 'he
 
 class CanvasService {
   private shapesCollectionPath = 'canvases/main/shapes';
+  private canvasDocPath = 'canvases/main';
+
+  /**
+   * Ensure the parent canvas document exists
+   */
+  private async ensureCanvasDocExists(): Promise<void> {
+    try {
+      const canvasRef = doc(firestore, this.canvasDocPath);
+      await setDoc(canvasRef, { name: 'main', createdAt: serverTimestamp() }, { merge: true });
+    } catch (error) {
+      console.error('❌ Error ensuring canvas doc exists:', error);
+    }
+  }
 
   /**
    * Create a new shape in Firestore
    */
   async createShape(shapeInput: ShapeCreateInput): Promise<string> {
     try {
+      // Ensure parent document exists
+      await this.ensureCanvasDocExists();
+      
       // Generate a unique ID for the shape
       const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
       

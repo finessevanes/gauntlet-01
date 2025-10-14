@@ -2,6 +2,11 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
+import PasswordRequirements from './PasswordRequirements';
+import {
+  validatePassword,
+  validatePasswordMatch,
+} from '../../utils/passwordValidation';
 
 interface SignupProps {
   onSwitchToLogin: () => void;
@@ -11,6 +16,9 @@ export default function Signup({ onSwitchToLogin }: SignupProps) {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const { signup, loginWithGoogle } = useAuth();
@@ -19,7 +27,7 @@ export default function Signup({ onSwitchToLogin }: SignupProps) {
     e.preventDefault();
 
     // Validation
-    if (!username || !email || !password) {
+    if (!username || !email || !password || !confirmPassword) {
       toast.error('Please fill in all fields');
       return;
     }
@@ -29,8 +37,16 @@ export default function Signup({ onSwitchToLogin }: SignupProps) {
       return;
     }
 
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    // Validate password requirements
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      toast.error('Password does not meet all requirements');
+      return;
+    }
+
+    // Validate password match
+    if (!validatePasswordMatch(password, confirmPassword)) {
+      toast.error('Passwords do not match');
       return;
     }
 
@@ -140,15 +156,86 @@ export default function Signup({ onSwitchToLogin }: SignupProps) {
 
           <div style={styles.inputGroup}>
             <label style={styles.label}>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              style={styles.input}
-              disabled={isSubmitting}
-            />
-            <p style={styles.hint}>Minimum 6 characters</p>
+            <div style={styles.passwordInputWrapper}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                style={styles.passwordInput}
+                disabled={isSubmitting}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={styles.toggleButton}
+                disabled={isSubmitting}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <svg style={styles.eyeIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                  </svg>
+                ) : (
+                  <svg style={styles.eyeIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                )}
+              </button>
+            </div>
+            {password && <PasswordRequirements password={password} />}
+          </div>
+
+          <div style={styles.inputGroup}>
+            <label style={styles.label}>Confirm Password</label>
+            <div style={styles.passwordInputWrapper}>
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                style={styles.passwordInput}
+                disabled={isSubmitting}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={styles.toggleButton}
+                disabled={isSubmitting}
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+              >
+                {showConfirmPassword ? (
+                  <svg style={styles.eyeIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                  </svg>
+                ) : (
+                  <svg style={styles.eyeIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                )}
+              </button>
+            </div>
+            {confirmPassword && (
+              <div
+                style={{
+                  ...styles.matchIndicator,
+                  color: validatePasswordMatch(password, confirmPassword)
+                    ? '#10b981'
+                    : '#ef4444',
+                }}
+              >
+                <span style={styles.matchIcon}>
+                  {validatePasswordMatch(password, confirmPassword) ? '✓' : '×'}
+                </span>
+                <span>
+                  {validatePasswordMatch(password, confirmPassword)
+                    ? 'Passwords match'
+                    : 'Passwords do not match'}
+                </span>
+              </div>
+            )}
           </div>
 
           <button
@@ -272,11 +359,61 @@ const styles = {
     outline: 'none',
     transition: 'border-color 0.15s',
   },
+  passwordInputWrapper: {
+    position: 'relative' as const,
+    display: 'flex',
+    alignItems: 'center',
+  },
+  passwordInput: {
+    padding: '0.75rem',
+    paddingRight: '3rem',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    fontSize: '1rem',
+    outline: 'none',
+    transition: 'border-color 0.15s',
+    width: '100%',
+  },
+  toggleButton: {
+    position: 'absolute' as const,
+    right: '0.75rem',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '0.25rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#6b7280',
+    transition: 'color 0.15s',
+  },
+  eyeIcon: {
+    width: '20px',
+    height: '20px',
+  },
   hint: {
     fontSize: '0.75rem',
     color: '#9ca3af',
     margin: 0,
   },
+  matchIndicator: {
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    marginTop: '0.5rem',
+    transition: 'color 0.2s ease',
+  } as const,
+  matchIcon: {
+    marginRight: '0.5rem',
+    fontSize: '1rem',
+    fontWeight: 'bold',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '1.25rem',
+    height: '1.25rem',
+  } as const,
   button: {
     padding: '0.75rem',
     backgroundColor: '#3b82f6',

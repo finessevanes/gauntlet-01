@@ -32,7 +32,32 @@ The `pointerup` event from the single finger lift is being interpreted as "compl
 
 ## Future Enhancements
 
-<!-- Add nice-to-have features here -->
+### 1. Mode-Based Presence Visibility
+**Status:** Backlog  
+**Priority:** Medium  
+**Category:** User Experience
+
+**Description:**
+Currently, user presence (cursors and badges) is visible to all online users regardless of their current mode (draw mode or pan mode). This should be refined so that users only see other users who are actively in draw mode.
+
+**Current Behavior:**
+- User A sees User B's cursor/presence when User B is in draw mode
+- User A sees User B's cursor/presence when User B is in pan mode
+
+**Desired Behavior:**
+- User A sees User B's cursor/presence **only** when User B is in draw mode
+- User A does **not** see User B's cursor/presence when User B is in pan mode
+- Pan mode users are "invisible" to other users
+
+**Rationale:**
+- Reduces visual clutter when users are navigating/viewing
+- Focuses collaboration on active drawing interactions
+- Distinguishes between "active participants" and "observers"
+
+**Implementation Notes:**
+- Add mode tracking to presence data (draw vs pan)
+- Filter presence/cursor rendering based on mode status
+- Consider showing a separate indicator for "viewers" vs "collaborators"
 
 ---
 

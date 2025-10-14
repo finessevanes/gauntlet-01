@@ -1,4 +1,5 @@
-import { Component, ReactNode } from 'react';
+import { Component } from 'react';
+import type { ReactNode } from 'react';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -140,8 +141,8 @@ const styles = {
     overflow: 'auto',
     maxHeight: '200px',
     fontFamily: 'monospace',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
+    whiteSpace: 'pre-wrap' as const,
+    wordBreak: 'break-word' as const,
   },
   actions: {
     display: 'flex',

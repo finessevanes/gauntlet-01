@@ -332,7 +332,7 @@ export default function Canvas() {
   };
 
   // Shape drag handlers
-  const handleShapeDragStart = (e: Konva.KonvaEventObject<DragEvent>, shapeId: string) => {
+  const handleShapeDragStart = (e: Konva.KonvaEventObject<DragEvent>, _shapeId: string) => {
     e.cancelBubble = true; // Prevent stage from also receiving drag events
     // Refresh lock timeout when dragging starts
     clearLockTimeout();

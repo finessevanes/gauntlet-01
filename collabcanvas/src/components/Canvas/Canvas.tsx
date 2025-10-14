@@ -434,8 +434,8 @@ export default function Canvas() {
     >
       <Stage
         ref={stageRef}
-        width={window.innerWidth}
-        height={window.innerHeight - 130} // Account for navbar and toolbar
+        width={window.innerWidth - 70} // Account for tool palette
+        height={window.innerHeight - 131} // Account for title bar, menu bar, color palette, status bar
         draggable={!isDrawMode} // Only allow dragging in pan mode
         onWheel={handleWheel}
         onDragStart={handleDragStart}
@@ -458,33 +458,9 @@ export default function Canvas() {
             width={CANVAS_WIDTH}
             height={CANVAS_HEIGHT}
             fill="#ffffff"
-            stroke="#e5e7eb"
-            strokeWidth={2}
+            stroke="#000000"
+            strokeWidth={1}
           />
-          
-          {/* Grid lines for visual reference */}
-          {Array.from({ length: 11 }).map((_, i) => (
-            <Rect
-              key={`v-line-${i}`}
-              name="grid"
-              x={(CANVAS_WIDTH / 10) * i}
-              y={0}
-              width={1}
-              height={CANVAS_HEIGHT}
-              fill="#f3f4f6"
-            />
-          ))}
-          {Array.from({ length: 11 }).map((_, i) => (
-            <Rect
-              key={`h-line-${i}`}
-              name="grid"
-              x={0}
-              y={(CANVAS_HEIGHT / 10) * i}
-              width={CANVAS_WIDTH}
-              height={1}
-              fill="#f3f4f6"
-            />
-          ))}
 
           {/* Render all shapes from Firestore */}
           {!shapesLoading && shapes.map((shape) => {
@@ -582,19 +558,6 @@ export default function Canvas() {
         {/* Cursor Layer - render other users' cursors */}
         <CursorLayer cursors={cursors} />
       </Stage>
-      
-      {/* Canvas info overlay */}
-      <div style={styles.canvasInfo}>
-        <div style={styles.infoText}>
-          Canvas: {CANVAS_WIDTH} × {CANVAS_HEIGHT}px
-        </div>
-        <div style={styles.infoText}>
-          Zoom: {(stageScale * 100).toFixed(0)}%
-        </div>
-        <div style={styles.infoText}>
-          Position: ({Math.round(stagePosition.x)}, {Math.round(stagePosition.y)})
-        </div>
-      </div>
     </div>
   );
 }
@@ -603,25 +566,12 @@ const styles = {
   canvasContainer: {
     flex: 1,
     overflow: 'hidden',
-    backgroundColor: '#f9fafb',
+    // Checkerboard pattern for transparency (Paint-style)
+    backgroundImage: 'linear-gradient(45deg, #c0c0c0 25%, transparent 25%), linear-gradient(-45deg, #c0c0c0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #c0c0c0 75%), linear-gradient(-45deg, transparent 75%, #c0c0c0 75%)',
+    backgroundSize: '20px 20px',
+    backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
+    backgroundColor: '#e0e0e0',
     position: 'relative' as const,
-  },
-  canvasInfo: {
-    position: 'absolute' as const,
-    bottom: '1rem',
-    left: '1rem',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    padding: '0.5rem 1rem',
-    borderRadius: '6px',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-    fontSize: '0.75rem',
-    color: '#6b7280',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '0.25rem',
-  },
-  infoText: {
-    fontFamily: 'monospace',
   },
 };
 

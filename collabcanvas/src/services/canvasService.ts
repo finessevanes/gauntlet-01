@@ -5,6 +5,7 @@ import {
   updateDoc, 
   onSnapshot, 
   getDocs,
+  getDoc,
   serverTimestamp,
   query
 } from 'firebase/firestore';
@@ -95,14 +96,46 @@ class CanvasService {
   }
 
   /**
-   * Lock a shape for editing
+   * Lock a shape for editing (with 5s timeout check)
+   * Returns: { success: boolean, lockedByUsername?: string }
    */
-  async lockShape(shapeId: string, userId: string): Promise<boolean> {
+  async lockShape(shapeId: string, userId: string): Promise<{ success: boolean; lockedByUsername?: string }> {
     try {
       const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
       
-      // For MVP: simple last-write-wins (no transaction)
-      // Post-MVP: upgrade to Firestore transaction
+      // First, check current lock status
+      const shapeSnap = await getDoc(shapeRef);
+      if (!shapeSnap.exists()) {
+        console.error('❌ Shape not found:', shapeId);
+        return { success: false };
+      }
+
+      const shapeData = shapeSnap.data() as ShapeData;
+      const now = Date.now();
+      
+      // Check if shape is locked by someone else
+      if (shapeData.lockedBy && shapeData.lockedBy !== userId && shapeData.lockedAt) {
+        const lockedAtTime = shapeData.lockedAt.toMillis();
+        const lockAge = now - lockedAtTime;
+        const LOCK_TIMEOUT_MS = 5000; // 5 seconds
+
+        // If lock is still fresh (< 5s), deny the lock
+        if (lockAge < LOCK_TIMEOUT_MS) {
+          console.log(`🔒 Shape ${shapeId} is locked by ${shapeData.lockedBy} (${lockAge}ms ago)`);
+          
+          // Get the username of who has it locked
+          const usersRef = collection(firestore, 'users');
+          const userDocRef = doc(usersRef, shapeData.lockedBy);
+          const userSnap = await getDoc(userDocRef);
+          const lockedByUsername = userSnap.exists() ? userSnap.data().username : 'another user';
+          
+          return { success: false, lockedByUsername };
+        } else {
+          console.log(`⏰ Lock timeout (${lockAge}ms), stealing lock from ${shapeData.lockedBy}`);
+        }
+      }
+
+      // Lock is either expired, doesn't exist, or is our own lock - acquire/refresh it
       await updateDoc(shapeRef, {
         lockedBy: userId,
         lockedAt: serverTimestamp(),
@@ -110,10 +143,10 @@ class CanvasService {
       });
 
       console.log('🔒 Shape locked:', shapeId, 'by:', userId);
-      return true;
+      return { success: true };
     } catch (error) {
       console.error('❌ Error locking shape:', error);
-      return false;
+      return { success: false };
     }
   }
 

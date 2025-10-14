@@ -102,8 +102,8 @@ export default function Canvas() {
     }
   };
 
-  // Helper: Handle shape mousedown (lock BEFORE drag starts - fixes production latency race)
-  const handleShapeMouseDown = async (shapeId: string) => {
+  // Helper: Handle shape mousedown (optimistic selection + background lock)
+  const handleShapeMouseDown = (shapeId: string) => {
     if (!user) return;
 
     // If clicking on already selected shape, refresh timeout
@@ -115,25 +115,32 @@ export default function Canvas() {
 
     // Deselect current shape first
     if (selectedShapeId) {
-      await handleDeselectShape();
+      handleDeselectShape();
     }
 
-    // Attempt to lock the shape (fires BEFORE drag gesture starts)
-    // This gives lock time to complete during natural mousedown→drag pause (~100-300ms)
-    const result = await lockShape(shapeId, user.uid);
+    // OPTIMISTIC: Set as selected immediately (makes shape draggable right away)
+    setSelectedShapeId(shapeId);
+    startLockTimeout(shapeId);
     
-    if (result.success) {
-      console.log('✅ Successfully locked shape:', shapeId);
-      setSelectedShapeId(shapeId);
-      startLockTimeout(shapeId);
-    } else {
-      // Show toast notification with username
-      const username = result.lockedByUsername || 'another user';
-      toast.error(`Shape locked by ${username}`, {
-        duration: 2000,
-        position: 'top-center',
-      });
-    }
+    // Attempt to lock in background (non-blocking)
+    // This is just for multi-user conflict detection, not required for drag to work
+    lockShape(shapeId, user.uid).then(result => {
+      if (!result.success) {
+        // Lock failed - another user has it
+        // Revert optimistic selection
+        console.log('🔒 Lock failed, reverting selection');
+        setSelectedShapeId(null);
+        clearLockTimeout();
+        
+        const username = result.lockedByUsername || 'another user';
+        toast.error(`Shape locked by ${username}`, {
+          duration: 2000,
+          position: 'top-center',
+        });
+      } else {
+        console.log('✅ Successfully locked shape:', shapeId);
+      }
+    });
   };
 
   // Helper: Get lock status for a shape
@@ -461,7 +468,7 @@ export default function Canvas() {
                 key={shape.id} 
                 x={shape.x} 
                 y={shape.y}
-                draggable={isLockedByMe}
+                draggable={!isLockedByOther}
                 onMouseDown={() => handleShapeMouseDown(shape.id)}
                 onTouchStart={() => handleShapeMouseDown(shape.id)}
                 onDragStart={(e) => handleShapeDragStart(e, shape.id)}

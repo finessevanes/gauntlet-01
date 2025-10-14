@@ -24,11 +24,15 @@ export default function Canvas() {
     setStagePosition,
     selectedColor,
     isDrawMode,
+    setIsDrawMode,
+    isBombMode,
+    setIsBombMode,
     shapes,
     createShape,
     updateShape,
     lockShape,
     unlockShape,
+    deleteAllShapes,
     shapesLoading
   } = useCanvasContext();
   
@@ -49,6 +53,10 @@ export default function Canvas() {
   // Selection and locking state
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
   const [lockTimeoutId, setLockTimeoutId] = useState<number | null>(null);
+  
+  // Bomb explosion state
+  const [explosionPos, setExplosionPos] = useState<{ x: number; y: number } | null>(null);
+  const [previousMode, setPreviousMode] = useState<'draw' | 'pan'>('pan');
   
   // Cursor tracking
   const { cursors, handleMouseMove: handleCursorMove, handleMouseLeave } = useCursors(stageRef);
@@ -160,6 +168,50 @@ export default function Canvas() {
     return 'unlocked';
   };
 
+  // Track previous mode when switching to bomb mode
+  useEffect(() => {
+    if (isBombMode) {
+      // Save current mode before switching to bomb
+      setPreviousMode(isDrawMode ? 'draw' : 'pan');
+    }
+  }, [isBombMode, isDrawMode]);
+
+  // Bomb explosion handler
+  const handleBombClick = async (x: number, y: number) => {
+    if (!user) return;
+
+    // Show explosion effect at click position
+    setExplosionPos({ x, y });
+    
+    // Play explosion animation and delete all shapes
+    try {
+      await deleteAllShapes();
+      console.log('💣 Bomb exploded! All shapes deleted.');
+      toast.success('💥 Boom! Canvas cleared!', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to delete shapes:', error);
+      toast.error('Failed to clear canvas', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+
+    // Clear explosion effect and return to previous mode after animation
+    setTimeout(() => {
+      setExplosionPos(null);
+      // Return to previous mode (draw or pan)
+      if (previousMode === 'draw') {
+        setIsDrawMode(true);
+      } else {
+        setIsDrawMode(false);
+      }
+      setIsBombMode(false);
+    }, 800);
+  };
+
   // Drawing handlers: Click-and-drag to create rectangles
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current;
@@ -178,9 +230,6 @@ export default function Canvas() {
         handleDeselectShape();
       }
 
-      // Only start drawing if in draw mode
-      if (!isDrawMode) return;
-
       const pointerPosition = stage.getPointerPosition();
       if (!pointerPosition) return;
 
@@ -188,9 +237,18 @@ export default function Canvas() {
       let x = (pointerPosition.x - stage.x()) / stage.scaleX();
       let y = (pointerPosition.y - stage.y()) / stage.scaleY();
 
-      // Clamp starting position to canvas bounds
+      // Clamp to canvas bounds
       x = Math.max(0, Math.min(CANVAS_WIDTH, x));
       y = Math.max(0, Math.min(CANVAS_HEIGHT, y));
+
+      // Handle bomb mode - place bomb and explode
+      if (isBombMode) {
+        handleBombClick(x, y);
+        return;
+      }
+
+      // Only start drawing if in draw mode
+      if (!isDrawMode) return;
 
       setIsDrawing(true);
       setDrawStart({ x, y });
@@ -372,6 +430,7 @@ export default function Canvas() {
   const getCursorStyle = () => {
     if (isDrawing) return 'crosshair'; // Drawing a shape
     if (isPanning) return 'grabbing'; // Actively panning
+    if (isBombMode) return 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewport=\'0 0 40 40\' style=\'font-size:32px\'><text y=\'32\'>💣</text></svg>") 16 16, crosshair'; // Bomb mode: show bomb cursor
     if (isDrawMode) return 'crosshair'; // Draw mode: ready to draw
     return 'grab'; // Pan mode: ready to pan
   };
@@ -434,9 +493,9 @@ export default function Canvas() {
     >
       <Stage
         ref={stageRef}
-        width={window.innerWidth}
-        height={window.innerHeight - 130} // Account for navbar and toolbar
-        draggable={!isDrawMode} // Only allow dragging in pan mode
+        width={window.innerWidth - 70} // Account for tool palette
+        height={window.innerHeight - 131} // Account for title bar, menu bar, color palette, status bar
+        draggable={!isDrawMode && !isBombMode} // Only allow dragging in pan mode
         onWheel={handleWheel}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
@@ -458,33 +517,9 @@ export default function Canvas() {
             width={CANVAS_WIDTH}
             height={CANVAS_HEIGHT}
             fill="#ffffff"
-            stroke="#e5e7eb"
-            strokeWidth={2}
+            stroke="#000000"
+            strokeWidth={1}
           />
-          
-          {/* Grid lines for visual reference */}
-          {Array.from({ length: 11 }).map((_, i) => (
-            <Rect
-              key={`v-line-${i}`}
-              name="grid"
-              x={(CANVAS_WIDTH / 10) * i}
-              y={0}
-              width={1}
-              height={CANVAS_HEIGHT}
-              fill="#f3f4f6"
-            />
-          ))}
-          {Array.from({ length: 11 }).map((_, i) => (
-            <Rect
-              key={`h-line-${i}`}
-              name="grid"
-              x={0}
-              y={(CANVAS_HEIGHT / 10) * i}
-              width={CANVAS_WIDTH}
-              height={1}
-              fill="#f3f4f6"
-            />
-          ))}
 
           {/* Render all shapes from Firestore */}
           {!shapesLoading && shapes.map((shape) => {
@@ -577,24 +612,35 @@ export default function Canvas() {
               listening={false}
             />
           )}
+
+          {/* Explosion effect when bomb is placed */}
+          {explosionPos && (
+            <Group x={explosionPos.x} y={explosionPos.y}>
+              {/* Outer explosion ring */}
+              <Text
+                text="💥"
+                fontSize={80}
+                x={-40}
+                y={-40}
+                opacity={0.9}
+                listening={false}
+              />
+              {/* Inner explosion */}
+              <Text
+                text="💣"
+                fontSize={40}
+                x={-20}
+                y={-20}
+                opacity={0.8}
+                listening={false}
+              />
+            </Group>
+          )}
         </Layer>
         
         {/* Cursor Layer - render other users' cursors */}
         <CursorLayer cursors={cursors} />
       </Stage>
-      
-      {/* Canvas info overlay */}
-      <div style={styles.canvasInfo}>
-        <div style={styles.infoText}>
-          Canvas: {CANVAS_WIDTH} × {CANVAS_HEIGHT}px
-        </div>
-        <div style={styles.infoText}>
-          Zoom: {(stageScale * 100).toFixed(0)}%
-        </div>
-        <div style={styles.infoText}>
-          Position: ({Math.round(stagePosition.x)}, {Math.round(stagePosition.y)})
-        </div>
-      </div>
     </div>
   );
 }
@@ -603,25 +649,12 @@ const styles = {
   canvasContainer: {
     flex: 1,
     overflow: 'hidden',
-    backgroundColor: '#f9fafb',
+    // Checkerboard pattern for transparency (Paint-style)
+    backgroundImage: 'linear-gradient(45deg, #c0c0c0 25%, transparent 25%), linear-gradient(-45deg, #c0c0c0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #c0c0c0 75%), linear-gradient(-45deg, transparent 75%, #c0c0c0 75%)',
+    backgroundSize: '20px 20px',
+    backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
+    backgroundColor: '#e0e0e0',
     position: 'relative' as const,
-  },
-  canvasInfo: {
-    position: 'absolute' as const,
-    bottom: '1rem',
-    left: '1rem',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    padding: '0.5rem 1rem',
-    borderRadius: '6px',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-    fontSize: '0.75rem',
-    color: '#6b7280',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '0.25rem',
-  },
-  infoText: {
-    fontFamily: 'monospace',
   },
 };
 

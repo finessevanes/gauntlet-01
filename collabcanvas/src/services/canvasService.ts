@@ -6,6 +6,7 @@ import {
   onSnapshot, 
   getDocs,
   getDoc,
+  deleteDoc,
   serverTimestamp,
   query
 } from 'firebase/firestore';
@@ -227,6 +228,28 @@ class CanvasService {
     } catch (error) {
       console.error('❌ Error fetching shapes:', error);
       return [];
+    }
+  }
+
+  /**
+   * Delete all shapes (bomb feature)
+   */
+  async deleteAllShapes(): Promise<void> {
+    try {
+      const shapesRef = collection(firestore, this.shapesCollectionPath);
+      const snapshot = await getDocs(shapesRef);
+      
+      // Delete all shapes in batch
+      const deletePromises = snapshot.docs.map((docSnapshot) => 
+        deleteDoc(docSnapshot.ref)
+      );
+      
+      await Promise.all(deletePromises);
+      
+      console.log(`💣 Deleted ${snapshot.docs.length} shape(s)`);
+    } catch (error) {
+      console.error('❌ Error deleting all shapes:', error);
+      throw error;
     }
   }
 }

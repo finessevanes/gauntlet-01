@@ -11,6 +11,12 @@
   min-height: 100vh;
 }
 
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 /* Spinner animation for loading state */
 @keyframes spin {
   from {
@@ -21,13 +27,13 @@
   }
 }
 
-/* Button hover effects */
+/* Paint-style button hover effects */
 button:hover:not(:disabled) {
-  opacity: 0.9;
+  filter: brightness(1.05);
 }
 
 button:active:not(:disabled) {
-  transform: translateY(1px);
+  box-shadow: inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #ffffff !important;
 }
 
 /* Input focus styles */
@@ -39,4 +45,10 @@ input:focus {
 /* Link hover effect */
 a:hover {
   text-decoration: underline;
+}
+
+/* Paint-style menu hover */
+.paint-menu-item:hover {
+  background-color: #316ac5;
+  color: #ffffff;
 }

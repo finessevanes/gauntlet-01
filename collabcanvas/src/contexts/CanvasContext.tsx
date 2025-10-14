@@ -15,6 +15,10 @@ interface CanvasContextType {
   isDrawMode: boolean;
   setIsDrawMode: (isDrawMode: boolean) => void;
   
+  // Bomb mode
+  isBombMode: boolean;
+  setIsBombMode: (isBombMode: boolean) => void;
+  
   // Stage transform
   stageScale: number;
   setStageScale: (scale: number) => void;
@@ -27,6 +31,7 @@ interface CanvasContextType {
   updateShape: (shapeId: string, updates: Partial<ShapeData>) => Promise<void>;
   lockShape: (shapeId: string, userId: string) => Promise<{ success: boolean; lockedByUsername?: string }>;
   unlockShape: (shapeId: string) => Promise<void>;
+  deleteAllShapes: () => Promise<void>;
   
   // Loading state
   shapesLoading: boolean;
@@ -38,6 +43,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_COLOR);
   const [isDrawMode, setIsDrawMode] = useState(false); // Default: Pan mode
+  const [isBombMode, setIsBombMode] = useState(false); // Bomb tool mode
   const [stageScale, setStageScale] = useState(1);
   const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 });
   const [shapes, setShapes] = useState<ShapeData[]>([]);
@@ -83,11 +89,17 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.unlockShape(shapeId);
   };
 
+  const deleteAllShapes = async (): Promise<void> => {
+    return await canvasService.deleteAllShapes();
+  };
+
   const value = {
     selectedColor,
     setSelectedColor,
     isDrawMode,
     setIsDrawMode,
+    isBombMode,
+    setIsBombMode,
     stageScale,
     setStageScale,
     stagePosition,
@@ -97,6 +109,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     updateShape,
     lockShape,
     unlockShape,
+    deleteAllShapes,
     shapesLoading,
   };
 

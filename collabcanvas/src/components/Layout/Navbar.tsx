@@ -1,5 +1,6 @@
 import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
+import NavbarPresence from '../Collaboration/NavbarPresence';
 
 export default function Navbar() {
   const { userProfile, logout } = useAuth();
@@ -31,9 +32,12 @@ export default function Navbar() {
           )}
         </div>
 
-        <button onClick={handleLogout} style={styles.logoutButton}>
-          Log Out
-        </button>
+        <div style={styles.rightSection}>
+          <NavbarPresence />
+          <button onClick={handleLogout} style={styles.logoutButton}>
+            Log Out
+          </button>
+        </div>
       </div>
     </nav>
   );
@@ -60,6 +64,11 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '2rem',
+  },
+  rightSection: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem',
   },
   logo: {
     fontSize: '1.5rem',

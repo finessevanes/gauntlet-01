@@ -51,9 +51,9 @@ export function usePresence() {
     };
   }, [user, userProfile]);
 
-  // Get list of online users (excluding self)
+  // Get list of online users (including self)
   const onlineUsers = Object.entries(presence)
-    .filter(([userId, userData]) => userData.online && userId !== user?.uid)
+    .filter(([_, userData]) => userData.online)
     .map(([userId, userData]) => ({
       userId,
       ...userData,

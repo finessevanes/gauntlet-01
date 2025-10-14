@@ -37,6 +37,7 @@ const firebaseConfig = {
 console.log('🔧 Firebase config loaded:', {
   projectId: firebaseConfig.projectId,
   authDomain: firebaseConfig.authDomain,
+  databaseURL: firebaseConfig.databaseURL, // CRITICAL: Check this URL
 });
 
 // Initialize Firebase
@@ -79,6 +80,8 @@ if (isDevelopment && useEmulators) {
   }
 } else {
   console.log('🚀 Running in production mode - using Firebase Cloud services');
+  console.log('🔍 Database URL being used:', database.app.options.databaseURL);
+  console.log('🔍 Database instance:', database);
 }
 
 export { app, auth, firestore, database };

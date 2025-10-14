@@ -26,15 +26,20 @@ class CursorService {
     username: string,
     color: string
   ): Promise<void> {
-    const cursorRef = ref(database, `${this.cursorsPath}/${userId}/cursor`);
-    
-    await set(cursorRef, {
-      x,
-      y,
-      username,
-      color,
-      timestamp: Date.now(),
-    });
+    try {
+      const cursorRef = ref(database, `${this.cursorsPath}/${userId}/cursor`);
+      
+      await set(cursorRef, {
+        x,
+        y,
+        username,
+        color,
+        timestamp: Date.now(),
+      });
+    } catch (error) {
+      console.error('❌ [Cursor] Failed to update cursor position:', error);
+      throw error;
+    }
   }
 
   /**
@@ -43,6 +48,7 @@ class CursorService {
    * @returns Unsubscribe function
    */
   subscribeToCursors(callback: (cursors: CursorsMap) => void): () => void {
+    console.log('📡 [Cursor] Subscribing to cursor updates at:', this.cursorsPath);
     const usersRef = ref(database, this.cursorsPath);
 
     const handleValue = (snapshot: any) => {
@@ -64,10 +70,17 @@ class CursorService {
       callback(cursors);
     };
 
-    onValue(usersRef, handleValue);
+    const handleError = (error: any) => {
+      console.error('❌ [Cursor] Error subscribing to cursors:', error);
+      console.error('❌ [Cursor] Error code:', error.code);
+      console.error('❌ [Cursor] Error message:', error.message);
+    };
+
+    onValue(usersRef, handleValue, handleError);
 
     // Return unsubscribe function
     return () => {
+      console.log('📡 [Cursor] Unsubscribing from cursor updates');
       off(usersRef, 'value', handleValue);
     };
   }

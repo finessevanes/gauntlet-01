@@ -19,14 +19,21 @@ class PresenceService {
    * Mark a user as online
    */
   async setOnline(userId: string, username: string, color: string): Promise<void> {
-    const presenceRef = ref(database, `${this.presencePath}/${userId}/presence`);
-    
-    await set(presenceRef, {
-      online: true,
-      lastSeen: serverTimestamp(),
-      username,
-      color,
-    });
+    try {
+      console.log('📡 [Presence] Setting user online:', { userId, username, color });
+      const presenceRef = ref(database, `${this.presencePath}/${userId}/presence`);
+      
+      await set(presenceRef, {
+        online: true,
+        lastSeen: serverTimestamp(),
+        username,
+        color,
+      });
+      console.log('✅ [Presence] Successfully set user online');
+    } catch (error) {
+      console.error('❌ [Presence] Failed to set user online:', error);
+      throw error;
+    }
   }
 
   /**
@@ -49,12 +56,15 @@ class PresenceService {
    * @returns Unsubscribe function
    */
   subscribeToPresence(callback: (presence: PresenceMap) => void): () => void {
+    console.log('📡 [Presence] Subscribing to presence updates at:', this.presencePath);
     const usersRef = ref(database, this.presencePath);
 
     const handleValue = (snapshot: any) => {
       const data = snapshot.val();
+      console.log('📥 [Presence] Received presence data:', data);
       
       if (!data) {
+        console.log('⚠️ [Presence] No presence data found');
         callback({});
         return;
       }
@@ -67,13 +77,21 @@ class PresenceService {
         }
       });
 
+      console.log('✅ [Presence] Processed presence map:', presence);
       callback(presence);
     };
 
-    onValue(usersRef, handleValue);
+    const handleError = (error: any) => {
+      console.error('❌ [Presence] Error subscribing to presence:', error);
+      console.error('❌ [Presence] Error code:', error.code);
+      console.error('❌ [Presence] Error message:', error.message);
+    };
+
+    onValue(usersRef, handleValue, handleError);
 
     // Return unsubscribe function
     return () => {
+      console.log('📡 [Presence] Unsubscribing from presence updates');
       off(usersRef, 'value', handleValue);
     };
   }
@@ -83,19 +101,26 @@ class PresenceService {
    * This uses Firebase RTDB's onDisconnect() feature
    */
   async setupDisconnectHandler(userId: string): Promise<void> {
-    const presenceRef = ref(database, `${this.presencePath}/${userId}/presence`);
-    const cursorRef = ref(database, `${this.presencePath}/${userId}/cursor`);
+    try {
+      console.log('📡 [Presence] Setting up disconnect handler for:', userId);
+      const presenceRef = ref(database, `${this.presencePath}/${userId}/presence`);
+      const cursorRef = ref(database, `${this.presencePath}/${userId}/cursor`);
 
-    // Set up disconnect handlers
-    await onDisconnect(presenceRef).set({
-      online: false,
-      lastSeen: serverTimestamp(),
-      username: '',
-      color: '',
-    });
+      // Set up disconnect handlers
+      await onDisconnect(presenceRef).set({
+        online: false,
+        lastSeen: serverTimestamp(),
+        username: '',
+        color: '',
+      });
 
-    // Also clean up cursor on disconnect
-    await onDisconnect(cursorRef).remove();
+      // Also clean up cursor on disconnect
+      await onDisconnect(cursorRef).remove();
+      console.log('✅ [Presence] Disconnect handler set up successfully');
+    } catch (error) {
+      console.error('❌ [Presence] Failed to setup disconnect handler:', error);
+      throw error;
+    }
   }
 
   /**

@@ -291,22 +291,52 @@ export default function Canvas() {
     clearLockTimeout();
   };
 
-  const handleShapeDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+  const handleShapeDragMove = (e: Konva.KonvaEventObject<DragEvent>, shapeId: string) => {
     e.cancelBubble = true; // Prevent stage from also receiving drag events
     // Refresh lock timeout during drag
     clearLockTimeout();
     
-    // Optional: Could add real-time position updates here for smoother sync
-    // But for MVP, we'll just update on drag end
+    // Find the shape to get its dimensions
+    const shape = shapes.find(s => s.id === shapeId);
+    if (!shape) return;
+    
+    const node = e.target;
+    const x = node.x();
+    const y = node.y();
+    
+    // Constrain shape position to canvas boundaries
+    const constrainedX = Math.max(0, Math.min(CANVAS_WIDTH - shape.width, x));
+    const constrainedY = Math.max(0, Math.min(CANVAS_HEIGHT - shape.height, y));
+    
+    // Update position if constrained
+    if (x !== constrainedX) {
+      node.x(constrainedX);
+    }
+    if (y !== constrainedY) {
+      node.y(constrainedY);
+    }
   };
 
   const handleShapeDragEnd = async (e: Konva.KonvaEventObject<DragEvent>, shapeId: string) => {
     e.cancelBubble = true; // Prevent stage from also receiving drag events
+    
+    // Find the shape to get its dimensions
+    const shape = shapes.find(s => s.id === shapeId);
+    if (!shape) return;
+    
     const node = e.target;
-    const newX = node.x();
-    const newY = node.y();
+    let newX = node.x();
+    let newY = node.y();
 
-    console.log('🎯 Shape drag ended:', shapeId, 'New position:', newX, newY);
+    // Constrain final position to canvas boundaries (safety net)
+    newX = Math.max(0, Math.min(CANVAS_WIDTH - shape.width, newX));
+    newY = Math.max(0, Math.min(CANVAS_HEIGHT - shape.height, newY));
+    
+    // Update node position if it was outside bounds
+    node.x(newX);
+    node.y(newY);
+
+    console.log('🎯 Shape drag ended:', shapeId, 'Final position:', newX, newY);
 
     // Update shape position in Firestore
     try {
@@ -472,7 +502,7 @@ export default function Canvas() {
                 onMouseDown={() => handleShapeMouseDown(shape.id)}
                 onTouchStart={() => handleShapeMouseDown(shape.id)}
                 onDragStart={(e) => handleShapeDragStart(e, shape.id)}
-                onDragMove={(e) => handleShapeDragMove(e)}
+                onDragMove={(e) => handleShapeDragMove(e, shape.id)}
                 onDragEnd={(e) => handleShapeDragEnd(e, shape.id)}
               >
                 {/* Main shape */}

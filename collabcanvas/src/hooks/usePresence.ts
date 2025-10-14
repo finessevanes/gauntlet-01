@@ -53,7 +53,7 @@ export function usePresence() {
 
   // Get list of online users (including self)
   const onlineUsers = Object.entries(presence)
-    .filter(([userId, userData]) => userData.online)
+    .filter(([_, userData]) => userData.online)
     .map(([userId, userData]) => ({
       userId,
       ...userData,

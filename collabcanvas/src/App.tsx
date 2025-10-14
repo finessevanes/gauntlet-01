@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useAuth } from './hooks/useAuth';
 import Login from './components/Auth/Login';
 import Signup from './components/Auth/Signup';
-import Navbar from './components/Layout/Navbar';
+import AppShell from './components/Layout/AppShell';
+import Canvas from './components/Canvas/Canvas';
+import { CanvasProvider } from './contexts/CanvasContext';
 import './App.css';
 
 function App() {
@@ -28,23 +30,13 @@ function App() {
     );
   }
 
-  // If authenticated, show main app
+  // If authenticated, show main app with canvas
   return (
-    <div style={styles.appContainer}>
-      <Navbar />
-      <div style={styles.mainContent}>
-        <div style={styles.placeholder}>
-          <h2 style={styles.placeholderTitle}>🎨 Canvas Coming Soon</h2>
-          <p style={styles.placeholderText}>
-            Authentication complete! The collaborative canvas will be implemented in the next PR.
-          </p>
-          <div style={styles.statusBadge}>
-            <span style={styles.statusIndicator}>✓</span>
-            <span>PR #1: Authentication - Complete</span>
-          </div>
-        </div>
-      </div>
-    </div>
+    <CanvasProvider>
+      <AppShell>
+        <Canvas />
+      </AppShell>
+    </CanvasProvider>
   );
 }
 
@@ -69,51 +61,6 @@ const styles = {
     marginTop: '1rem',
     color: '#6b7280',
     fontSize: '0.875rem',
-  },
-  appContainer: {
-    minHeight: '100vh',
-    backgroundColor: '#f9fafb',
-  },
-  mainContent: {
-    paddingTop: '80px',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: 'calc(100vh - 80px)',
-  },
-  placeholder: {
-    backgroundColor: 'white',
-    padding: '3rem',
-    borderRadius: '12px',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-    textAlign: 'center' as const,
-    maxWidth: '500px',
-  },
-  placeholderTitle: {
-    fontSize: '2rem',
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: '1rem',
-  },
-  placeholderText: {
-    color: '#6b7280',
-    fontSize: '1rem',
-    lineHeight: '1.6',
-    marginBottom: '2rem',
-  },
-  statusBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#d1fae5',
-    color: '#065f46',
-    borderRadius: '20px',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-  },
-  statusIndicator: {
-    fontSize: '1.25rem',
   },
 };
 

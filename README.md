@@ -13,13 +13,14 @@ This repository includes an **intelligent PR creation tool** that automates the 
 ### Setup (30 seconds)
 
 ```bash
-./setup-pr-alias.sh
+./docs/archive/scripts/setup-pr-alias.sh
 ```
 
 ### Usage
 
 ```bash
-pr
+pr            # Create PR into main
+pr develop    # Create PR into develop (Phase 2)
 ```
 
 That's it! The script will:
@@ -30,36 +31,72 @@ That's it! The script will:
 - ✅ Create the PR
 - ✅ Open it in your browser
 
-**See:** [QUICK-PR-GUIDE.md](QUICK-PR-GUIDE.md) for quick reference or [PR-AUTOMATION.md](PR-AUTOMATION.md) for complete documentation.
+**See:** [.pr-cheatsheet](.pr-cheatsheet) for quick reference.
 
 ### Benefits
 
 **Before (Manual):** 5-10 minutes of copy-pasting and formatting  
 **After (Automated):** 10 seconds, one command ✨
 
+---
+
+## 🎨 Phase 2 Development (In Progress)
+
+Building Phase 2 features on the `develop` branch to keep production stable.
+
+### Quick Start
+
+```bash
+# Start Phase 2 feature
+git checkout develop
+git checkout -b feature/resize-shapes
+
+# Create PR into develop
+pr develop
+```
+
+**See:** [PHASE-2-QUICK-START.md](PHASE-2-QUICK-START.md) for complete Phase 2 workflow.
+
+### Deployment Strategy
+
+| Branch | URL | Purpose |
+|--------|-----|---------|
+| `main` | `gauntlet-01.vercel.app` | Production (MVP) |
+| `develop` | `gauntlet-01-git-develop-*.vercel.app` | Staging (Phase 2) |
+| `feature/*` | `gauntlet-01-git-[branch]-*.vercel.app` | Testing |
+
+Vercel automatically creates preview URLs for all branches. Production is never overwritten! ✅
+
 ## 📁 Repository Structure
 
 ```
 gauntlet-01/
-├── collabcanvas/          # Main application
-│   ├── src/               # Source code
-│   ├── PR-*-*.md         # PR documentation
-│   └── README.md         # App documentation
+├── .github/
+│   ├── workflows/
+│   │   └── develop.md            # 📘 Phase 2 workflow guide
+│   └── PULL_REQUEST_TEMPLATE.md  # PR template
 │
-├── docs/                  # Project documentation
-│   ├── prd.md            # Product requirements
-│   ├── task.md           # Development tasks
-│   └── architecture.md   # Architecture docs
+├── collabcanvas/                 # Main application
+│   ├── src/                      # Source code
+│   ├── tests/                    # Test files
+│   └── README.md                 # App docs
 │
-├── create-pr.sh          # 🌟 PR automation script
-├── setup-pr-alias.sh     # Quick setup for 'pr' alias
-├── QUICK-PR-GUIDE.md     # Quick reference
-└── PR-AUTOMATION.md      # Full automation docs
+├── docs/
+│   ├── architecture.md           # System design
+│   └── archive/                  # Phase 1 docs & scripts
+│       └── scripts/
+│           ├── create-pr.sh      # PR automation
+│           └── setup-pr-alias.sh # Setup script
+│
+├── PHASE-2-QUICK-START.md        # ⚡ Start here!
+├── prd-postmvp.md                # Phase 2 requirements
+├── .pr-cheatsheet                # PR commands
+└── README.md                     # This file
 ```
 
 ## 🛠️ Available Scripts
 
-### PR Creation (New! 🎉)
+### PR Creation
 
 ```bash
 # Create PR for current branch
@@ -86,16 +123,18 @@ npm run dev
 
 ## 📖 Documentation
 
-### Application Docs
-- [CollabCanvas README](./collabcanvas/README.md) - App setup and usage
-- [Product Requirements](./docs/prd.md) - Feature specifications
-- [Architecture](./docs/architecture.md) - System design
-- [Development Tasks](./docs/task.md) - Implementation roadmap
+### Phase 2 (Current Development)
+- [PHASE-2-QUICK-START.md](./PHASE-2-QUICK-START.md) - ⚡ Start here!
+- [.github/workflows/develop.md](./.github/workflows/develop.md) - 📘 Complete workflow
+- [.pr-cheatsheet](./.pr-cheatsheet) - 📋 PR commands
+- [prd-postmvp.md](./prd-postmvp.md) - Phase 2 requirements
 
-### PR Docs
-- [Quick PR Guide](./QUICK-PR-GUIDE.md) - ⚡ TL;DR version
-- [PR Automation Guide](./PR-AUTOMATION.md) - 📚 Complete documentation
-- [Individual PR Summaries](./collabcanvas/) - PR-X-SUMMARY.md files
+### Application
+- [CollabCanvas README](./collabcanvas/README.md) - App setup & usage
+- [Architecture](./docs/architecture.md) - System design
+
+### Phase 1 (MVP - Completed)
+- [docs/archive/](./docs/archive/) - Historical docs & PR summaries
 
 ## 🎯 Project Status
 

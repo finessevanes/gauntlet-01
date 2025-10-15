@@ -14,19 +14,19 @@ export default function Cursor({ x, y, username, color }: CursorProps) {
       <Circle
         x={0}
         y={0}
-        radius={8}
+        radius={14}
         fill={color}
         stroke="white"
-        strokeWidth={2}
+        strokeWidth={3}
         shadowColor="black"
-        shadowBlur={4}
-        shadowOpacity={0.3}
-        shadowOffsetX={1}
-        shadowOffsetY={1}
+        shadowBlur={6}
+        shadowOpacity={0.4}
+        shadowOffsetX={2}
+        shadowOffsetY={2}
       />
       
       {/* Username label */}
-      <Group x={12} y={12}>
+      <Group x={18} y={18}>
         {/* Label background */}
         <Text
           text={username}

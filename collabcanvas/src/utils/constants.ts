@@ -34,7 +34,9 @@ export const CURSOR_UPDATE_INTERVAL = 33; // ~30 FPS
 export const LOCK_TIMEOUT = 5000; // 5 seconds
 
 // Minimum shape size (px)
-export const MIN_SHAPE_SIZE = 10;
+export const MIN_SHAPE_SIZE = 40;
+export const MIN_SHAPE_WIDTH = 40;
+export const MIN_SHAPE_HEIGHT = 40;
 
 // Available cursor colors for users
 export const CURSOR_COLORS = [

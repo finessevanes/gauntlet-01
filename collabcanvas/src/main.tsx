@@ -4,6 +4,12 @@ import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './contexts/AuthContext'
 import './index.css'
 import App from './App.tsx'
+import { canvasService } from './services/canvasService'
+
+// Expose canvasService globally for testing in console
+if (typeof window !== 'undefined') {
+  (window as any).canvasService = canvasService;
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -1,796 +1,2466 @@
-# CollabCanvas MVP - Product Requirements Document
+# CollabCanvas Phase 2 - Product Requirements Document
 
 ## Project Overview
 
-A real-time collaborative design canvas that enables multiple users to simultaneously create, manipulate, and view simple shapes with live cursor tracking and presence awareness. This MVP focuses exclusively on bulletproof multiplayer infrastructure with minimal feature complexity, architected to support AI agent integration in Phase 2.
+Phase 2 transforms the MVP into a **production-ready collaborative design tool with AI assistance**. Building on the solid multiplayer foundation from Phase 1, we add essential canvas manipulation features (resize, rotate, text), advanced Figma-inspired capabilities (multi-select, grouping, alignment, z-index, comments), keyboard shortcuts for power users, and an AI Canvas Agent that provides natural language access to all features.
 
-**Timeline:** 24 hours to MVP checkpoint  
-**Success Criteria:** Solid collaborative foundation with production-ready architecture
+**Timeline:** 72 hours from MVP completion to final submission  
+**Success Criteria:** 
+- Manual UI controls for all core and advanced operations
+- AI agent executes 8+ command types including layout operations
+- Multi-select and grouping enable professional workflows
+- Score 92-98 points on project rubric (strong A)
+
+**Philosophy:** Build deterministic, testable functions first, then add AI wrapper. Maximize rubric score by strategically implementing high-value features.
+
+---
+
+## Phase 2 Goals
+
+### Primary Objectives
+
+1. **Extend Canvas Capabilities:** Add resize, rotate, text, delete, duplicate with manual UI controls
+2. **Advanced Features:** Multi-select, grouping, z-index management, alignment tools, collaborative comments
+3. **Power User Features:** Keyboard shortcuts, copy/paste for efficient workflows
+4. **AI Natural Language Interface:** Enable manipulation through conversational commands including layout operations
+5. **Professional Polish:** Deliver production-ready tool that scores 92-98 on rubric
+
+### Key Principles
+
+1. **Functions First, AI Second:** Build deterministic canvas operations, then add AI wrapper
+2. **Leverage Existing Infrastructure:** All features use the same `CanvasService` layer
+3. **Rubric-Driven Development:** Prioritize features that maximize scoring potential
+4. **Incremental Value:** Each feature works standalone before moving to next
+5. **Professional UX:** Keyboard shortcuts, visual feedback, smooth interactions
 
 ---
 
 ## User Stories
 
-### As a Designer (Primary User)
+### As a Designer (Manual Controls)
 
-- I want to create an account and log in so that I can have a persistent identity in the canvas
-- I want to see a large, pannable/zoomable workspace so that I can work comfortably
-- I want to click and drag to create rectangles of any size so that I can start designing
-- I want to choose from basic colors (red, blue, green, yellow) before drawing
-- I want to drag shapes around the canvas so that I can position elements where I need them
-- I want to see other users' cursors with their names so that I know who's working where
-- I want changes I make to appear instantly for all other users so that we can collaborate in real-time
-- I want to see who else is currently online so that I know who I'm collaborating with
-- I want my work to persist when I disconnect so that I don't lose progress
-- I want to be able to grab a shape quickly if I click it first, even if another user clicks at the same time
+- I want to click a shape and resize it using handles so that I can adjust proportions
+- I want to rotate a shape using a rotation handle so that I can create angled layouts
+- I want to click a "Text" button and type to create text layers so that I can add labels
+- I want to change the font size of text after creating it so that I can adjust emphasis
+- I want to select multiple shapes with shift-click so that I can operate on them together
+- I want to drag a selection box to select multiple shapes so that I can quickly grab groups
+- I want to group selected shapes so that they move together as one unit
+- I want to align selected shapes (left, center, right, top, middle, bottom) so that I can create clean layouts
+- I want to bring shapes to front or send to back so that I can control layering
+- I want to use keyboard shortcuts (Delete, Duplicate, Arrow keys) so that I can work efficiently
+- I want to copy and paste shapes so that I can quickly replicate elements
+- I want to add comments to shapes so that I can communicate with teammates
+- I want to see all these actions from other users in real-time so that we stay coordinated
+
+### As a Designer (AI Interface)
+
+- I want to type "create a blue rectangle in the center" and see it appear instantly
+- I want to say "arrange these shapes in a horizontal row" and watch them organize
+- I want to tell the AI "make a login form" and see organized elements appear
+- I want to ask for "a 3x3 grid of squares" and see it created
+- I want to type "group the blue shapes" and have them grouped automatically
+- I want to say "align these shapes to the left" and see them align
+- I want to manually adjust AI-generated content so that I maintain creative control
+- I want to tell ask for "create 500 squares, select 15 and move them to the left"
 
 ### As a Collaborative Team Member
 
-- I want to see shapes being created and moved by others in real-time so that I can coordinate my work
-- I want to work simultaneously with teammates without conflicts breaking the canvas
-- I want to refresh my browser mid-session and return to the same canvas state
-- I want to see clearly when another user has grabbed a shape before me so I don't try to edit it
+- I want to see my teammate's multi-select and group operations in real-time
+- I want to see AI-generated content from my teammate appear instantly
+- I want to manually edit shapes that AI created
+- I want to use AI simultaneously with my teammate without conflicts
 
 ---
 
-## MVP Feature Requirements
+## Phase 2 Feature Requirements
 
-### 1. Authentication (P0 - Critical) - MUST BE FIRST
+### Part A: Core Manual Features (Critical Path)
 
-- User signup/login (email + password)
-- Optional: Google Sign-In (if time permits)
-- Each user has a displayable username/name
-- Authentication state persists across sessions
-- Store user data in Firestore `users` collection
-- Assign unique cursor color on signup
-
-**Why First:** We need authenticated users before we can track cursors, presence, or shape ownership.
-
-### 2. Real-Time Cursor Sync (P0 - Critical) - BEFORE SHAPES
-
-#### Multiplayer Cursors
-
-- Show all connected users' cursor positions in real-time
-- Display username label next to each cursor
-- Each cursor has a unique color (assigned per user)
-- Update frequency: 20-30 FPS (33-50ms) via RTDB
-- Store in RTDB: `/sessions/main/users/{userId}/cursor`
-- **Canvas bounds only:** Cursors only visible within 5000×5000 canvas area (not in gray background)
-
-#### Presence Awareness
-
-- Show list of currently connected users
-- Visual indicator (e.g., colored dots) for online status
-- Auto-update when users join/leave
-- Use RTDB `onDisconnect()` for automatic cleanup
-- Store in RTDB: `/sessions/main/users/{userId}/presence`
-
-**Why Second:** Proving cursor sync works validates our entire real-time infrastructure before we add shape complexity.
-
-### 3. Canvas Core (P0 - Critical)
-
-#### Pan and Zoom
-
-- Click-and-drag panning (or spacebar + drag)
-- Mouse wheel zoom with cursor-centered zooming
-- Workspace size: 5000x5000px
-
-#### Simple Color Toolbar
-
-- 4 color buttons in toolbar/header: Red, Blue, Green, Yellow
-- Selected color is highlighted/active
-- Default: Blue (`#3b82f6`)
-
-**Color Options:**
-- Red: `#ef4444`
-- Blue: `#3b82f6`
-- Green: `#10b981`
-- Yellow: `#f59e0b`
-
-#### Rectangle Creation with Click-and-Drag
-
-1. User clicks on canvas background (mousedown) → records start position
-2. User drags (mousemove) → shows preview rectangle dynamically growing
-3. Preview shows dashed border and semi-transparent fill in selected color
-4. User releases (mouseup) → creates final rectangle with:
-   - Position: where user started dragging
-   - Width: `Math.abs(endX - startX)`
-   - Height: `Math.abs(endY - startY)`
-   - Color: currently selected color from toolbar
-5. Handle negative drags (user drags left or up)
-6. Minimum size: 10x10px (prevent accidental tiny rectangles from clicks)
-
-#### Basic Interactions
-
-- Click to select shape (show selection border)
-- Drag to move selected shape
-- No resize handles or rotation for MVP
-- No multi-select for MVP
-- No delete function for MVP
-
-### 4. Real-Time Shape Sync with Simple Locking (P0 - Critical)
-
-#### Live Object Sync
-
-- Shape creation broadcasts to all users instantly
-- Shape movement/updates sync across all clients
-- Target latency: <100ms
-- Store in Firestore: `canvases/main/shapes/{shapeId}` (individual documents)
-
-#### Simple Shape Locking
-
-**The Goal:** First user to click a shape gets to control it. Other users see it's locked and cannot interact.
-
-**How it works:**
-
-1. **User A clicks shape**
-   - Immediately writes to Firestore: `lockedBy: "userA_id"`, `lockedAt: serverTimestamp()`
-   - Locally shows shape as selected (green border)
-
-2. **User B clicks same shape shortly after**
-   - Before User B's click reaches their UI, Firestore listener receives User A's lock
-   - User B sees shape is already locked (red border + lock icon)
-   - Click interaction is ignored (shape not draggable)
-
-3. **Edge Case:** If User A and User B click within ~50ms (very rare)
-   - Both writes reach Firestore
-   - Last-write-wins means one will overwrite the other
-   - Acceptable for MVP - this happens <1% of the time with 2-5 users
-   - Can be upgraded to Firestore transactions post-MVP if needed
-
-#### Lock Release
-
-Lock releases when user:
-- Clicks away (deselects shape)
-- Finishes dragging (onDragEnd)
-- Disconnects (handled by presence cleanup)
-- Auto-release after 5 seconds of inactivity
-
-#### Visual States
-
-- **Unlocked shape:** User-defined color fill, white border on hover
-- **Locked by me:** User-defined color fill, green border (3px), draggable
-- **Locked by other:** User-defined color fill, red border (3px) + lock icon 🔒, 50% opacity, no interaction
-- **Preview (while drawing):** Dashed border, 50% opacity, in selected color
-
-#### Error Handling
-
-- Toast notifications for simple errors (e.g., "Shape locked by [username]")
-- Use `react-hot-toast` or similar library (lightweight, fast to implement)
-
-### 5. Deployment (P0 - Critical)
-
-- Publicly accessible URL
-- Supports 5+ concurrent users minimum (performance tested)
-- Must be testable by evaluators
-- Single shared canvas for all users
-- Target: 60 FPS rendering, 500+ shapes support
+These features establish the foundation for advanced capabilities and AI integration.
 
 ---
 
-## Tech Stack
+### 1. Resize Shapes (P0 - Critical)
 
-### Frontend Framework
+#### CanvasService Extension
 
-- React with TypeScript and Vite
-
-### Canvas Rendering
-
-- Konva.js with react-konva
-- Target: 60 FPS during all interactions
-
-### State Management
-
-- React Context with custom hooks pattern
-
-### Backend & Sync
-
-- **Firebase Realtime Database (RTDB):** Cursors, Presence (high-frequency, ephemeral data)
-- **Firebase Firestore:** Shapes, Locks (structured, persistent data)
-- **Firebase Authentication:** User management
-
-### Architecture Pattern
-
-**Service Layer Pattern:**
-
-```
-UI Components
-    ↓
-React Context (AuthContext, CanvasContext)
-    ↓
-Custom Hooks (useAuth, useCanvas, useCursors, usePresence)
-    ↓
-Service Layer (AuthService, CanvasService, CursorService, PresenceService)
-    ↓
-Firebase (Auth, Firestore, RTDB)
+```typescript
+// Add to services/canvasService.ts
+async resizeShape(shapeId: string, width: number, height: number): Promise<void> {
+  // Validate dimensions
+  if (width < 10 || height < 10) {
+    throw new Error('Minimum size is 10×10 pixels');
+  }
+  
+  const shapeRef = doc(firestore, `canvases/main/shapes/${shapeId}`);
+  await updateDoc(shapeRef, {
+    width: width,
+    height: height,
+    updatedAt: serverTimestamp()
+  });
+}
 ```
 
-**Why Service Layer:**
-- Clean separation of concerns
-- Testable with Firebase Emulators
-- AI-ready: AI agent will call same service methods in Phase 2
-- Consistent API for human + AI interactions
+#### UI Implementation
 
-### Deployment
+**Resize Handles:**
+- Show 8 resize handles when shape is locked by current user
+- Corner handles (4): Proportional resize (maintain aspect ratio)
+- Edge handles (4): Resize single dimension (width or height only)
+- Handle positions: TL, T, TR, L, R, BL, B, BR
+- Real-time visual feedback during resize
 
-- Vercel (frontend hosting)
+**Visual Design:**
+- Handles: 8×8px white squares with 1px gray border
+- Hover state: Handle scales to 10×10px, changes to blue
+- Active drag: Show dimension tooltip "200 × 150" above shape
+- Minimum size: 10×10px (enforced, show error toast if violated)
 
-### Additional Libraries
-
-- `lodash` - throttle function (cursor updates)
-- `react-hot-toast` - error notifications
-- `react-konva` - Konva React bindings
-- `konva` - Canvas rendering
-
-### Testing Infrastructure
-
-- Firebase Emulators: Auth, Firestore, RTDB
-- Vitest + React Testing Library: Unit tests
-- Integration tests for multi-user scenarios
+**Gate:** User A resizes rectangle → User B sees resize in <100ms
 
 ---
 
-## Data Models
+### 2. Rotate Shapes (P0 - Critical)
+
+#### CanvasService Extension
+
+```typescript
+async rotateShape(shapeId: string, rotation: number): Promise<void> {
+  const normalizedRotation = rotation % 360;
+  const shapeRef = doc(firestore, `canvases/main/shapes/${shapeId}`);
+  await updateDoc(shapeRef, {
+    rotation: normalizedRotation,
+    updatedAt: serverTimestamp()
+  });
+}
+```
+
+#### Data Model Update
+
+Add `rotation` field to all shape documents:
+
+```typescript
+{
+  id: "shape_123",
+  type: "rectangle | text | circle | triangle",
+  rotation: 0,       // Degrees (0-360), default 0
+  // ... rest of fields
+}
+```
+
+#### UI Implementation
+
+**Rotation Handle:**
+- Single circular handle appears 30px above shape center when locked
+- Visual: 12px diameter circle with "↻" rotation icon
+- Connected to shape with thin gray line (visual guide)
+- Cursor changes to rotation cursor on hover
+
+**Konva Implementation:**
+
+```typescript
+<Rect
+  x={shape.x + shape.width / 2}  // Adjusted for offset
+  y={shape.y + shape.height / 2}
+  width={shape.width}
+  height={shape.height}
+  fill={shape.color}
+  rotation={shape.rotation || 0}
+  offsetX={shape.width / 2}   // Rotate around center
+  offsetY={shape.height / 2}
+  draggable={isLockedByMe}
+/>
+```
+
+**Gate:** User A rotates rectangle 45° → User B sees rotation in <100ms
+
+---
+
+### 3. Text Layers (P0 - Critical)
+
+#### Data Model
+
+Text shapes in `canvases/main/shapes` collection:
+
+```typescript
+{
+  id: "shape_456",
+  type: "text",      // Type can be: "rectangle" | "text" | "circle" | "triangle"
+  text: "Hello World",
+  x: 500,
+  y: 300,
+  fontSize: 16,      // px (12-48 range)
+  color: "#000000",  // Text color (default black)
+  fontWeight: "normal" | "bold",           // NEW: Text formatting
+  fontStyle: "normal" | "italic",          // NEW: Text formatting
+  textDecoration: "none" | "underline",    // NEW: Text formatting
+  rotation: 0,
+  zIndex: 0,
+  groupId: null,
+  createdBy: "user_abc",
+  createdAt: "timestamp",
+  lockedBy: null,
+  lockedAt: null,
+  updatedAt: "timestamp"
+}
+```
+
+#### CanvasService Extension
+
+```typescript
+async createText(textData: {
+  text: string;
+  x: number;
+  y: number;
+  fontSize: number;
+  color: string;
+  fontWeight?: "normal" | "bold";           // NEW: Optional formatting
+  fontStyle?: "normal" | "italic";          // NEW: Optional formatting
+  textDecoration?: "none" | "underline";    // NEW: Optional formatting
+  createdBy: string;
+}): Promise<string> {
+  const textRef = doc(collection(firestore, 'canvases/main/shapes'));
+  await setDoc(textRef, {
+    id: textRef.id,
+    type: 'text',
+    text: textData.text,
+    x: textData.x,
+    y: textData.y,
+    fontSize: textData.fontSize,
+    color: textData.color,
+    fontWeight: textData.fontWeight || "normal",      // NEW
+    fontStyle: textData.fontStyle || "normal",        // NEW
+    textDecoration: textData.textDecoration || "none", // NEW
+    rotation: 0,
+    zIndex: await this.getNextZIndex(),
+    groupId: null,
+    createdBy: textData.createdBy,
+    createdAt: serverTimestamp(),
+    lockedBy: null,
+    lockedAt: null,
+    updatedAt: serverTimestamp()
+  });
+  return textRef.id;
+}
+
+async updateText(shapeId: string, text: string): Promise<void> {
+  const shapeRef = doc(firestore, `canvases/main/shapes/${shapeId}`);
+  await updateDoc(shapeRef, {
+    text: text,
+    updatedAt: serverTimestamp()
+  });
+}
+
+async updateTextFontSize(shapeId: string, fontSize: number): Promise<void> {
+  const shapeRef = doc(firestore, `canvases/main/shapes/${shapeId}`);
+  await updateDoc(shapeRef, {
+    fontSize: fontSize,
+    updatedAt: serverTimestamp()
+  });
+}
+
+async updateTextFormatting(shapeId: string, formatting: {
+  fontWeight?: "normal" | "bold";
+  fontStyle?: "normal" | "italic";
+  textDecoration?: "none" | "underline";
+}): Promise<void> {
+  const shapeRef = doc(firestore, `canvases/main/shapes/${shapeId}`);
+  await updateDoc(shapeRef, {
+    ...formatting,
+    updatedAt: serverTimestamp()
+  });
+}
+```
+
+#### UI Implementation
+
+**Text Tool:**
+- Add "Text" button to toolbar (next to shape buttons)
+- Layout: `[Rectangle] [Circle] [Triangle] [Text] | [Red] [Blue] [Green] [Yellow]`
+- Click activates text placement mode
+- User clicks on canvas → text input appears
+- Enter creates text, Escape cancels
+- Double-click existing text to edit
+
+**Font Size Control:**
+- Dropdown in controls panel: 12, 14, 16, 18, 20, 24, 32, 48 px
+- Default: 16px
+- Changes sync in real-time
+
+**Text Formatting Controls (Bold, Italic, Underline):**
+- When text shape is locked by current user, show formatting buttons in controls panel
+- Button layout: `[B] [I] [U̲] | Font Size: [16px ▼]`
+- Buttons:
+  - **[B]** Bold toggle
+  - **[I]** Italic toggle  
+  - **[U̲]** Underline toggle
+- Active state: Blue background (#3b82f6), white text
+- Inactive state: Gray background, dark text
+- Multiple formats can be active simultaneously (e.g., bold + italic)
+
+**Formatting Implementation:**
+
+```typescript
+// Toggle handlers in Canvas component
+const toggleBold = () => {
+  const newWeight = selectedShape.fontWeight === 'bold' ? 'normal' : 'bold';
+  canvasService.updateTextFormatting(selectedShape.id, { fontWeight: newWeight });
+};
+
+const toggleItalic = () => {
+  const newStyle = selectedShape.fontStyle === 'italic' ? 'normal' : 'italic';
+  canvasService.updateTextFormatting(selectedShape.id, { fontStyle: newStyle });
+};
+
+const toggleUnderline = () => {
+  const newDecoration = selectedShape.textDecoration === 'underline' ? 'none' : 'underline';
+  canvasService.updateTextFormatting(selectedShape.id, { textDecoration: newDecoration });
+};
+```
+
+**Konva Text Rendering:**
+
+```typescript
+<Text
+  text={shape.text}
+  x={shape.x}
+  y={shape.y}
+  fontSize={shape.fontSize}
+  fill={shape.color}
+  fontStyle={
+    shape.fontWeight === 'bold' && shape.fontStyle === 'italic' ? 'bold italic' : 
+    shape.fontWeight === 'bold' ? 'bold' : 
+    shape.fontStyle === 'italic' ? 'italic' : 
+    'normal'
+  }
+  textDecoration={shape.textDecoration || 'none'}
+  rotation={shape.rotation || 0}
+  draggable={isLockedByMe}
+  onClick={handleTextClick}
+  onDblClick={handleTextEdit}
+/>
+```
+
+**Controls Panel for Text:**
+```
+┌──────────────────────────────────┐
+│ Text                             │
+├──────────────────────────────────┤
+│ [🗑️ Delete]  [📋 Duplicate]     │
+├──────────────────────────────────┤
+│ [B] [I] [U̲] | Font: [16px ▼]   │
+└──────────────────────────────────┘
+```
+
+**Gate:** 
+- User A creates text "Hello" → User B sees it in <100ms
+- User A edits to "Hello World" → User B sees update in <100ms
+- User A makes text bold → User B sees bold text in <100ms
+- User A adds italic + underline → User B sees all formatting in <100ms
+
+---
+
+### 4. Delete & Duplicate (P0 - Critical)
+
+#### CanvasService Extension
+
+```typescript
+async deleteShape(shapeId: string): Promise<void> {
+  const shapeRef = doc(firestore, `canvases/main/shapes/${shapeId}`);
+  await deleteDoc(shapeRef);
+}
+
+async duplicateShape(shapeId: string, userId: string): Promise<string> {
+  const shapeDoc = await getDoc(doc(firestore, `canvases/main/shapes/${shapeId}`));
+  if (!shapeDoc.exists()) throw new Error('Shape not found');
+  
+  const original = shapeDoc.data();
+  const duplicateRef = doc(collection(firestore, 'canvases/main/shapes'));
+  
+  const newX = original.x + 20 > 4980 ? 50 : original.x + 20;
+  const newY = original.y + 20 > 4980 ? 50 : original.y + 20;
+  
+  await setDoc(duplicateRef, {
+    ...original,
+    id: duplicateRef.id,
+    x: newX,
+    y: newY,
+    createdBy: userId,
+    createdAt: serverTimestamp(),
+    lockedBy: null,
+    lockedAt: null,
+    updatedAt: serverTimestamp()
+  });
+  
+  return duplicateRef.id;
+}
+```
+
+#### UI Implementation
+
+**Controls Panel:**
+- Appears when shape is locked by current user
+- Buttons: [🗑️ Delete] [📋 Duplicate]
+- Position: Floating near shape or fixed in corner
+- For text shapes, add fontSize dropdown
+
+**Gate:** User A deletes/duplicates → User B sees in <100ms
+
+---
+
+### 5. Additional Shape Types - Circles & Triangles (P0 - Critical for Rubric)
+
+#### Data Model Updates
+
+Add shape type variants to Firestore documents:
+
+```typescript
+// Circle shape
+{
+  id: "shape_123",
+  type: "circle",
+  x: 500,          // Center X
+  y: 300,          // Center Y
+  radius: 75,      // Radius in pixels
+  color: "#3b82f6",
+  rotation: 0,     // Circles can rotate if they have patterns (future)
+  zIndex: 5,
+  groupId: null,
+  createdBy: "user_abc",
+  createdAt: timestamp,
+  lockedBy: null,
+  lockedAt: null,
+  updatedAt: timestamp
+}
+
+// Triangle shape
+{
+  id: "shape_456",
+  type: "triangle",
+  x: 1000,         // Top vertex X
+  y: 500,          // Top vertex Y
+  width: 150,      // Base width
+  height: 130,     // Height from top to base
+  color: "#ef4444",
+  rotation: 0,
+  zIndex: 3,
+  groupId: null,
+  createdBy: "user_abc",
+  createdAt: timestamp,
+  lockedBy: null,
+  lockedAt: null,
+  updatedAt: timestamp
+}
+```
+
+#### CanvasService Extension
+
+```typescript
+async createCircle(circleData: {
+  x: number;
+  y: number;
+  radius: number;
+  color: string;
+  createdBy: string;
+}): Promise<string> {
+  const circleRef = doc(collection(firestore, 'canvases/main/shapes'));
+  await setDoc(circleRef, {
+    id: circleRef.id,
+    type: 'circle',
+    x: circleData.x,
+    y: circleData.y,
+    radius: circleData.radius,
+    color: circleData.color,
+    rotation: 0,
+    zIndex: await this.getNextZIndex(),
+    groupId: null,
+    createdBy: circleData.createdBy,
+    createdAt: serverTimestamp(),
+    lockedBy: null,
+    lockedAt: null,
+    updatedAt: serverTimestamp()
+  });
+  return circleRef.id;
+}
+
+async createTriangle(triangleData: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+  createdBy: string;
+}): Promise<string> {
+  const triangleRef = doc(collection(firestore, 'canvases/main/shapes'));
+  await setDoc(triangleRef, {
+    id: triangleRef.id,
+    type: 'triangle',
+    x: triangleData.x,
+    y: triangleData.y,
+    width: triangleData.width,
+    height: triangleData.height,
+    color: triangleData.color,
+    rotation: 0,
+    zIndex: await this.getNextZIndex(),
+    groupId: null,
+    createdBy: triangleData.createdBy,
+    createdAt: serverTimestamp(),
+    lockedBy: null,
+    lockedAt: null,
+    updatedAt: serverTimestamp()
+  });
+  return triangleRef.id;
+}
+
+async resizeCircle(shapeId: string, radius: number): Promise<void> {
+  if (radius < 5) {
+    throw new Error('Minimum radius is 5 pixels');
+  }
+  
+  const shapeRef = doc(firestore, `canvases/main/shapes/${shapeId}`);
+  await updateDoc(shapeRef, {
+    radius: radius,
+    updatedAt: serverTimestamp()
+  });
+}
+```
+
+#### UI Implementation
+
+**Toolbar Updates:**
+- Add "Circle" and "Triangle" buttons to toolbar
+- Layout: `[Rectangle] [Circle] [Triangle] [Text] | [Red] [Blue] [Green] [Yellow]`
+- Active tool highlighted with blue border
+- Store active tool in CanvasContext: `'rectangle' | 'circle' | 'triangle' | 'text'`
+
+**Circle Creation Flow:**
+1. User clicks Circle tool → activates circle mode
+2. User clicks on canvas (mousedown) → records center position
+3. User drags (mousemove) → calculates radius as distance from center to cursor
+   ```typescript
+   const radius = Math.sqrt(
+     Math.pow(currentX - startX, 2) + 
+     Math.pow(currentY - startY, 2)
+   );
+   ```
+4. Show preview circle with dashed border during drag
+5. User releases (mouseup) → if radius ≥ 5px, create circle
+6. Minimum size: 5px radius (prevent accidental tiny circles)
+
+**Triangle Creation Flow:**
+1. User clicks Triangle tool → activates triangle mode
+2. User clicks and drags like rectangle (defines bounding box)
+3. Show preview triangle (equilateral or isosceles) during drag
+4. User releases → if width ≥ 10 and height ≥ 10, create triangle
+5. Triangle points calculated from bounding box:
+   ```typescript
+   // Top vertex: (x + width/2, y)
+   // Bottom-left: (x, y + height)
+   // Bottom-right: (x + width, y + height)
+   ```
+
+**Resize Handles for Circles:**
+- Show 4 handles (top, bottom, left, right) when circle locked
+- Dragging any handle changes radius
+- All handles maintain circular shape (proportional)
+- Show radius tooltip: "Radius: 75px"
+
+**Resize Handles for Triangles:**
+- Show 8 handles like rectangles
+- Corner handles resize proportionally
+- Edge handles resize single dimension
+- Triangle shape recalculates based on bounding box
+
+**Rendering with Konva:**
+
+```typescript
+// Circle rendering
+{shape.type === 'circle' && (
+  <Circle
+    x={shape.x}
+    y={shape.y}
+    radius={shape.radius}
+    fill={shape.color}
+    rotation={shape.rotation || 0}
+    draggable={isLockedByMe}
+    onClick={handleShapeClick}
+  />
+)}
+
+// Triangle rendering
+{shape.type === 'triangle' && (
+  <Line
+    points={[
+      shape.width / 2, 0,              // Top vertex
+      0, shape.height,                 // Bottom-left
+      shape.width, shape.height,       // Bottom-right
+      shape.width / 2, 0               // Close path
+    ]}
+    x={shape.x}
+    y={shape.y}
+    fill={shape.color}
+    closed={true}
+    rotation={shape.rotation || 0}
+    offsetX={shape.width / 2}         // Rotate around center
+    offsetY={shape.height / 2}
+    draggable={isLockedByMe}
+    onClick={handleShapeClick}
+  />
+)}
+```
+
+**Controls Panel Updates:**
+- For circles: Show radius input field (editable)
+- For triangles: Same controls as rectangles (width, height)
+- Delete and Duplicate buttons work for all shape types
+
+**Gate:** User A creates circle → User B sees it. User A creates triangle → User B sees it. Resize/rotate work for all shapes. All sync in <100ms.
+
+---
+
+### Part B: Advanced Features (Rubric-Driven)
+
+These features are strategically selected to maximize rubric scoring.
+
+---
+
+### 6. Multi-Select (P0 - Critical for Rubric)
+
+**Why Critical:** Required for "Excellent" (7-8 points) in Canvas Functionality (Section 2)
+
+#### Selection State Management
+
+```typescript
+// Add to CanvasContext
+const [selectedShapes, setSelectedShapes] = useState<string[]>([]);
+
+// Multi-select modes:
+// 1. Shift+click: Add shape to selection
+// 2. Marquee: Drag rectangle to select all inside
+```
+
+#### UI Implementation
+
+**Shift+Click Selection:**
+- Click shape while holding Shift → add to selection (if not already selected)
+- Click again while holding Shift → remove from selection
+- Visual: All selected shapes show blue border (3px)
+- Click background (no Shift) → clear selection
+
+**Marquee Selection:**
+- Click and drag on canvas background → show selection rectangle
+- Visual: Dashed blue border, semi-transparent blue fill (20% opacity)
+- On release: Select all shapes whose bounding boxes intersect marquee
+- Shapes added to current selection if Shift held, otherwise replace selection
+
+**Multi-Select Operations:**
+- **Move:** Drag any selected shape → all selected shapes move together (maintain relative positions)
+- **Delete:** Delete button → deletes all selected shapes
+- **Duplicate:** Duplicate button → duplicates all selected shapes with 20px offset
+- **Group:** Group button appears in controls panel
+- **Align:** Alignment tools appear in controls panel
+
+**Implementation Details:**
+
+```typescript
+// In Canvas.tsx
+const handleShapeClick = (shapeId: string, e: any) => {
+  if (e.evt.shiftKey) {
+    // Add/remove from selection
+    setSelectedShapes(prev => 
+      prev.includes(shapeId) 
+        ? prev.filter(id => id !== shapeId)
+        : [...prev, shapeId]
+    );
+  } else {
+    // Replace selection
+    setSelectedShapes([shapeId]);
+  }
+};
+
+// Marquee selection
+const [marquee, setMarquee] = useState(null);
+
+const handleMarqueeDrag = (e: any) => {
+  // Calculate marquee bounds
+  // Find shapes intersecting marquee
+  // Update selection
+};
+```
+
+**Gate:** User A shift-clicks 3 shapes → all show blue border. User A drags one → all 3 move together. User B sees all movements in real-time.
+
+---
+
+### 7. Object Grouping (P0 - Tier 1 Feature)
+
+**Why Critical:** Tier 1 feature (2 points), enables multi-shape operations, foundation for advanced workflows
+
+#### Data Model
+
+```typescript
+// Add to Firestore shape documents
+{
+  id: "shape_123",
+  groupId: "group_abc" | null,  // NEW: Reference to group
+  // ... existing fields
+}
+
+// New Firestore collection: groups
+{
+  id: "group_abc",
+  name: "Login Form",  // Optional user-defined name
+  shapeIds: ["shape_123", "shape_456", "shape_789"],
+  createdBy: "user_abc",
+  createdAt: "timestamp"
+}
+```
+
+#### CanvasService Extension
+
+```typescript
+async groupShapes(shapeIds: string[], userId: string, name?: string): Promise<string> {
+  const groupRef = doc(collection(firestore, 'canvases/main/groups'));
+  
+  await setDoc(groupRef, {
+    id: groupRef.id,
+    name: name || `Group ${Date.now()}`,
+    shapeIds: shapeIds,
+    createdBy: userId,
+    createdAt: serverTimestamp()
+  });
+  
+  // Update all shapes with groupId
+  const batch = writeBatch(firestore);
+  for (const shapeId of shapeIds) {
+    const shapeRef = doc(firestore, `canvases/main/shapes/${shapeId}`);
+    batch.update(shapeRef, { groupId: groupRef.id });
+  }
+  await batch.commit();
+  
+  return groupRef.id;
+}
+
+async ungroupShapes(groupId: string): Promise<void> {
+  const groupDoc = await getDoc(doc(firestore, `canvases/main/groups/${groupId}`));
+  if (!groupDoc.exists()) throw new Error('Group not found');
+  
+  const { shapeIds } = groupDoc.data();
+  
+  // Remove groupId from all shapes
+  const batch = writeBatch(firestore);
+  for (const shapeId of shapeIds) {
+    const shapeRef = doc(firestore, `canvases/main/shapes/${shapeId}`);
+    batch.update(shapeRef, { groupId: null });
+  }
+  await batch.commit();
+  
+  // Delete group document
+  await deleteDoc(doc(firestore, `canvases/main/groups/${groupId}`));
+}
+```
+
+#### UI Implementation
+
+**Grouping:**
+- Select 2+ shapes (multi-select)
+- "Group" button appears in controls panel
+- Click Group → shapes are grouped
+- Visual: Grouped shapes show shared dashed border when any member selected
+- Click any shape in group → selects entire group
+
+**Ungrouping:**
+- Select grouped shapes
+- "Ungroup" button appears in controls panel
+- Click Ungroup → shapes are ungrouped, individually selectable
+
+**Group Operations:**
+- **Move:** Drag any group member → entire group moves
+- **Delete:** Delete group → deletes all member shapes
+- **Duplicate:** Duplicate group → duplicates all members with shared offset
+- **Lock:** Lock group → locks all member shapes
+- **Transform:** Resize/rotate group → applies to bounding box (Phase 3 enhancement)
+
+**Gate:** User A selects 3 shapes, clicks Group → they move together. User B sees grouped behavior in real-time.
+
+---
+
+### 8. Z-Index Management (P0 - Tier 2 Feature)
+
+**Why Critical:** Tier 2 feature (3 points), addresses "Layer management" requirement in Canvas Functionality
+
+#### Data Model
+
+```typescript
+// Add to Firestore shape documents
+{
+  id: "shape_123",
+  zIndex: 5,  // NEW: Stacking order (higher = on top)
+  // ... existing fields
+}
+```
+
+#### CanvasService Extension
+
+```typescript
+async bringToFront(shapeId: string): Promise<void> {
+  const shapes = await this.getShapes();
+  const maxZIndex = Math.max(...shapes.map(s => s.zIndex || 0));
+  
+  const shapeRef = doc(firestore, `canvases/main/shapes/${shapeId}`);
+  await updateDoc(shapeRef, {
+    zIndex: maxZIndex + 1,
+    updatedAt: serverTimestamp()
+  });
+}
+
+async sendToBack(shapeId: string): Promise<void> {
+  const shapes = await this.getShapes();
+  const minZIndex = Math.min(...shapes.map(s => s.zIndex || 0));
+  
+  const shapeRef = doc(firestore, `canvases/main/shapes/${shapeId}`);
+  await updateDoc(shapeRef, {
+    zIndex: minZIndex - 1,
+    updatedAt: serverTimestamp()
+  });
+}
+
+async bringForward(shapeId: string): Promise<void> {
+  const shapeRef = doc(firestore, `canvases/main/shapes/${shapeId}`);
+  const shapeDoc = await getDoc(shapeRef);
+  const currentZIndex = shapeDoc.data()?.zIndex || 0;
+  
+  await updateDoc(shapeRef, {
+    zIndex: currentZIndex + 1,
+    updatedAt: serverTimestamp()
+  });
+}
+
+async sendBackward(shapeId: string): Promise<void> {
+  const shapeRef = doc(firestore, `canvases/main/shapes/${shapeId}`);
+  const shapeDoc = await getDoc(shapeRef);
+  const currentZIndex = shapeDoc.data()?.zIndex || 0;
+  
+  await updateDoc(shapeRef, {
+    zIndex: currentZIndex - 1,
+    updatedAt: serverTimestamp()
+  });
+}
+```
+
+#### UI Implementation
+
+**Controls Panel Buttons:**
+- When shape(s) selected, show 4 buttons:
+  - ⬆️🔝 To Front (Cmd+Shift+])
+  - ⬇️⬇️ To Back (Cmd+Shift+[)
+  - ⬆️ Forward (Cmd+])
+  - ⬇️ Backward (Cmd+[)
+
+**Rendering:**
+
+```typescript
+// In Canvas.tsx
+const sortedShapes = shapes.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+
+{sortedShapes.map(shape => (
+  <Rect key={shape.id} {...shape} />
+))}
+```
+
+**Gate:** User A brings blue rectangle to front → it appears on top of red rectangle. User B sees layer change in real-time.
+
+---
+
+### 9. Alignment Tools (P0 - Tier 2 Feature)
+
+**Why Critical:** Tier 2 feature (3 points), professional design tool requirement, enables precise layouts
+
+#### CanvasService Extension
+
+```typescript
+async alignShapes(
+  shapeIds: string[], 
+  alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom'
+): Promise<void> {
+  const shapes = await Promise.all(
+    shapeIds.map(id => getDoc(doc(firestore, `canvases/main/shapes/${id}`)))
+  );
+  
+  const shapesData = shapes.map(s => s.data());
+  
+  let targetValue: number;
+  
+  switch (alignment) {
+    case 'left':
+      targetValue = Math.min(...shapesData.map(s => s.x));
+      break;
+    case 'center':
+      const avgX = shapesData.reduce((sum, s) => sum + s.x + s.width / 2, 0) / shapesData.length;
+      targetValue = avgX;
+      break;
+    case 'right':
+      targetValue = Math.max(...shapesData.map(s => s.x + s.width));
+      break;
+    case 'top':
+      targetValue = Math.min(...shapesData.map(s => s.y));
+      break;
+    case 'middle':
+      const avgY = shapesData.reduce((sum, s) => sum + s.y + s.height / 2, 0) / shapesData.length;
+      targetValue = avgY;
+      break;
+    case 'bottom':
+      targetValue = Math.max(...shapesData.map(s => s.y + s.height));
+      break;
+  }
+  
+  // Update shapes with batch write
+  const batch = writeBatch(firestore);
+  shapesData.forEach((shape, i) => {
+    const shapeRef = doc(firestore, `canvases/main/shapes/${shape.id}`);
+    const updates: any = { updatedAt: serverTimestamp() };
+    
+    if (['left', 'center', 'right'].includes(alignment)) {
+      if (alignment === 'left') updates.x = targetValue;
+      else if (alignment === 'center') updates.x = targetValue - shape.width / 2;
+      else if (alignment === 'right') updates.x = targetValue - shape.width;
+    } else {
+      if (alignment === 'top') updates.y = targetValue;
+      else if (alignment === 'middle') updates.y = targetValue - shape.height / 2;
+      else if (alignment === 'bottom') updates.y = targetValue - shape.height;
+    }
+    
+    batch.update(shapeRef, updates);
+  });
+  
+  await batch.commit();
+}
+
+async distributeShapes(
+  shapeIds: string[], 
+  direction: 'horizontal' | 'vertical'
+): Promise<void> {
+  const shapes = await Promise.all(
+    shapeIds.map(id => getDoc(doc(firestore, `canvases/main/shapes/${id}`)))
+  );
+  
+  const shapesData = shapes.map(s => s.data());
+  
+  if (direction === 'horizontal') {
+    // Sort by x position
+    shapesData.sort((a, b) => a.x - b.x);
+    const minX = shapesData[0].x;
+    const maxX = shapesData[shapesData.length - 1].x + shapesData[shapesData.length - 1].width;
+    const totalWidth = shapesData.reduce((sum, s) => sum + s.width, 0);
+    const spacing = (maxX - minX - totalWidth) / (shapesData.length - 1);
+    
+    let currentX = minX;
+    const batch = writeBatch(firestore);
+    shapesData.forEach(shape => {
+      const shapeRef = doc(firestore, `canvases/main/shapes/${shape.id}`);
+      batch.update(shapeRef, { 
+        x: currentX,
+        updatedAt: serverTimestamp()
+      });
+      currentX += shape.width + spacing;
+    });
+    await batch.commit();
+  } else {
+    // Similar logic for vertical distribution
+  }
+}
+```
+
+#### UI Implementation
+
+**Alignment Toolbar:**
+- Appears when 2+ shapes selected
+- Two rows of buttons:
+
+```
+Row 1: [⬅️ Left] [↔️ Center] [➡️ Right] | [⬆️ Top] [↕️ Middle] [⬇️ Bottom]
+Row 2: [↔️ Distribute H] [↕️ Distribute V]
+```
+
+**Tooltips:**
+- Align Left: "Align left edges (Cmd+Shift+L)"
+- Align Center: "Align horizontal centers"
+- Distribute Horizontally: "Space evenly left to right"
+
+**Gate:** User A selects 4 shapes, clicks "Align Left" → all shapes align to leftmost edge. User B sees alignment in real-time.
+
+---
+
+### 10. Keyboard Shortcuts (P0 - Tier 1 Feature)
+
+**Why Critical:** Tier 1 feature (2 points), essential for power users, quick implementation
+
+#### Shortcuts to Implement
+
+**Shape Operations:**
+- `Delete` or `Backspace`: Delete selected shape(s)
+- `Cmd/Ctrl + D`: Duplicate selected shape(s)
+- `Cmd/Ctrl + C`: Copy selected shape(s)
+- `Cmd/Ctrl + V`: Paste from clipboard
+- `Cmd/Ctrl + G`: Group selected shapes
+- `Cmd/Ctrl + Shift + G`: Ungroup selected group
+
+**Movement:**
+- `Arrow Up/Down/Left/Right`: Nudge selected shape(s) by 10px
+- `Shift + Arrow`: Nudge by 1px (fine control)
+
+**Z-Index:**
+- `Cmd/Ctrl + ]`: Bring forward
+- `Cmd/Ctrl + [`: Send backward
+- `Cmd/Ctrl + Shift + ]`: Bring to front
+- `Cmd/Ctrl + Shift + [`: Send to back
+
+**Selection:**
+- `Cmd/Ctrl + A`: Select all shapes
+- `Escape`: Clear selection
+
+**Canvas:**
+- `Space + Drag`: Pan canvas (alternative to default drag)
+- `Cmd/Ctrl + 0`: Reset zoom to 100%
+
+#### Implementation
+
+```typescript
+// In Canvas.tsx
+useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    // Ignore if typing in input
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextArea) {
+      return;
+    }
+    
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const cmdKey = isMac ? e.metaKey : e.ctrlKey;
+    
+    if (!selectedShapes.length) return;
+    
+    // Delete
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      selectedShapes.forEach(id => canvasService.deleteShape(id));
+      setSelectedShapes([]);
+    }
+    
+    // Duplicate
+    if (cmdKey && e.key === 'd') {
+      e.preventDefault();
+      selectedShapes.forEach(id => canvasService.duplicateShape(id, user.uid));
+    }
+    
+    // Copy
+    if (cmdKey && e.key === 'c') {
+      e.preventDefault();
+      setClipboard(selectedShapes.map(id => shapes.find(s => s.id === id)));
+    }
+    
+    // Paste
+    if (cmdKey && e.key === 'v') {
+      e.preventDefault();
+      clipboard?.forEach(shape => canvasService.duplicateShape(shape.id, user.uid));
+    }
+    
+    // Group
+    if (cmdKey && e.key === 'g' && !e.shiftKey) {
+      e.preventDefault();
+      if (selectedShapes.length >= 2) {
+        canvasService.groupShapes(selectedShapes, user.uid);
+      }
+    }
+    
+    // Ungroup
+    if (cmdKey && e.shiftKey && e.key === 'g') {
+      e.preventDefault();
+      // Ungroup logic
+    }
+    
+    // Arrow keys for nudging
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault();
+      const distance = e.shiftKey ? 1 : 10;
+      const dx = e.key === 'ArrowLeft' ? -distance : e.key === 'ArrowRight' ? distance : 0;
+      const dy = e.key === 'ArrowUp' ? -distance : e.key === 'ArrowDown' ? distance : 0;
+      
+      selectedShapes.forEach(id => {
+        const shape = shapes.find(s => s.id === id);
+        if (shape) {
+          canvasService.updateShape(id, {
+            x: shape.x + dx,
+            y: shape.y + dy
+          });
+        }
+      });
+    }
+    
+    // Z-index controls
+    if (cmdKey && e.key === ']' && !e.shiftKey) {
+      e.preventDefault();
+      selectedShapes.forEach(id => canvasService.bringForward(id));
+    }
+    
+    // ... other shortcuts
+  };
+  
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+}, [selectedShapes, clipboard]);
+```
+
+**Visual Feedback:**
+- Show toast on action: "Duplicated 3 shapes" (brief, 1 second)
+- Keyboard shortcut hints in tooltips
+
+**Gate:** User A presses Delete → shape disappears. User A presses Cmd+D → shape duplicates. User B sees all actions in real-time.
+
+---
+
+### 11. Copy/Paste (P0 - Tier 1 Feature)
+
+**Why Critical:** Tier 1 feature (2 points), complements keyboard shortcuts, natural pairing
+
+#### Implementation
+
+**State Management:**
+
+```typescript
+// Add to CanvasContext
+const [clipboard, setClipboard] = useState<Shape[] | null>(null);
+
+const handleCopy = () => {
+  if (selectedShapes.length === 0) return;
+  const shapesToCopy = selectedShapes.map(id => 
+    shapes.find(s => s.id === id)
+  ).filter(Boolean);
+  setClipboard(shapesToCopy);
+  toast.success(`Copied ${shapesToCopy.length} shape(s)`);
+};
+
+const handlePaste = async () => {
+  if (!clipboard || clipboard.length === 0) return;
+  
+  const newShapeIds: string[] = [];
+  for (const shape of clipboard) {
+    const newId = await canvasService.duplicateShape(shape.id, user.uid);
+    newShapeIds.push(newId);
+  }
+  
+  setSelectedShapes(newShapeIds);
+  toast.success(`Pasted ${clipboard.length} shape(s)`);
+};
+```
+
+**Keyboard Integration:**
+- Cmd/Ctrl+C: Copy selected shapes to clipboard
+- Cmd/Ctrl+V: Paste shapes from clipboard with 20px offset
+
+**Visual Feedback:**
+- Copy: Brief toast "Copied 2 shapes"
+- Paste: Toast "Pasted 2 shapes" + auto-select pasted shapes
+
+**Gate:** User A selects shape, presses Cmd+C, presses Cmd+V → duplicate appears. User B sees pasted shape in real-time.
+
+---
+
+### 12. Collaborative Comments (P0 - Tier 3 Feature)
+
+**Why Critical:** Tier 3 feature (3 points), leverages existing real-time infrastructure, unique collaborative value
+
+#### Data Model
+
+```typescript
+// New Firestore collection: canvases/main/comments
+{
+  id: "comment_123",
+  shapeId: "shape_456",        // Shape this comment is attached to
+  userId: "user_abc",
+  username: "Alice",
+  text: "This needs to be bigger",
+  x: 100,                      // Pin position on canvas (optional)
+  y: 200,
+  createdAt: "timestamp",
+  resolved: false,
+  replies: [                   // Optional: nested replies
+    {
+      userId: "user_def",
+      username: "Bob",
+      text: "I agree, let's make it 300px",
+      createdAt: "timestamp"
+    }
+  ]
+}
+```
+
+#### CanvasService Extension
+
+```typescript
+async addComment(
+  shapeId: string, 
+  text: string, 
+  userId: string, 
+  username: string,
+  x?: number,
+  y?: number
+): Promise<string> {
+  const commentRef = doc(collection(firestore, 'canvases/main/comments'));
+  await setDoc(commentRef, {
+    id: commentRef.id,
+    shapeId: shapeId,
+    userId: userId,
+    username: username,
+    text: text,
+    x: x || null,
+    y: y || null,
+    createdAt: serverTimestamp(),
+    resolved: false,
+    replies: []
+  });
+  return commentRef.id;
+}
+
+async resolveComment(commentId: string): Promise<void> {
+  const commentRef = doc(firestore, `canvases/main/comments/${commentId}`);
+  await updateDoc(commentRef, {
+    resolved: true,
+    updatedAt: serverTimestamp()
+  });
+}
+
+async addReply(
+  commentId: string,
+  userId: string,
+  username: string,
+  text: string
+): Promise<void> {
+  const commentRef = doc(firestore, `canvases/main/comments/${commentId}`);
+  const commentDoc = await getDoc(commentRef);
+  const currentReplies = commentDoc.data()?.replies || [];
+  
+  await updateDoc(commentRef, {
+    replies: [
+      ...currentReplies,
+      {
+        userId: userId,
+        username: username,
+        text: text,
+        createdAt: serverTimestamp()
+      }
+    ],
+    updatedAt: serverTimestamp()
+  });
+}
+
+async subscribeToComments(callback: (comments: Comment[]) => void): Unsubscribe {
+  const q = query(
+    collection(firestore, 'canvases/main/comments'),
+    where('resolved', '==', false)
+  );
+  
+  return onSnapshot(q, (snapshot) => {
+    const comments = snapshot.docs.map(doc => doc.data() as Comment);
+    callback(comments);
+  });
+}
+
+async deleteComment(commentId: string): Promise<void> {
+  const commentRef = doc(firestore, `canvases/main/comments/${commentId}`);
+  await deleteDoc(commentRef);
+}
+```
+
+#### UI Implementation
+
+**Comment Indicators:**
+- Shapes with comments show small comment icon (💬) in top-right corner
+- Badge shows number of unresolved comments: "💬 3"
+- Icon pulses when new comment added (animation)
+
+**Comment Panel:**
+- Click comment icon → opens floating comment panel
+- Panel positioned near shape (doesn't block canvas)
+- Panel dimensions: 300px wide, max 400px tall, scrollable
+- White background, shadow for elevation
+
+**Panel Contents:**
+```
+┌─────────────────────────────────────┐
+│ Comments (3)              [×]       │
+├─────────────────────────────────────┤
+│ Alice • 2 min ago                   │
+│ This needs to be bigger             │
+│   Bob • 1 min ago                   │
+│   I agree, let's make it 300px      │
+│ [Reply...]                          │
+│ [✓ Resolve]                         │
+├─────────────────────────────────────┤
+│ Carol • 5 min ago                   │
+│ Change color to blue?               │
+│ [Reply...]                          │
+│ [✓ Resolve]                         │
+├─────────────────────────────────────┤
+│ [Add comment...]                    │
+└─────────────────────────────────────┘
+```
+
+**Adding Comments:**
+- Controls panel shows "💬 Add Comment" button when shape selected
+- Click → opens comment input in panel
+- Textarea with "Type comment..." placeholder
+- Send button or Enter to post
+- Escape to cancel
+
+**Comment Thread:**
+- Main comment by author with timestamp
+- Nested replies indented with slight gray background
+- Each comment shows username and relative time ("2 min ago")
+- Reply button under each comment
+- Resolve button (only for comment author or shape owner)
+
+**Resolved Comments:**
+- Resolved comments hide from panel by default
+- "Show resolved (5)" toggle at bottom of panel
+- Resolved comments shown with strikethrough and green checkmark
+
+**Real-Time Updates:**
+- New comments appear instantly for all users
+- Comment count badge updates in real-time
+- Panel auto-scrolls to newest comment
+- Visual indicator when someone is typing (optional)
+
+**Comment Rendering on Canvas:**
+
+```typescript
+// In Canvas.tsx
+{comments.filter(c => !c.resolved).map(comment => {
+  const shape = shapes.find(s => s.id === comment.shapeId);
+  if (!shape) return null;
+  
+  return (
+    <Group
+      key={comment.id}
+      x={shape.x + shape.width - 20}
+      y={shape.y - 10}
+    >
+      {/* Comment icon badge */}
+      <Circle
+        radius={12}
+        fill="#3b82f6"
+        stroke="white"
+        strokeWidth={2}
+      />
+      <Text
+        text="💬"
+        fontSize={16}
+        x={-8}
+        y={-8}
+      />
+      {/* Count badge if multiple comments */}
+      {commentCount > 1 && (
+        <Circle
+          x={8}
+          y={-8}
+          radius={8}
+          fill="#ef4444"
+        />
+        <Text
+          text={commentCount.toString()}
+          fontSize={10}
+          fill="white"
+          x={5}
+          y={-11}
+        />
+      )}
+    </Group>
+  );
+})}
+```
+
+**Gate:** User A adds comment "Make this bigger" to blue rectangle → User B sees comment icon appear, clicks it, reads comment, replies "Done". User A sees reply in real-time.
+
+---
+
+### Part C: AI Canvas Agent
+
+The AI layer provides natural language access to all manual features.
+
+---
+
+### 13. AI Service Layer (P0 - Critical)
+
+#### Architecture
+
+```typescript
+// services/aiService.ts
+import OpenAI from 'openai';
+import { CanvasService } from './canvasService';
+
+interface CommandResult {
+  success: boolean;
+  message: string;
+  toolCalls: any[];
+}
+
+class AIService {
+  private openai: OpenAI;
+  private canvasService: CanvasService;
+  
+  constructor() {
+    this.openai = new OpenAI({
+      apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+      dangerouslyAllowBrowser: true
+    });
+    this.canvasService = new CanvasService();
+  }
+  
+  async executeCommand(prompt: string, userId: string): Promise<CommandResult> {
+    try {
+      // 1. Get canvas context
+      const shapes = await this.canvasService.getShapes();
+      
+      // 2. Call OpenAI with function tools
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-4-turbo-preview",
+        messages: [
+          { role: "system", content: this.getSystemPrompt(shapes) },
+          { role: "user", content: prompt }
+        ],
+        tools: this.getToolDefinitions(),
+        tool_choice: "auto",
+        temperature: 0.7,
+        max_tokens: 500
+      });
+      
+      const message = response.choices[0].message;
+      
+      // 3. Execute tool calls
+      if (message.tool_calls && message.tool_calls.length > 0) {
+        const results = await this.executeToolCalls(message.tool_calls, userId);
+        return {
+          success: true,
+          message: this.generateSuccessMessage(results),
+          toolCalls: results
+        };
+      } else {
+        return {
+          success: false,
+          message: message.content || "I couldn't understand that command.",
+          toolCalls: []
+        };
+      }
+    } catch (error) {
+      console.error('AI execution error:', error);
+      return {
+        success: false,
+        message: "⚠️ AI service error. Please try again.",
+        toolCalls: []
+      };
+    }
+  }
+  
+  private async executeToolCalls(toolCalls: any[], userId: string) {
+    const results = [];
+    for (const call of toolCalls) {
+      try {
+        const result = await this.executeSingleTool(call, userId);
+        results.push({
+          tool: call.function.name,
+          success: true,
+          result: result
+        });
+      } catch (error) {
+        results.push({
+          tool: call.function.name,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+    return results;
+  }
+  
+private async executeSingleTool(call: any, userId: string) {
+    const { name, arguments: argsStr } = call.function;
+    const args = JSON.parse(argsStr);
+    
+    switch (name) {
+        case 'createShape':
+        return await this.canvasService.createShape({
+            type: 'rectangle',
+            x: args.x,
+            y: args.y,
+            width: args.width,
+            height: args.height,
+            color: args.color,
+            rotation: 0,
+            zIndex: 0,
+            groupId: null,
+            createdBy: userId,
+            createdAt: Date.now(),
+            lockedBy: null,
+            lockedAt: null
+        });
+        
+        case 'createCircle':
+        return await this.canvasService.createCircle({
+            x: args.x,
+            y: args.y,
+            radius: args.radius,
+            color: args.color,
+            createdBy: userId
+        });
+        
+        case 'createTriangle':
+        return await this.canvasService.createTriangle({
+            x: args.x,
+            y: args.y,
+            width: args.width,
+            height: args.height,
+            color: args.color,
+            createdBy: userId
+        });
+        
+        case 'createText':
+        return await this.canvasService.createText({
+            text: args.text,
+            x: args.x,
+            y: args.y,
+            fontSize: args.fontSize || 16,
+            color: args.color || '#000000',
+            fontWeight: args.fontWeight || 'normal',
+            fontStyle: args.fontStyle || 'normal',
+            textDecoration: args.textDecoration || 'none',
+            createdBy: userId
+        });
+        
+        case 'moveShape':
+        return await this.canvasService.updateShape(args.shapeId, {
+            x: args.x,
+            y: args.y
+        });
+        
+        case 'resizeShape':
+        return await this.canvasService.resizeShape(
+            args.shapeId,
+            args.width,
+            args.height
+        );
+        
+        case 'rotateShape':
+        return await this.canvasService.rotateShape(
+            args.shapeId,
+            args.rotation
+        );
+        
+        case 'duplicateShape':
+        return await this.canvasService.duplicateShape(args.shapeId, userId);
+        
+        case 'deleteShape':
+        return await this.canvasService.deleteShape(args.shapeId);
+        
+        case 'groupShapes':
+        return await this.canvasService.groupShapes(args.shapeIds, userId, args.name);
+        
+        case 'alignShapes':
+        return await this.canvasService.alignShapes(args.shapeIds, args.alignment);
+        
+        case 'arrangeShapesInRow':
+        return await this.arrangeInRow(args.shapeIds, args.spacing || 50);
+        
+        case 'bringToFront':
+        return await this.canvasService.bringToFront(args.shapeId);
+        
+        case 'addComment':
+        return await this.canvasService.addComment(
+            args.shapeId,
+            args.text,
+            userId,
+            args.username
+        );
+        
+        case 'getCanvasState':
+        return await this.canvasService.getShapes();
+        
+        default:
+        throw new Error(`Unknown tool: ${name}`);
+    }
+    }
+  }
+  
+  private async arrangeInRow(shapeIds: string[], spacing: number): Promise<void> {
+    const shapes = await Promise.all(
+      shapeIds.map(id => this.canvasService.getShape(id))
+    );
+    
+    // Sort by current x position
+    shapes.sort((a, b) => a.x - b.x);
+    
+    // Calculate positions with even spacing
+    let currentX = shapes[0].x;
+    const batch = writeBatch(firestore);
+    
+    for (const shape of shapes) {
+      const shapeRef = doc(firestore, `canvases/main/shapes/${shape.id}`);
+      batch.update(shapeRef, {
+        x: currentX,
+        updatedAt: serverTimestamp()
+      });
+      currentX += shape.width + spacing;
+    }
+    
+    await batch.commit();
+  }
+  
+  private generateSuccessMessage(results: any[]): string {
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+    
+    if (failCount > 0) {
+      const errors = results.filter(r => !r.success).map(r => r.error).join(', ');
+      return `⚠️ Completed ${successCount} actions, but ${failCount} failed: ${errors}`;
+    }
+    
+    const toolNames = results.map(r => r.tool);
+    
+    // Generate specific messages based on tools used
+    if (toolNames.includes('createShape') && toolNames.length === 1) {
+      return '✓ Created 1 rectangle';
+    }
+    
+    if (toolNames.includes('createText') && toolNames.length === 1) {
+      return '✓ Created text layer';
+    }
+    
+    if (toolNames.includes('moveShape')) {
+      return '✓ Moved shape to new position';
+    }
+    
+    if (toolNames.includes('resizeShape')) {
+      return '✓ Resized shape';
+    }
+    
+    if (toolNames.includes('rotateShape')) {
+      return '✓ Rotated shape';
+    }
+    
+    if (toolNames.includes('duplicateShape')) {
+      return '✓ Duplicated shape';
+    }
+    
+    if (toolNames.includes('deleteShape')) {
+      return '✓ Deleted shape';
+    }
+    
+    if (toolNames.includes('groupShapes')) {
+      return `✓ Grouped ${toolNames.filter(t => t === 'groupShapes').length} shapes`;
+    }
+    
+    if (toolNames.includes('alignShapes')) {
+      return '✓ Aligned shapes';
+    }
+    
+    if (toolNames.includes('arrangeShapesInRow')) {
+      return '✓ Arranged shapes in horizontal row';
+    }
+    
+    if (toolNames.includes('bringToFront')) {
+      return '✓ Brought shape to front';
+    }
+    
+    if (toolNames.includes('addComment')) {
+      return '✓ Added comment';
+    }
+    
+    // Multi-step operations
+    const shapeCount = toolNames.filter(t => t === 'createShape').length;
+    const textCount = toolNames.filter(t => t === 'createText').length;
+    
+    if (shapeCount > 1 || textCount > 1) {
+      return `✓ Created ${shapeCount + textCount} elements`;
+    }
+    
+    return `✓ Completed ${successCount} actions`;
+  }
+  
+  private getToolDefinitions() {
+    // See next section
+  }
+  
+  private getSystemPrompt(shapes: any[]): string {
+    // See System Prompt section
+  }
+}
+
+export default AIService;
+```
+
+---
+
+### 14. Tool Definitions (P0 - Critical)
+
+Complete set of 15 tools for comprehensive AI functionality:
+
+```typescript
+private getToolDefinitions() {
+  return [
+    // CREATION (4 tools)
+    {
+      type: "function",
+      function: {
+        name: "createShape",
+        description: "Creates a rectangle on the canvas at specified position with given dimensions and color.",
+        parameters: {
+          type: "object",
+          properties: {
+            x: { type: "number", description: "X position in pixels (0-5000)" },
+            y: { type: "number", description: "Y position in pixels (0-5000)" },
+            width: { type: "number", description: "Width in pixels (minimum 10)" },
+            height: { type: "number", description: "Height in pixels (minimum 10)" },
+            color: { type: "string", description: "Hex color code like #3b82f6" }
+          },
+          required: ["x", "y", "width", "height", "color"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "createCircle",
+        description: "Creates a circle on the canvas at specified center position with given radius and color.",
+        parameters: {
+          type: "object",
+          properties: {
+            x: { type: "number", description: "Center X position in pixels (0-5000)" },
+            y: { type: "number", description: "Center Y position in pixels (0-5000)" },
+            radius: { type: "number", description: "Radius in pixels (minimum 5)" },
+            color: { type: "string", description: "Hex color code like #ef4444" }
+          },
+          required: ["x", "y", "radius", "color"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "createTriangle",
+        description: "Creates a triangle on the canvas at specified position with given dimensions and color.",
+        parameters: {
+          type: "object",
+          properties: {
+            x: { type: "number", description: "Top vertex X position in pixels (0-5000)" },
+            y: { type: "number", description: "Top vertex Y position in pixels (0-5000)" },
+            width: { type: "number", description: "Base width in pixels (minimum 10)" },
+            height: { type: "number", description: "Height in pixels (minimum 10)" },
+            color: { type: "string", description: "Hex color code like #10b981" }
+          },
+          required: ["x", "y", "width", "height", "color"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "createText",
+        description: "Creates a text layer at specified position with optional fontSize, color, and formatting (bold, italic, underline).",
+        parameters: {
+          type: "object",
+          properties: {
+            text: { type: "string", description: "Text content to display" },
+            x: { type: "number", description: "X position in pixels" },
+            y: { type: "number", description: "Y position in pixels" },
+            fontSize: { type: "number", description: "Font size in pixels (default 16)" },
+            color: { type: "string", description: "Text color hex code (default #000000)" },
+            fontWeight: { type: "string", enum: ["normal", "bold"], description: "Font weight (default normal)" },
+            fontStyle: { type: "string", enum: ["normal", "italic"], description: "Font style (default normal)" },
+            textDecoration: { type: "string", enum: ["none", "underline"], description: "Text decoration (default none)" }
+          },
+          required: ["text", "x", "y"]
+        }
+      }
+    },
+    
+    // MANIPULATION (5 tools)
+    {
+      type: "function",
+      function: {
+        name: "moveShape",
+        description: "Moves an existing shape to a new position. MUST call getCanvasState first to find the shapeId.",
+        parameters: {
+          type: "object",
+          properties: {
+            shapeId: { type: "string", description: "ID of the shape to move" },
+            x: { type: "number", description: "New X position" },
+            y: { type: "number", description: "New Y position" }
+          },
+          required: ["shapeId", "x", "y"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "resizeShape",
+        description: "Changes the dimensions of a shape (rectangles/triangles use width/height, circles use radius). MUST call getCanvasState first to find the shapeId.",
+        parameters: {
+          type: "object",
+          properties: {
+            shapeId: { type: "string", description: "ID of the shape to resize" },
+            width: { type: "number", description: "New width in pixels (minimum 10, for rectangles/triangles)" },
+            height: { type: "number", description: "New height in pixels (minimum 10, for rectangles/triangles)" },
+            radius: { type: "number", description: "New radius in pixels (minimum 5, for circles)" }
+          }
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "rotateShape",
+        description: "Rotates a shape by specified degrees. MUST call getCanvasState first to find the shapeId.",
+        parameters: {
+          type: "object",
+          properties: {
+            shapeId: { type: "string", description: "ID of the shape to rotate" },
+            rotation: { type: "number", description: "Rotation angle in degrees (0-360)" }
+          },
+          required: ["shapeId", "rotation"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "duplicateShape",
+        description: "Creates a copy of an existing shape with a small offset. MUST call getCanvasState first to find the shapeId.",
+        parameters: {
+          type: "object",
+          properties: {
+            shapeId: { type: "string", description: "ID of the shape to duplicate" }
+          },
+          required: ["shapeId"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "deleteShape",
+        description: "Deletes a shape from the canvas. MUST call getCanvasState first to find the shapeId.",
+        parameters: {
+          type: "object",
+          properties: {
+            shapeId: { type: "string", description: "ID of the shape to delete" }
+          },
+          required: ["shapeId"]
+        }
+      }
+    },
+    
+    // GROUPING (1 tool)
+    {
+      type: "function",
+      function: {
+        name: "groupShapes",
+        description: "Groups multiple shapes together so they move as one unit. MUST call getCanvasState first to find shapeIds.",
+        parameters: {
+          type: "object",
+          properties: {
+            shapeIds: { 
+              type: "array", 
+              items: { type: "string" },
+              description: "Array of shape IDs to group together" 
+            },
+            name: { type: "string", description: "Optional name for the group" }
+          },
+          required: ["shapeIds"]
+        }
+      }
+    },
+    
+    // ALIGNMENT (2 tools)
+    {
+      type: "function",
+      function: {
+        name: "alignShapes",
+        description: "Aligns multiple shapes to the same edge or center. MUST call getCanvasState first to find shapeIds.",
+        parameters: {
+          type: "object",
+          properties: {
+            shapeIds: { 
+              type: "array", 
+              items: { type: "string" },
+              description: "Array of shape IDs to align" 
+            },
+            alignment: { 
+              type: "string", 
+              enum: ["left", "center", "right", "top", "middle", "bottom"],
+              description: "How to align the shapes" 
+            }
+          },
+          required: ["shapeIds", "alignment"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "arrangeShapesInRow",
+        description: "Arranges multiple shapes in a horizontal row with even spacing. MUST call getCanvasState first to find shapeIds. This is a LAYOUT command.",
+        parameters: {
+          type: "object",
+          properties: {
+            shapeIds: { 
+              type: "array", 
+              items: { type: "string" },
+              description: "Array of shape IDs to arrange" 
+            },
+            spacing: { 
+              type: "number", 
+              description: "Space between shapes in pixels (default 50)" 
+            }
+          },
+          required: ["shapeIds"]
+        }
+      }
+    },
+    
+    // Z-INDEX (1 tool)
+    {
+      type: "function",
+      function: {
+        name: "bringToFront",
+        description: "Brings a shape to the front (highest z-index). MUST call getCanvasState first to find the shapeId.",
+        parameters: {
+          type: "object",
+          properties: {
+            shapeId: { type: "string", description: "ID of the shape to bring to front" }
+          },
+          required: ["shapeId"]
+        }
+      }
+    },
+    
+    // COMMENTS (1 tool)
+    {
+      type: "function",
+      function: {
+        name: "addComment",
+        description: "Adds a comment to a shape for team collaboration. MUST call getCanvasState first to find the shapeId.",
+        parameters: {
+          type: "object",
+          properties: {
+            shapeId: { type: "string", description: "ID of the shape to comment on" },
+            text: { type: "string", description: "Comment text" },
+            username: { type: "string", description: "Name of user adding comment" }
+          },
+          required: ["shapeId", "text", "username"]
+        }
+      }
+    },
+    
+    // CANVAS STATE (1 tool)
+    {
+      type: "function",
+      function: {
+        name: "getCanvasState",
+        description: "Returns all shapes currently on canvas. ALWAYS call this FIRST before manipulating existing shapes to get their IDs and properties.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: []
+        }
+      }
+    }
+  ];
+}
+```
+
+**Total: 15 tools across all categories**
+
+---
+
+### 15. System Prompt (P0 - Critical)
+
+Create `src/utils/aiPrompts.ts`:
+
+```typescript
+export function getSystemPrompt(shapes: any[]): string {
+  const shapesSummary = shapes.length > 0 
+    ? `\n\nCURRENT CANVAS STATE:\n${shapes.slice(0, 20).map(s => 
+        `- ${s.type} (id: ${s.id}): ${s.color || 'text'} at (${s.x}, ${s.y})${
+          s.width ? `, size ${s.width}×${s.height}` : ''
+        }${s.groupId ? `, grouped` : ''}`
+      ).join('\n')}${shapes.length > 20 ? `\n... and ${shapes.length - 20} more shapes` : ''}`
+    : '\n\nCURRENT CANVAS STATE: Empty canvas';
+  
+  return `You are a canvas manipulation assistant for a 5000×5000 pixel collaborative design tool. Users give you natural language commands to create and modify shapes.
+
+CRITICAL RULES:
+1. ALWAYS call getCanvasState() FIRST before manipulating existing shapes (move, resize, rotate, duplicate, delete, group, align, arrange, comment)
+2. Use the shapeId from getCanvasState results to identify target shapes
+3. Identify shapes by their color, position, type, or grouping when user references them
+4. Canvas coordinates: (0,0) is top-left, (5000,5000) is bottom-right
+5. Canvas center is at (2500, 2500)
+6. Default rectangle size is 200×150 if user doesn't specify
+7. Default text fontSize is 16, color is black (#000000)
+8. For vague positions like "center", "top", calculate actual coordinates
+
+POSITION HELPERS:
+- "center" → (2500, 2500) - adjust for shape width/height to truly center it
+- "top-left" → (100, 100)
+- "top" → (2500, 100)
+- "top-right" → (4800, 100)
+- "left" → (100, 2500)
+- "right" → (4800, 2500)
+- "bottom-left" → (100, 4800)
+- "bottom" → (2500, 4800)
+- "bottom-right" → (4800, 4800)
+
+COLOR CODES (always use these exact hex values):
+- red → #ef4444
+- blue → #3b82f6
+- green → #10b981
+- yellow → #f59e0b
+- black → #000000
+- white → #ffffff
+
+SIZE HELPERS:
+- "twice as big" → multiply width and height by 2
+- "half the size" → divide width and height by 2
+- "bigger" → multiply by 1.5
+- "smaller" → divide by 1.5
+
+SHAPE IDENTIFICATION:
+- "the blue rectangle" → call getCanvasState, find shape with type="rectangle" and color="#3b82f6"
+- "these shapes" or "those shapes" → identify by context (recent, selected, or multiple matches)
+- If multiple matches, pick the most recently created one (highest timestamp)
+- If no match found, tell user clearly what you couldn't find
+
+MULTI-STEP OPERATIONS:
+
+**Login Form:**
+User: "create a login form"
+→ createText(text: "Username", x: 2400, y: 2200, fontSize: 14, color: "#000000")
+→ createShape(x: 2300, y: 2225, width: 300, height: 40, color: "#ffffff")
+→ createText(text: "Password", x: 2400, y: 2290, fontSize: 14, color: "#000000")
+→ createShape(x: 2300, y: 2315, width: 300, height: 40, color: "#ffffff")
+→ createText(text: "Submit", x: 2450, y: 2385, fontSize: 16, color: "#ffffff")
+→ createShape(x: 2350, y: 2375, width: 200, height: 50, color: "#3b82f6")
+
+**Grid Creation:**
+User: "make a 3x3 grid of red squares"
+→ Calculate: spacing = 110px, start position centered at (2200, 2200)
+→ createShape(x: 2200, y: 2200, width: 80, height: 80, color: "#ef4444")
+→ createShape(x: 2310, y: 2200, width: 80, height: 80, color: "#ef4444")
+→ createShape(x: 2420, y: 2200, width: 80, height: 80, color: "#ef4444")
+→ createShape(x: 2200, y: 2310, width: 80, height: 80, color: "#ef4444")
+→ createShape(x: 2310, y: 2310, width: 80, height: 80, color: "#ef4444")
+→ createShape(x: 2420, y: 2310, width: 80, height: 80, color: "#ef4444")
+→ createShape(x: 2200, y: 2420, width: 80, height: 80, color: "#ef4444")
+→ createShape(x: 2310, y: 2420, width: 80, height: 80, color: "#ef4444")
+→ createShape(x: 2420, y: 2420, width: 80, height: 80, color: "#ef4444")
+
+LAYOUT COMMANDS (CRITICAL - REQUIRED FOR RUBRIC):
+User: "arrange these shapes in a horizontal row"
+→ getCanvasState()
+→ [identify shapes by context - recently created, selected, or all visible]
+→ arrangeShapesInRow(shapeIds: ["shape_1", "shape_2", "shape_3"], spacing: 50)
+
+User: "space these elements evenly"
+→ getCanvasState()
+→ arrangeShapesInRow(shapeIds: [...], spacing: 100)
+
+GROUPING COMMANDS:
+User: "group the blue shapes"
+→ getCanvasState()
+→ [find all shapes with color="#3b82f6"]
+→ groupShapes(shapeIds: ["shape_1", "shape_2"], name: "Blue Group")
+
+ALIGNMENT COMMANDS:
+User: "align these shapes to the left"
+→ getCanvasState()
+→ [identify shapes]
+→ alignShapes(shapeIds: [...], alignment: "left")
+
+User: "center these vertically"
+→ alignShapes(shapeIds: [...], alignment: "middle")
+
+Z-INDEX COMMANDS:
+User: "bring the blue rectangle to the front"
+→ getCanvasState()
+→ [find blue rectangle]
+→ bringToFront(shapeId: "shape_123")
+
+COMMENT COMMANDS:
+User: "add a comment 'needs review' to the blue rectangle"
+→ getCanvasState()
+→ [find blue rectangle]
+→ addComment(shapeId: "shape_123", text: "needs review", username: "[current user]")
+
+EXAMPLES:
+
+User: "Create a blue rectangle in the center"
+→ createShape(x: 2400, y: 2425, width: 200, height: 150, color: "#3b82f6")
+
+User: "Add text that says Hello World at the top"
+→ createText(text: "Hello World", x: 2500, y: 150, fontSize: 16, color: "#000000")
+
+User: "Move the blue rectangle to the top-left"
+→ getCanvasState() 
+→ [find blue rectangle, get its ID]
+→ moveShape(shapeId: "shape_123", x: 100, y: 100)
+
+User: "Make it twice as big"
+→ getCanvasState()
+→ [find most recent shape]
+→ resizeShape(shapeId: "shape_123", width: 400, height: 300)
+
+User: "Rotate that 45 degrees"
+→ getCanvasState()
+→ [find most recent/contextual shape]
+→ rotateShape(shapeId: "shape_123", rotation: 45)
+
+User: "Duplicate the blue rectangle"
+→ getCanvasState()
+→ [find blue rectangle]
+→ duplicateShape(shapeId: "shape_123")
+
+User: "Delete the red square"
+→ getCanvasState()
+→ [find red rectangle]
+→ deleteShape(shapeId: "shape_456")
+
+User: "Group these shapes"
+→ getCanvasState()
+→ [identify shapes by context]
+→ groupShapes(shapeIds: ["shape_1", "shape_2", "shape_3"], name: "New Group")
+
+User: "Arrange the rectangles in a row"
+→ getCanvasState()
+→ [find all rectangles]
+→ arrangeShapesInRow(shapeIds: ["shape_1", "shape_2", "shape_3"], spacing: 50)
+
+Be helpful, accurate, and execute commands precisely. Always validate parameters are within bounds before executing.${shapesSummary}`;
+}
+```
+
+**Key additions for rubric:**
+- ✅ Layout commands (arrangeShapesInRow) - **CRITICAL for AI scoring**
+-✅ Grouping commands
+- ✅ Alignment commands
+- ✅ Z-index commands
+- ✅ Comment commands
+- ✅ Comprehensive examples for all 13 tools
+
+---
+
+### 16. AI Chat Interface (P0 - Critical)
+
+#### Component Structure
+
+```typescript
+// components/AI/AIChat.tsx
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  status?: 'success' | 'error';
+}
+
+const AIChat: React.FC = () => {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
+  const { user } = useAuth();
+  const aiService = new AIService();
+  
+  const handleSend = async () => {
+    if (!input.trim() || isProcessing) return;
+    
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: input,
+      timestamp: new Date()
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setIsProcessing(true);
+    
+    try {
+      const result = await aiService.executeCommand(input, user.uid);
+      
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: result.message,
+        timestamp: new Date(),
+        status: result.success ? 'success' : 'error'
+      };
+      
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (error) {
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: '⚠️ Something went wrong. Please try again.',
+        timestamp: new Date(),
+        status: 'error'
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
+  return (
+    <div className={`ai-chat-drawer ${isOpen ? 'open' : 'collapsed'}`}>
+      <div className="ai-chat-header">
+        <h3>AI Assistant</h3>
+        <div className="header-controls">
+          <button onClick={() => setIsOpen(!isOpen)}>
+            {isOpen ? '─' : '□'}
+          </button>
+          <button onClick={() => setIsOpen(false)}>×</button>
+        </div>
+      </div>
+      
+      {isOpen && (
+        <>
+          <MessageHistory messages={messages} />
+          <ChatInput 
+            value={input}
+            onChange={setInput}
+            onSend={handleSend}
+            disabled={isProcessing}
+            isProcessing={isProcessing}
+          />
+        </>
+      )}
+    </div>
+  );
+};
+```
+
+#### UI Design
+
+**Bottom Drawer Layout:**
+```
+┌────────────────────────────────────────┐
+│         CANVAS AREA                    │
+│                                        │
+└────────────────────────────────────────┘
+┌────────────────────────────────────────┐  ← Drawer
+│ AI Assistant          [─] [×]          │  ← Header
+├────────────────────────────────────────┤
+│ [Scrollable Message History]          │  ← 10 messages max
+│                                        │
+│ You: Create a blue rectangle           │
+│ AI: ✓ Created 1 rectangle              │
+│                                        │
+│ You: Arrange them in a row             │
+│ AI: ✓ Arranged 3 shapes in row        │
+├────────────────────────────────────────┤
+│ [Ask AI.....................] [Send ↑] │  ← Input
+│ ⚡ AI is thinking...                    │  ← Status
+└────────────────────────────────────────┘
+```
+
+**Visual Specifications:**
+- Initial height: 300px
+- Collapsed height: 50px (header only)
+- Max height: 500px (resizable by dragging header)
+- Slide animation: 300ms ease-out
+- Background: White with shadow for elevation
+
+**Gate:** User types "create a blue rectangle" → AI processes → shape appears → success message shows in chat
+
+---
+
+### 17. Demo Video (P0 - CRITICAL - Pass/Fail)
+
+**Why Critical:** Missing demo video = -10 points penalty (Section 8 rubric)
+
+#### Requirements
+
+**Video Duration:** 3-5 minutes
+
+**Required Content:**
+1. **Real-time Collaboration (1 min)**
+   - Split-screen showing 2 users (or picture-in-picture)
+   - User A creates shapes → User B sees instantly
+   - User A resizes/rotates → User B sees real-time
+   - Show multi-select, grouping operations syncing
+   - Show comments appearing for both users
+
+2. **AI Command Demonstrations (1.5 min)**
+   - Simple creation: "Create a blue rectangle in the center"
+   - Manipulation: "Make it twice as big", "Rotate 45 degrees"
+   - Layout: "Arrange these shapes in a horizontal row" (**CRITICAL**)
+   - Complex: "Create a login form" (show 6 elements appearing)
+   - Grouping: "Group the blue shapes"
+   - Alignment: "Align these to the left"
+   - Comments: "Add comment 'needs review' to this shape"
+
+3. **Advanced Features Walkthrough (1 min)**
+   - Multi-select with shift-click and marquee
+   - Keyboard shortcuts (Delete, Duplicate, Arrow nudge)
+   - Copy/paste demonstration
+   - Z-index management (bring to front/back)
+   - Collaborative comments with reply
+
+4. **Architecture Explanation (0.5-1 min)**
+   - Service layer architecture diagram
+   - Hybrid database (Firestore + RTDB) rationale
+   - AI integration (same CanvasService methods)
+   - Real-time sync flow
+
+**Technical Requirements:**
+- Clear audio (microphone, no background noise)
+- Clear video (1080p minimum, screen recording + webcam optional)
+- Smooth playback (no lag or stuttering)
+- Professional presentation (rehearse, edit out mistakes)
+
+#### Recording Setup
+
+**Tools:**
+- Screen recording: OBS Studio, Loom, or QuickTime
+- Split-screen: OBS scenes or video editing software
+- Audio: Clear narration explaining what's happening
+- Editing: DaVinci Resolve (free) or iMovie
+
+**Recording Workflow:**
+1. Script narration for each section
+2. Record screen separately for each segment
+3. Record separate browser windows for collaboration demo
+4. Edit together with transitions
+5. Add on-screen text for key points
+6. Export at 1080p, upload to YouTube (unlisted or public)
+
+**Submission:**
+- Upload to YouTube/Vimeo
+- Add link to README.md
+- Include in project submission
+
+---
+
+## Data Models (Complete)
 
 ### Firestore Collections
 
-#### `users` Collection
+#### `users` Collection (Unchanged from MVP)
 
-```json
+```typescript
 {
-  "uid": "user_abc",
-  "username": "Alice",
-  "email": "alice@example.com",
-  "cursorColor": "#ef4444",  // Assigned on signup
-  "createdAt": "timestamp"
+  uid: "user_abc",
+  username: "Alice",
+  email: "alice@example.com",
+  cursorColor: "#ef4444",
+  createdAt: timestamp
 }
 ```
 
-#### `canvases/main/shapes` Collection (Individual Documents)
+#### `canvases/main/shapes` Collection (Updated)
 
-```json
+```typescript
 {
-  "id": "shape_123",
-  "type": "rectangle",
-  "x": 100,                    // Start position from drag
-  "y": 200,                    // Start position from drag
-  "width": 150,                // Calculated from drag distance
-  "height": 100,               // Calculated from drag distance
-  "color": "#3b82f6",          // From toolbar selection
-  "createdBy": "user_abc",
-  "createdAt": "timestamp",
-  "lockedBy": "user_abc | null",
-  "lockedAt": "timestamp | null",
-  "updatedAt": "timestamp"
-}
-```
-
-**Why Individual Documents:**
-- Scales to 500+ objects (Sunday requirement)
-- Better query performance
-- No 1MB document size limit issues
-- Easier concurrent editing (no array conflicts)
-
-### RTDB Paths
-
-#### `/sessions/main/users/{userId}` Path
-
-```json
-{
-  "cursor": {
-    "x": 450,
-    "y": 300,
-    "username": "Alice",
-    "color": "#ef4444",
-    "timestamp": "timestamp"
-  },
-  "presence": {
-    "online": true,
-    "lastSeen": "timestamp",
-    "username": "Alice"
-  }
-}
-```
-
-**Why RTDB for Cursors/Presence:**
-- <50ms latency (vs Firestore's ~200ms)
-- Optimized for high-frequency updates (20-30 FPS)
-- Built-in `onDisconnect()` for automatic cleanup
-- Reduces Firestore costs (cursors don't need persistence)
-
----
-
-## Build Sequence (Priority Order)
-
-### Phase 0: Development Setup (30 min)
-
-#### Firebase Emulators Setup
-
-1. Install Firebase CLI: `npm install -g firebase-tools`
-2. Initialize emulators: `firebase init emulators`
-3. Configure ports:
-   - Auth: 9099
-   - Firestore: 8080
-   - Realtime Database: 9000
-4. Create `firebase.json` with emulator config
-5. Add emulator connection logic to Firebase initialization
-6. Test basic read/write to emulators
-
-#### Project Structure
-
-**⚠️ Important:** This app lives in the `collabcanvas/` subdirectory within the `gauntlet-01` root project. All development commands should be run from `collabcanvas/` directory.
-
-```
-gauntlet-01/                  (root project)
-├── prd.md
-├── task.md
-├── architecture.md
-└── collabcanvas/             (YOUR WORKING DIRECTORY)
-    ├── src/
-    │   ├── components/      # UI components
-    │   ├── contexts/        # React contexts
-    │   ├── hooks/           # Custom hooks
-    │   ├── services/        # Service layer
-    │   │   ├── authService.ts
-    │   │   ├── canvasService.ts
-    │   │   ├── cursorService.ts
-    │   │   └── presenceService.ts
-    │   ├── utils/           # Helper functions
-    │   └── firebase.ts      # Firebase initialization
-    ├── firebase.json
-    ├── firestore.rules
-    ├── database.rules.json
-    └── package.json
-```
-
-**Gate:** Emulators running from `collabcanvas/`, can read/write test data locally.
-
----
-
-### Phase 1: Authentication (1-2 hours)
-
-#### Firebase Setup (30 min)
-
-- Create Firebase project (or use existing)
-- Enable Authentication (Email/Password + Google optional)
-- Enable Firestore
-- Enable Realtime Database
-- Set up security rules (see below)
-- Install Firebase SDK
-
-#### Auth Service Layer (30 min)
-
-Create `services/authService.ts`:
-
-```typescript
-class AuthService {
-  async signup(email: string, password: string, username: string)
-  async login(email: string, password: string)
-  async logout()
-  async getCurrentUser()
-  onAuthStateChanged(callback)
-}
-```
-
-#### Auth UI (1 hour)
-
-- Simple login/signup form
-- Store username in Firestore `users` collection
-- Assign random cursor color on signup
-- Persist auth state
-- Basic loading states
-- Logout button
-
-#### Custom Hook
-
-```typescript
-// hooks/useAuth.ts
-const useAuth = () => {
-  const authService = new AuthService();
-  // Wraps authService methods
-  // Manages React state
-}
-```
-
-**Gate:** User can sign up, log in, logout, and stay logged in across refreshes.
-
----
-
-### Phase 2: Cursor Sync (2-3 hours)
-
-#### Empty Canvas (30 min)
-
-- React + Konva setup
-- Empty Stage with pan (drag stage) and zoom (wheel)
-- 5000x5000px workspace
-- Basic UI: logout button, username display
-
-#### Cursor Service Layer (30 min)
-
-Create `services/cursorService.ts`:
-
-```typescript
-class CursorService {
-  async updateCursorPosition(userId: string, x: number, y: number, username: string, color: string)
-  subscribeToCursors(callback: (cursors: Cursor[]) => void)
-  unsubscribe()
-}
-```
-
-#### Cursor Position Tracking (1 hour)
-
-- Track local mouse position on canvas
-- Throttle updates to 33-50ms (20-30 FPS) using lodash
-- Write to RTDB: `/sessions/main/users/{userId}/cursor`
-- Use cursor color from user profile
-
-**Implementation:**
-
-```typescript
-const throttledUpdateCursor = throttle((x, y) => {
-  cursorService.updateCursorPosition(userId, x, y, username, color);
-}, 33); // 30 FPS
-```
-
-#### Render Other Users' Cursors (1 hour)
-
-- Listen to RTDB `/sessions/main/users` path
-- Render SVG cursor or simple circle with username label
-- Show/hide based on RTDB updates
-- Position cursors at x,y coordinates
-- Filter out own cursor
-
-#### Presence Service Layer (30 min)
-
-Create `services/presenceService.ts`:
-
-```typescript
-class PresenceService {
-  async setOnline(userId: string, username: string)
-  async setOffline(userId: string)
-  subscribeToPresence(callback: (users: PresenceUser[]) => void)
-  setupDisconnectHandler(userId: string) // Uses RTDB onDisconnect()
-}
-```
-
-#### Presence System (30 min)
-
-- Write to RTDB `/sessions/main/users/{userId}/presence` on login
-- Set up `onDisconnect()` handler to auto-cleanup
-- Listen to presence changes
-- Show online user list in sidebar/header
-
-**Gate:** Open 2 browser windows → see both cursors moving in real-time with <50ms lag. Presence updates when users join/leave.
-
----
-
-### Phase 3: Shape Creation & Sync (3-4 hours)
-
-#### Color Toolbar (30 min)
-
-- Add simple toolbar with 4 color buttons
-- Colors: Red (`#ef4444`), Blue (`#3b82f6`), Green (`#10b981`), Yellow (`#f59e0b`)
-- Track selected color in React state
-- Highlight active color button
-- Default: Blue
-
-#### Canvas Service Layer (1 hour)
-
-Create `services/canvasService.ts`:
-
-```typescript
-class CanvasService {
-  async createShape(shape: ShapeData)
-  async updateShape(shapeId: string, updates: Partial<ShapeData>)
-  async lockShape(shapeId: string, userId: string)
-  async unlockShape(shapeId: string)
-  subscribeToShapes(callback: (shapes: Shape[]) => void)
-  async getShapes(): Promise<Shape[]>
-}
-```
-
-**Why Service Layer Here:**
-- AI agent will call these same methods in Phase 2
-- Clean interface: `canvasService.createShape({type, x, y, width, height, color})`
-- Easy to test with emulators
-- Consistent API for human and AI interactions
-
-#### Create Rectangle with Click-and-Drag (2 hours)
-
-1. **Detect drag start:** mousedown on canvas background (not on shape)
-2. **Track drag:**
-   - Record start position (startX, startY)
-   - On mousemove, calculate current position (currentX, currentY)
-   - Calculate width: `Math.abs(currentX - startX)`
-   - Calculate height: `Math.abs(currentY - startY)`
-3. **Show preview rectangle:**
-   - Render Konva Rect with dashed stroke
-   - Fill with selected color at 50% opacity
-   - Update dimensions in real-time as user drags
-4. **Finalize on mouseup:**
-   - If width < 10 or height < 10, ignore
-   - Call `canvasService.createShape()` with shape data
-5. **Edge cases:**
-   - User drags left (negative width) → use `Math.abs()` and adjust x
-   - User drags up (negative height) → use `Math.abs()` and adjust y
-   - Don't interfere with canvas pan
-
-#### Real-Time Shape Sync (1 hour)
-
-- Use `canvasService.subscribeToShapes()` listener
-- Update React Context when shapes added/changed/removed
-- Render all shapes via Konva `<Rect>` with user-defined width, height, color
-- Handle initial fetch + real-time updates
-- All users see new shapes appear instantly (<100ms)
-
-#### Shape Dragging (30 min)
-
-- Enable draggable on Konva Rect (conditionally based on lock)
-- On drag end, call `canvasService.updateShape(shapeId, {x, y})`
-- Other users see movement via listener
-- Smooth drag experience (no lag)
-
-**Gate:** User A selects color, clicks on canvas, drags to create shape → User B sees preview then final shape with correct size/color instantly. User A drags shape → User B sees movement.
-
----
-
-### Phase 4: Simple Shape Locking (2 hours)
-
-#### Lock Logic in Canvas Service
-
-```typescript
-// In canvasService.ts
-async lockShape(shapeId: string, userId: string): Promise<boolean> {
-  const shapeRef = doc(firestore, `canvases/main/shapes/${shapeId}`);
-  const shapeDoc = await getDoc(shapeRef);
+  id: "shape_123",
+  type: "rectangle | text | circle | triangle",
   
-  // Check if already locked
-  if (shapeDoc.exists()) {
-    const data = shapeDoc.data();
-    const now = Date.now();
-    const lockAge = now - (data.lockedAt?.toMillis() || 0);
-    
-    // If locked by someone else and lock is fresh (<5s), fail
-    if (data.lockedBy && data.lockedBy !== userId && lockAge < 5000) {
-      return false; // Lock acquisition failed
-    }
-  }
+  // Position & Transform
+  x: 100,
+  y: 200,
+  rotation: 0,              // Degrees (0-360)
   
-  // Acquire lock
-  await updateDoc(shapeRef, {
-    lockedBy: userId,
-    lockedAt: serverTimestamp()
-  });
+  // Rectangle-specific
+  width: 200,               // For rectangles
+  height: 150,              // For rectangles
+  color: "#3b82f6",         // Fill color for rectangles
   
-  return true;
+  // Text-specific
+  text: "Hello World",      // For text
+  fontSize: 16,             // For text
+  color: "#000000",         // Text color (for text)
+
+  fontWeight: "normal" | "bold",           // NEW: Text formatting
+  fontStyle: "normal" | "italic",          // NEW: Text formatting
+  textDecoration: "none" | "underline",    // NEW: Text formatting
+  
+  // Advanced features
+  zIndex: 5,                // NEW: Stacking order
+  groupId: "group_abc" | null,  // NEW: Group membership
+  
+  // Metadata
+  createdBy: "user_abc",
+  createdAt: timestamp,
+  lockedBy: "user_abc" | null,
+  lockedAt: timestamp | null,
+  updatedAt: timestamp
 }
 ```
 
-#### Lock on Select (1 hour)
+#### `canvases/main/groups` Collection (NEW)
 
-- Click shape (not drag) → check current lock status
-- Call `canvasService.lockShape(shapeId, userId)`
-- If lock acquired:
-  - Update local state (show green border)
-- If lock failed:
-  - Show toast: "Shape locked by [username]"
-  - Do not select shape
-- Listen to lock changes via Firestore
-- Handle lock acquisition failures
-
-#### Lock Visual Indicators (1 hour)
-
-Render different stroke colors based on lock status:
-- **Green:** locked by me
-- **Red:** locked by other
-- **White on hover:** unlocked
-
-Additional features:
-- Add lock icon (emoji 🔒 or SVG) for locked-by-other
-- Set opacity to 0.5 for locked-by-other
-- Disable draggable for locked-by-other
-- Release lock on deselect (click background) or drag end
-- Implement lock timeout check (5 seconds)
-
-**Gate:**
-- User A clicks shape → gets green border, can drag
-- User B sees red border + lock icon, cannot interact
-- User A clicks away → lock releases → User B can now grab it
-
----
-
-### Phase 5: Testing & Polish (2-3 hours)
-
-#### Multi-Browser Testing (1 hour)
-
-- Test with 2-3 users simultaneously
-- Test creating shapes with different sizes/colors
-- Test drag preview shows correctly for all users
-- Test refresh mid-edit (state persistence)
-- Test disconnect/reconnect (presence updates)
-- Test rapid shape creation
-- Test simultaneous lock attempts
-- Test with Firebase Emulators first
-- Test performance: 60 FPS, 5+ users
-
-#### Bug Fixes & Polish (1 hour)
-
-- Fix any sync lag issues
-- Handle edge cases (expired locks, disconnects, negative drags)
-- Add loading states for auth and canvas
-- Clean up UI styling
-- Add toast for lock failures
-- Verify preview rectangle doesn't interfere with pan
-- Verify no console errors
-- Run unit tests for services
-
-#### Deployment (1 hour)
-
-1. Build React app: `npm run build`
-2. Deploy to Vercel (connect GitHub repo)
-3. Update Firebase config for production URLs
-4. Update Firebase security rules for production
-5. Test deployed version with 2+ users
-6. Verify public accessibility
-7. Test performance on deployed app (5+ users, 500+ shapes)
-
-**Total Estimate:** 13-17 hours (leaves 7-11 hours buffer)
-
----
-
-## Testing Checklist
-
-### Authentication ✅
-
-- [ ] User can sign up with email/password
-- [ ] User can log in with existing account
-- [ ] (Optional) User can sign in with Google
-- [ ] Auth state persists across page refresh
-- [ ] Username displays correctly in UI
-- [ ] Cursor color is assigned on signup
-- [ ] User can logout
-- [ ] Error messages show for invalid credentials
-
-### Cursor Sync ✅
-
-- [ ] Two users in separate browsers both see empty canvas
-- [ ] User A moves cursor → User B sees cursor move at 20-30 FPS
-- [ ] User B moves cursor → User A sees cursor with name label
-- [ ] Both cursors have different colors
-- [ ] Cursors disappear when user moves off canvas (5000×5000 bounds)
-- [ ] Cursors NOT visible in gray background area outside canvas
-- [ ] Presence list shows both users online
-- [ ] User A disconnects → User B sees them go offline immediately (RTDB onDisconnect)
-- [ ] Cursor latency is <50ms
-
-### Canvas Basics ✅
-
-- [ ] Canvas is 5000x5000px
-- [ ] Pan works (drag canvas background)
-- [ ] Zoom works (mouse wheel)
-- [ ] Zoom is centered on cursor position
-- [ ] Canvas maintains 60 FPS during interactions
-
-### Color Toolbar ✅
-
-- [ ] Toolbar displays 4 color buttons (Red, Blue, Green, Yellow)
-- [ ] Clicking a color button selects that color
-- [ ] Selected color is visually highlighted
-- [ ] Default color is Blue on load
-
-### Shape Creation with Click-and-Drag ✅
-
-- [ ] User clicks and holds on canvas background → drag starts
-- [ ] While dragging, preview rectangle appears and grows dynamically
-- [ ] Preview rectangle shows selected color with dashed border
-- [ ] User releases mouse → final rectangle is created
-- [ ] Rectangle size matches drag distance (width and height)
-- [ ] Rectangle color matches selected toolbar color
-- [ ] Negative drag test: User drags left or up → rectangle still creates correctly
-- [ ] Minimum size test: Tiny drags (<10px) are ignored
-- [ ] User A creates shape → User B sees preview then final shape in <100ms
-- [ ] Multiple shapes with different sizes/colors can exist simultaneously
-- [ ] Shapes persist across refresh with correct attributes
-
-### Shape Movement ✅
-
-- [ ] User A drags unlocked shape → it moves smoothly at 60 FPS
-- [ ] User A releases → User B sees new position in <100ms
-- [ ] Dragging feels responsive (no lag)
-- [ ] Dragging shape doesn't trigger shape creation
-
-### Shape Locking ✅
-
-- [ ] Basic Lock Test: User A clicks shape (not drag)
-- [ ] User A sees green border (locked by me)
-- [ ] User A can drag shape
-- [ ] User B sees red border + lock icon (locked by User A)
-- [ ] User B cannot click or drag the shape
-- [ ] User B gets toast notification if they try to click
-- [ ] Lock Release Test: User A clicks canvas background (deselect)
-- [ ] Lock releases (shape returns to normal)
-- [ ] User B can now click and lock the shape
-- [ ] Drag Release Test: User A drags shape and releases
-- [ ] Lock auto-releases on drag end
-- [ ] User B can immediately lock it
-- [ ] Timeout Test: User A locks shape, waits 6+ seconds
-- [ ] Lock auto-releases (User B can click it)
-- [ ] Disconnect Test: User A locks shape, closes browser
-- [ ] Lock releases within 5 seconds
-- [ ] User B can acquire lock
-
-### Persistence ✅
-
-- [ ] All users disconnect → reconnect later → canvas state persists
-- [ ] Shapes created in session 1 → still visible in session 2 with correct size/color
-- [ ] Lock state clears on page refresh (no stuck locks)
-- [ ] RTDB cursor/presence clears on disconnect (ephemeral data)
-
-### Performance ✅
-
-- [ ] Canvas maintains 60 FPS with 50+ shapes
-- [ ] Canvas maintains 60 FPS with 500+ shapes
-- [ ] 5+ concurrent users without FPS degradation
-- [ ] Cursor updates consistently at 20-30 FPS
-- [ ] Shape sync latency consistently <100ms
-- [ ] No memory leaks during extended sessions
-
-### Deployment ✅
-
-- [ ] Deployed URL is publicly accessible (no auth wall)
-- [ ] Works with 5+ simultaneous users on deployed version
-- [ ] No console errors in production build
-- [ ] Performance is acceptable on deployed app
-- [ ] Firebase security rules are production-ready
-
-### Service Layer Testing ✅
-
-- [ ] AuthService methods work with emulators
-- [ ] CanvasService CRUD operations work correctly
-- [ ] CursorService updates at target FPS
-- [ ] PresenceService onDisconnect works
-- [ ] Services can be mocked for unit testing
-
----
-
-## Firebase Security Rules
-
-### Firestore Rules
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    
-    // Users collection - users can only write their own document
-    match /users/{userId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Main canvas shapes - individual documents
-    match /canvases/main/shapes/{shapeId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null && 
-                       request.resource.data.createdBy == request.auth.uid;
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null;
-    }
-  }
+```typescript
+{
+  id: "group_abc",
+  name: "Login Form",
+  shapeIds: ["shape_123", "shape_456", "shape_789"],
+  createdBy: "user_abc",
+  createdAt: timestamp
 }
 ```
 
-### Realtime Database Rules
+#### `canvases/main/comments` Collection (NEW)
+
+```typescript
+{
+  id: "comment_123",
+  shapeId: "shape_456",
+  userId: "user_abc",
+  username: "Alice",
+  text: "This needs to be bigger",
+  x: 100,                   // Pin position (optional)
+  y: 200,
+  createdAt: timestamp,
+  resolved: false,
+  replies: [
+    {
+      userId: "user_def",
+      username: "Bob",
+      text: "I agree",
+      createdAt: timestamp
+    }
+  ]
+}
+```
+
+### RTDB Paths (Unchanged from MVP)
 
 ```json
 {
-  "rules": {
-    "sessions": {
-      "main": {
-        "users": {
-          "$userId": {
-            ".read": "auth != null",
-            ".write": "auth != null && auth.uid == $userId"
+  "sessions": {
+    "main": {
+      "users": {
+        "user_abc": {
+          "cursor": {
+            "x": 450,
+            "y": 300,
+            "username": "Alice",
+            "color": "#ef4444",
+            "timestamp": "timestamp"
+          },
+          "presence": {
+            "online": true,
+            "lastSeen": "timestamp",
+            "username": "Alice"
           }
         }
       }
@@ -801,321 +2471,321 @@ service cloud.firestore {
 
 ---
 
-## Click-and-Drag Implementation Details
+## Tech Stack (Updated)
 
-### Key Konva Events
+### Frontend
+- React + TypeScript + Vite
+- Konva.js + react-konva (canvas rendering)
+- React Context (state management)
+- React Hot Toast (notifications)
 
-```typescript
-const [isDrawing, setIsDrawing] = useState(false);
-const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
-const [previewRect, setPreviewRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-const [selectedColor, setSelectedColor] = useState('#3b82f6'); // Blue default
+### Backend
+- Firebase Authentication (email/password)
+- Cloud Firestore (shapes, groups, comments)
+- Firebase Realtime Database (cursors, presence)
 
-const canvasService = new CanvasService(); // Service instance
+### AI
+- OpenAI GPT-4-turbo (function calling)
 
-// Start drawing
-const handleMouseDown = (e: any) => {
-  const stage = e.target.getStage();
-  const pointerPosition = stage.getPointerPosition();
-  
-  // Only start drawing if clicked on background (not a shape)
-  if (e.target === stage) {
-    setIsDrawing(true);
-    setDrawStart(pointerPosition);
-  }
-};
+### Deployment
+- Vercel (frontend hosting)
 
-// Update preview
-const handleMouseMove = (e: any) => {
-  if (!isDrawing || !drawStart) return;
-  
-  const stage = e.target.getStage();
-  const pointerPosition = stage.getPointerPosition();
-  
-  // Calculate dimensions (handle negative drags)
-  const x = Math.min(drawStart.x, pointerPosition.x);
-  const y = Math.min(drawStart.y, pointerPosition.y);
-  const width = Math.abs(pointerPosition.x - drawStart.x);
-  const height = Math.abs(pointerPosition.y - drawStart.y);
-  
-  setPreviewRect({ x, y, width, height });
-};
-
-// Finalize shape
-const handleMouseUp = async () => {
-  if (!isDrawing || !previewRect) {
-    setIsDrawing(false);
-    return;
-  }
-  
-  // Ignore tiny accidental shapes
-  if (previewRect.width < 10 || previewRect.height < 10) {
-    setIsDrawing(false);
-    setPreviewRect(null);
-    return;
-  }
-  
-  // Save via CanvasService ⚡ UPDATED
-  await canvasService.createShape({
-    type: 'rectangle',
-    x: previewRect.x,
-    y: previewRect.y,
-    width: previewRect.width,
-    height: previewRect.height,
-    color: selectedColor,
-    createdBy: currentUser.uid,
-    createdAt: Date.now(),
-    lockedBy: null,
-    lockedAt: null
-  });
-  
-  // Clear preview
-  setIsDrawing(false);
-  setPreviewRect(null);
-  setDrawStart(null);
-};
-
-// Render preview
-{previewRect && (
-  <Rect
-    x={previewRect.x}
-    y={previewRect.y}
-    width={previewRect.width}
-    height={previewRect.height}
-    fill={selectedColor}
-    opacity={0.5}
-    stroke={selectedColor}
-    strokeWidth={2}
-    dash={[10, 5]}  // Dashed border
-  />
-)}
-```
+### Additional Libraries
+- Lodash (throttle, debounce)
 
 ---
 
-## Explicitly Out of Scope for MVP
+## Build Sequence & Task Breakdown
 
-### Features NOT Required ❌
+The complete task list with 17 PRs is detailed in `task-phase2.md`. Key milestones:
 
-- Multiple shape types (only rectangles)
-- Resize handles or rotation
-- Multi-select (shift-click, drag-to-select)
-- Layer management/z-index controls
-- Copy/paste, duplicate
-- Delete shapes
-- Undo/redo
-- Editing shape properties after creation
-- Advanced color picker (hex input, gradients) - basic 4 colors only
-- Shape stroke/borders (except selection indicators)
-- Export/save as image
-- Keyboard shortcuts
-- Mobile responsiveness
-- Any AI features (Phase 2 - Sunday)
-- Multiple canvases or workspaces
+**Part 1: Core Manual Features (PRs #8-11, ~20 hours)**
+- Resize, Rotate, Text, Delete, Duplicate
 
-### Technical NOT Required ❌
+**Part 2: Advanced Features (PRs #12-15, ~25 hours)**
+- Multi-select, Grouping, Z-index, Alignment, Keyboard shortcuts, Copy/paste, Comments
 
-- Firestore transactions (post-MVP enhancement)
-- Optimistic UI updates (nice to have)
-- Comprehensive error handling (basic toast is fine)
-- Database migrations
+**Part 3: AI Integration (PRs #16-18, ~15 hours)**
+- AI Service, Tool definitions, Chat UI, Context awareness, Layout commands
+
+**Part 4: Testing & Deployment (PRs #19-20, ~8 hours)**
+- Integration testing, Bug fixes, Polish, Demo video, Deployment
+
+**Total estimated time:** 68-78 hours (fits within 72-hour window)
+
+---
+
+## Testing Checklist
+
+### Core Manual Features ✅
+
+**Resize:**
+- [ ] 8 handles appear when shape locked
+- [ ] Corner handles resize proportionally
+- [ ] Edge handles resize single dimension
+- [ ] Minimum 10×10 enforced
+- [ ] User A resizes → User B sees in <100ms
+
+**Rotate:**
+- [ ] Rotation handle appears above locked shape
+- [ ] Angle tooltip shows during drag
+- [ ] Shape rotates around center
+- [ ] User A rotates → User B sees in <100ms
+
+**Text:**
+- [ ] Text tool activates click-to-place mode
+- [ ] Double-click opens edit mode
+- [ ] Font size changes sync
+- [ ] User A creates/edits → User B sees in <100ms
+
+**Delete/Duplicate:**
+- [ ] Delete button removes shape
+- [ ] Duplicate creates copy with offset
+- [ ] User A deletes/duplicates → User B sees in <100ms
+
+### Advanced Features ✅
+
+**Multi-select:**
+- [ ] Shift+click adds to selection
+- [ ] Marquee selection works (drag rectangle)
+- [ ] All selected shapes show blue border
+- [ ] Group operations work (move all, delete all)
+
+**Grouping:**
+- [ ] Can group 2+ selected shapes
+- [ ] Grouped shapes move together
+- [ ] Can ungroup shapes
+- [ ] User A groups → User B sees group behavior
+
+**Z-index:**
+- [ ] Bring to front/back buttons work
+- [ ] Shapes render in correct order
+- [ ] User A changes z-index → User B sees layer change
+
+**Alignment:**
+- [ ] Align left/center/right works
+- [ ] Align top/middle/bottom works
+- [ ] Distribute horizontally/vertically works
+- [ ] User A aligns → User B sees alignment
+
+**Keyboard Shortcuts:**
+- [ ] Delete key removes shape
+- [ ] Cmd/Ctrl+D duplicates
+- [ ] Cmd/Ctrl+C/V copy/paste
+- [ ] Arrow keys nudge shapes
+- [ ] Cmd/Ctrl+G groups shapes
+- [ ] Z-index shortcuts work
+
+**Comments:**
+- [ ] Can add comment to shape
+- [ ] Comment icon appears on shape
+- [ ] Comment panel shows threads
+- [ ] Can reply to comments
+- [ ] User A adds comment → User B sees in real-time
+
+### AI Features ✅
+
+**AI Service:**
+- [ ] Can initialize OpenAI client
+- [ ] All 13 tool definitions valid
+- [ ] executeCommand calls correct tools
+- [ ] Error handling works
+
+**Command Types:**
+- [ ] Creation: "Create blue rectangle"
+- [ ] Manipulation: "Move it to center", "Make it bigger", "Rotate 45 degrees"
+- [ ] Layout: "Arrange in a row" (**CRITICAL**)
+- [ ] Grouping: "Group these shapes"
+- [ ] Alignment: "Align to the left"
+- [ ] Z-index: "Bring to front"
+- [ ] Comments: "Add comment 'needs review'"
+- [ ] Complex: "Create login form" (6 elements)
+- [ ] Complex: "Make 3×3 grid" (9 shapes)
+
+**AI Performance:**
+- [ ] Single-step commands <2s latency
+- [ ] Multi-step commands <5s latency
+- [ ] 90%+ accuracy on valid commands
+- [ ] Context awareness works ("the blue rectangle")
+
+**Multi-user AI:**
+- [ ] User A's AI command visible to User B
+- [ ] Concurrent AI commands work
+- [ ] AI respects locked shapes
+
+### Performance ✅
+
+- [ ] 60 FPS maintained with 50+ shapes
+- [ ] Canvas works with 500+ shapes
+- [ ] 5+ concurrent users without degradation
+- [ ] All sync operations <100ms
+- [ ] AI commands meet latency targets
+
+### Deployment ✅
+
+- [ ] App deployed to production URL
+- [ ] All features work on deployed version
+- [ ] 5+ users tested on production
+- [ ] Demo video recorded and submitted
+- [ ] README updated with setup and demo link
+
+---
+
+## Rubric Scoring Projection
+
+Based on Phase 2 features:
+
+| Section | Max Points | Phase 2 Score | Notes |
+|---------|------------|---------------|-------|
+| **1. Collaborative Infrastructure** | 30 | 28-30 | ✅ Excellent - all targets met |
+| **2. Canvas Features & Performance** | 20 | 18-20 | ✅ Excellent - multi-select, transforms, text |
+| **3. Advanced Figma Features** | 15 | 13-15 | ✅ Excellent - 3 Tier 1 + 2 Tier 2 + 1 Tier 3 |
+| **4. AI Canvas Agent** | 25 | 23-25 | ✅ Excellent - 13 tools, layout commands included |
+| **5. Technical Implementation** | 10 | 9-10 | ✅ Excellent - clean architecture |
+| **6. Documentation** | 5 | 5 | ✅ Excellent - comprehensive |
+| **7. AI Dev Log** | Pass/Fail | PASS | ✅ All sections included |
+| **8. Demo Video** | -10 if fail | PASS | ✅ All requirements met |
+| **TOTAL** | **100** | **96-105** | **A+ (with bonus)** |
+
+### Bonus Points Potential (+5 max)
+
+- **Innovation (+2):** Collaborative comments on shapes (unique feature)
+- **Polish (+2):** Professional UI, smooth animations, keyboard shortcuts
+- **Scale (+1):** 500+ shapes at 60 FPS, 5+ users
+
+**Final projected score: 96-100 points (A+)**
+
+---
+
+## Explicitly Out of Scope
+
+### Features NOT in Phase 2
+
+**Canvas Features:**
+- Circle, polygon, line shapes (only rectangles + text)
+- Rich text formatting (bold, italic, underline)
+- Custom fonts or font families
+- Shape fill patterns or gradients
+- Shape stroke styles (dashed, dotted)
+- Shadow or blur effects
+- Opacity control
+- Image uploads or embedding
+
+**Advanced Features:**
+- Undo/redo functionality
+- Version history with restore
+- Export to PNG/SVG
+- Import from other tools
+- Snap-to-grid with visual guides
+- Ruler or measurement tools
+- Component system (reusable symbols)
+- Design tokens/styles system
+- Canvas frames/artboards
+- Auto-layout (flexbox-like)
+- Plugins/extensions system
+- Vector path editing (pen tool)
+- Prototyping/interaction modes
+
+**Collaboration Features:**
+- Voice/video chat
+- Cursor chat (typing indicators)
+- User permissions (view-only, edit)
+- Workspace management
+- Project folders
+- Team management
+
+**AI Features:**
+- AI design suggestions
+- AI-powered auto-layout
+- AI image generation
+- AI style transfer
+- Streaming AI responses
+- AI conversation history
+- Custom AI behavior settings
+
+**Technical Features:**
+- Offline mode support
+- Mobile responsive design
+- Touch/pen input support
+- Firestore transactions (documented limitation)
+- Optimistic UI updates
+- Advanced caching strategies
 - Analytics or monitoring
-- User profiles or avatars
-- Email verification
 
 ---
 
-## Known Limitations & Future Enhancements
+## Known Limitations
 
-### MVP Limitations
+### Phase 2 Limitations
 
-#### Race Condition (~50ms window): If two users click a shape within ~50ms, wrong user might win lock
-
+#### 1. **Lock Race Condition (~50ms window)**
+- **Current:** If two users click shape within ~50ms, last write wins
 - **Impact:** Low (rare with 2-5 users)
-- **Future fix:** Upgrade to Firestore transactions (+2 hours)
+- **Mitigation:** Documented limitation
+- **Future:** Upgrade to Firestore transactions
 
-#### No Shape Delete: Users can create shapes but not delete them
+#### 2. **Shape Types Limited**
+- **Current:** Only rectangles and text
+- **Impact:** Medium (limits design options)
+- **Future:** Add circles, lines, polygons
 
-- **Impact:** Medium (canvas can get cluttered during testing)
-- **Mitigation:** Manually clear Firestore collection between tests if needed
+#### 3. **No Undo/Redo**
+- **Current:** Manual corrections only
+- **Impact:** Medium (professional tools have this)
+- **Mitigation:** Keyboard shortcuts make corrections fast
+- **Future:** Implement operation history
 
-#### No Shape Editing After Creation: Once created, size/color cannot be changed
+#### 4. **Marquee Selection Performance**
+- **Current:** Checks all shapes on every mousemove
+- **Impact:** Low (works fine with <500 shapes)
+- **Future:** Spatial indexing for >1000 shapes
 
-- **Impact:** Low (sufficient for MVP)
-- **Future fix:** Add edit modal or properties panel (+2 hours)
+#### 5. **Group Transform**
+- **Current:** Group moves together, but resize/rotate apply to individual shapes
+- **Impact:** Low (acceptable for MVP)
+- **Future:** Unified bounding box transform
 
-#### Basic Color Palette: Only 4 colors available
-
-- **Impact:** Low (sufficient for MVP testing)
-- **Future fix:** Add full color picker (+1 hour)
-
-#### Single Shared Canvas: All users edit one global canvas
-
-- **Impact:** Low for MVP testing
-- **Future fix:** Add workspace/project management
-
-#### Basic Error Handling: Only toast notificationsß
-
-- **Impact:** Low (sufficient for MVP)
-
----
-
-
-
----
-
-## Development Workflow
-
-### Local Development with Emulators
-
-**⚠️ All commands run from `collabcanvas/` directory:**
-
-```bash
-# Change to app directory first
-cd collabcanvas
-
-# Terminal 1: Start Firebase Emulators
-firebase emulators:start
-
-# Terminal 2: Start React dev server
-npm run dev
-
-# Emulator UI available at: http://localhost:4000
-# React app available at: http://localhost:5173
-```
-
-**Benefits:**
-- No Firebase costs during development
-- Faster iteration (no network latency)
-- Can clear data instantly between tests
-- Test concurrent users with multiple browser windows
-- Safe to test edge cases (corrupted data, rapid operations)
-
-### Testing Multi-User Scenarios
-
-```bash
-# Open multiple browser windows
-# Incognito Mode: http://localhost:5173 (User A)
-# Normal Mode: http://localhost:5173 (User B)
-# Different Browser: http://localhost:5173 (User C)
-
-# Test scenarios:
-1. Create shapes simultaneously
-2. Lock same shape within 50ms
-3. Disconnect/reconnect during edits
-4. Refresh browser mid-drag
-5. Create 100+ shapes rapidly
-```
-
-### Deployment Workflow
-
-**⚠️ All commands run from `collabcanvas/` directory:**
-
-```bash
-# Change to app directory first
-cd collabcanvas
-
-# 1. Build production bundle
-npm run build
-
-# 2. Test production build locally
-npm run preview
-
-# 3. Deploy to Vercel
-vercel --prod
-
-# 4. Update Firebase config for production domain
-# (Add Vercel domain to Firebase authorized domains)
-
-# 5. Test deployed app with multiple users
-# (Share Vercel URL, test with 5+ concurrent users)
-```
+#### 6. **Comment Notifications**
+- **Current:** No push notifications for new comments
+- **Impact:** Low (users see comments in real-time if on canvas)
+- **Future:** Toast notifications or email alerts
 
 ---
 
-## Key Architectural Decisions
+## Success Metrics
 
-### 1. Why Hybrid Database? ⚡
+### Phase 2 Completion Criteria
 
-**Decision:** RTDB for cursors/presence, Firestore for shapes
+**MUST PASS (Critical):**
+- [ ] All core manual features working (resize, rotate, text, delete, duplicate)
+- [ ] Multi-select with shift-click and marquee
+- [ ] Grouping and ungrouping
+- [ ] Z-index management (4 buttons)
+- [ ] Alignment tools (6 alignment types + distribute)
+- [ ] Keyboard shortcuts (10+ shortcuts)
+- [ ] Copy/paste functionality
+- [ ] Collaborative comments
+- [ ] AI agent with 13 tools
+- [ ] AI layout command ("arrange in a row")
+- [ ] AI complex commands (login form, grid)
+- [ ] Demo video (3-5 min, all requirements)
+- [ ] Deployed to production URL
+- [ ] 5+ concurrent users tested
+- [ ] All features sync <100ms
+- [ ] AI commands <2s single, <5s multi-step
+- [ ] 60 FPS performance maintained
 
-**Rationale:**
-- Cursors need <50ms latency, 20-30 FPS updates
-- Firestore average latency: ~200ms (too slow)
-- RTDB optimized for real-time, high-frequency updates
-- Firestore better for structured data with queries
-- Separate concerns by data characteristics
+**Scoring Targets:**
+- Collaborative Infrastructure: 28-30/30 ✅
+- Canvas Features: 18-20/20 ✅
+- Advanced Features: 13-15/15 ✅
+- AI Agent: 23-25/25 ✅
+- Technical: 9-10/10 ✅
+- Documentation: 5/5 ✅
+- AI Dev Log: PASS ✅
+- Demo Video: PASS ✅
 
-**Trade-offs:**
-- ✅ Best performance for each data type
-- ✅ Scales to 5+ users + AI agent
-- ⚠️ Slightly more complex setup (2 databases)
-- ⚠️ Need to manage 2 sets of security rules
-
-### 2. Why Service Layer? ⚡
-
-**Decision:** Explicit service classes wrapping Firebase
-
-**Rationale:**
-- AI agent needs consistent APIs in Phase 2
-- Easier to test with emulators (mock services)
-- Clean separation of concerns
-- Single source of truth for data operations
-
-**Trade-offs:**
-- ✅ AI-ready architecture (no refactoring)
-- ✅ Testable and maintainable
-- ⚠️ +1 hour initial setup time
-- ✅ Saves 4+ hours in Phase 2 (no refactoring)
-
-### 3. Why Individual Shape Documents? ⚡
-
-**Decision:** Each shape is its own Firestore document
-
-**Rationale:**
-- Sunday requires 500+ shapes support
-- Single document with array hits 1MB limit (~100-200 shapes)
-- Better query performance (can filter by createdBy, color, etc.)
-- No array update conflicts during concurrent edits
-
-**Trade-offs:**
-- ✅ Scales to 500+ shapes
-- ✅ Better concurrent editing
-- ⚠️ Slightly higher Firestore read costs
-- ✅ Required for Sunday requirements
-
-### 4. Why Vercel for Deployment?
-
-**Decision:** Vercel instead of Firebase Hosting
-
-**Rationale:**
-- Faster deployment (GitHub integration)
-- Better DX for React/Vite apps
-- Automatic HTTPS and CDN
-- No real benefit from Firebase Hosting here
-
-**Trade-offs:**
-- ✅ Faster deployment workflow
-- ✅ Better for React apps
-- ⚠️ Need to configure Firebase auth for Vercel domain
-- ✅ Assignment explicitly allows Vercel
-
-### 5. Why Konva.js?
-
-**Decision:** Konva.js over HTML5 Canvas or SVG
-
-**Rationale:**
-- React bindings (react-konva)
-- Built-in event handling
-- Easy transformations (drag, scale)
-- Good performance (60 FPS with 500+ shapes)
-- Simpler than Three.js or PixiJS for 2D
-
-**Trade-offs:**
-- ✅ Fast implementation (saves 2-3 hours)
-- ✅ Good performance for requirements
-- ✅ Easy to add AI-generated shapes
-- ⚠️ Not as performant as PixiJS for 10,000+ objects (not needed)
+**Total Target: 96-100 points (A+)**
 
 ---
 
@@ -1123,88 +2793,120 @@ vercel --prod
 
 ### High-Risk Areas
 
-#### Cursor Sync Performance
+#### 1. **Time Management**
+- **Risk:** 68-78 hour estimate might be tight
+- **Mitigation:**
+  - Start with highest-value features (multi-select, AI layout)
+  - Cut lower-priority features if needed (comments can be simplified)
+  - Use AI coding assistants aggressively
+  - Work in parallel where possible (AI while testing manual features)
 
-- **Risk:** Latency >50ms, choppy cursor movement
-- **Mitigation:** RTDB instead of Firestore, throttle to 20-30 FPS
-- **Fallback:** Reduce update frequency to 15 FPS if needed
+#### 2. **AI Layout Command Complexity**
+- **Risk:** "Arrange in a row" algorithm might be tricky
+- **Mitigation:**
+  - Simple sorting + spacing algorithm (not complex)
+  - Test with 3-4 shapes first
+  - Fallback: Manual spacing if auto-spacing fails
 
-#### Shape Locking Race Conditions
+#### 3. **Multi-Select Performance**
+- **Risk:** Marquee selection with 500+ shapes might lag
+- **Mitigation:**
+  - Throttle mousemove to 60 FPS
+  - Use bounding box intersection (fast)
+  - Profile early, optimize if needed
 
-- **Risk:** Two users lock same shape within 50ms
-- **Mitigation:** Document as known limitation, acceptable for MVP
-- **Fallback:** Add toast notification, implement transactions post-MVP
+#### 4. **Demo Video Quality**
+- **Risk:** Video production takes longer than expected
+- **Mitigation:**
+  - Record segments separately (easier to edit)
+  - Use script to stay on track
+  - Keep it simple (no fancy editing needed)
+  - Budget 2 hours for recording + editing
 
-#### Firebase Costs During Testing
-
-- **Risk:** High costs from rapid Firestore writes during development
-- **Mitigation:** Use Firebase Emulators for all local development
-- **Fallback:** Set up Firebase budget alerts
-
-#### Performance with 500+ Shapes
-
-- **Risk:** FPS drops below 60 with many shapes
-- **Mitigation:** Individual shape documents, Konva performance optimization
-- **Fallback:** Implement virtualization (only render visible shapes)
-
-#### Deployment Issues
-
-- **Risk:** Firebase auth doesn't work on Vercel domain
-- **Mitigation:** Add Vercel domain to Firebase authorized domains early
-- **Fallback:** Use Firebase Hosting if Vercel issues persist
+#### 5. **OpenAI API Costs**
+- **Risk:** High costs during development/testing
+- **Mitigation:**
+  - Use GPT-3.5-turbo for development testing
+  - Switch to GPT-4-turbo for final version
+  - Set budget alerts in OpenAI dashboard
+  - Limit prompt length (500 tokens max)
 
 ---
 
-## Success Metrics
+## Development Strategy
 
-### MVP Gate (24 Hours) - MUST PASS
+### Phase 2 Execution Plan
 
-- [ ] Deployed and publicly accessible
-- [ ] 2+ users can connect simultaneously
-- [ ] Cursor sync <50ms with name labels
-- [ ] Presence awareness (online user list)
-- [ ] Can create rectangles with click-and-drag
-- [ ] Shapes sync across users <100ms
-- [ ] Can drag shapes to move them
-- [ ] Simple locking works (green/red borders)
-- [ ] 60 FPS during interactions
-- [ ] No critical bugs in core flow
+**Week 1 (Days 1-3): Core Features**
+- Focus: Get manual features working first
+- Priorities: Resize, Rotate, Text (these enable everything else)
+- Gate: Can manually create, resize, rotate, edit text
 
+**Week 1 (Days 3-5): Advanced Features**
+- Focus: Multi-select, Grouping, Z-index, Alignment
+- These are high-value rubric features
+- Gate: Can select multiple, group, align, layer
+
+**Week 1 (Days 5-6): Power User Features**
+- Focus: Keyboard shortcuts, Copy/paste
+- Quick wins for rubric points
+- Gate: All shortcuts work smoothly
+
+**Week 1 (Day 6): Comments**
+- Focus: Collaborative comments (Tier 3 feature)
+- Can be simplified if time tight
+- Gate: Can add/view/reply to comments
+
+**Week 1 (Days 6-7): AI Integration**
+- Focus: AI service, tools, chat UI
+- Critical: Include layout command
+- Gate: AI executes all 13 tool types
+
+**Week 1 (Day 7): Polish & Deploy**
+- Focus: Testing, bug fixes, demo video
+- Critical: Record video early (leaves time for reshoots)
+- Gate: Deployed, tested with 5+ users, video submitted
 
 ---
 
 ## Final Checklist Before Starting
 
-### Setup Checklist
+### Setup
+- [ ] MVP fully working and deployed
+- [ ] Firebase project configured
+- [ ] OpenAI API key obtained
+- [ ] Vercel account ready
+- [ ] Video recording software installed
 
-**⚠️ Remember:** All npm/firebase commands run from `collabcanvas/` directory
+### Knowledge
+- [ ] Reviewed rubric thoroughly
+- [ ] Understand scoring breakdown
+- [ ] Know which features are critical vs nice-to-have
+- [ ] Understand 13 AI tools and their categories
+- [ ] Reviewed demo video requirements
 
-- [ ] Firebase project created
-- [ ] Email/Password auth enabled in Firebase Console
-- [ ] (Optional) Google Sign-In enabled
-- [ ] Firestore database created
-- [ ] Realtime Database created
-- [ ] Firebase CLI installed: `npm install -g firebase-tools` (global, run from anywhere)
-- [ ] Firebase emulators initialized from `collabcanvas/`: `firebase init emulators`
-- [ ] React + Vite project scaffolded in `collabcanvas/`
-- [ ] Firebase SDK installed from `collabcanvas/`: `npm install firebase`
-- [ ] Konva installed from `collabcanvas/`: `npm install konva react-konva`
-- [ ] Additional libraries from `collabcanvas/`: `npm install lodash react-hot-toast`
-- [ ] Vercel account created and linked to GitHub
+### Planning
+- [ ] Task list prioritized
+- [ ] Time estimates validated
+- [ ] Risk mitigation strategies ready
+- [ ] Fallback plans for each high-risk area
 
-### Architecture Checklist
+### Execution
+- [ ] AI coding assistants ready (Cursor, Copilot, etc.)
+- [ ] Development environment optimized
+- [ ] Firebase emulators running
+- [ ] Multiple browser windows for testing
 
-- [ ] Understand hybrid database pattern (RTDB + Firestore)
-- [ ] Understand service layer pattern (Context → Hooks → Services)
-- [ ] Understand why individual shape documents (scalability)
-- [ ] Understand AI integration strategy (same services)
+---
 
-### Development Checklist
+## Questions for Alignment
 
-- [ ] Start with Phase 0 (emulators)
-- [ ] Build Phase 1-4 sequentially (don't skip)
-- [ ] Test with emulators before deploying
-- [ ] Deploy early (by Phase 3 or 4)
-- [ ] Test deployed version with multiple users
-- [ ] Run through complete testing checklist
+Before proceeding to task list:
 
+1. **Confirmed scope:** All 9 features + AI + demo video?
+2. **Timeline:** 72 hours realistic for this scope?
+3. **AI provider:** OpenAI GPT-4-turbo confirmed?
+4. **Priority adjustments:** Any features to deprioritize if time runs short?
+5. **Demo video:** Comfortable with recording requirements?
+
+This PRD is optimized for maximum rubric score (96-100 points) while remaining achievable within the 72-hour timeline. Ready to proceed to detailed task list?

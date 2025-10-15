@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import type { Timestamp, Unsubscribe } from 'firebase/firestore';
 import { firestore } from '../firebase';
+import { MIN_SHAPE_WIDTH, MIN_SHAPE_HEIGHT } from '../utils/constants';
 
 // Shape data types
 export interface ShapeData {
@@ -160,6 +161,30 @@ class CanvasService {
       });
     } catch (error) {
       console.error('❌ Error unlocking shape:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Resize a shape with validation
+   */
+  async resizeShape(shapeId: string, width: number, height: number): Promise<void> {
+    try {
+      // Validate minimum dimensions
+      if (width < MIN_SHAPE_WIDTH || height < MIN_SHAPE_HEIGHT) {
+        throw new Error(`Minimum size is ${MIN_SHAPE_WIDTH}×${MIN_SHAPE_HEIGHT} pixels`);
+      }
+      
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await updateDoc(shapeRef, {
+        width: width,
+        height: height,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log(`✅ SUCCESS TASK [1.1]: Shape resized to ${width}×${height}`);
+    } catch (error) {
+      console.error('❌ Error resizing shape:', error);
       throw error;
     }
   }

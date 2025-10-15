@@ -29,6 +29,7 @@ interface CanvasContextType {
   shapes: ShapeData[];
   createShape: (shapeInput: ShapeCreateInput) => Promise<string>;
   updateShape: (shapeId: string, updates: Partial<ShapeData>) => Promise<void>;
+  resizeShape: (shapeId: string, width: number, height: number) => Promise<void>;
   lockShape: (shapeId: string, userId: string) => Promise<{ success: boolean; lockedByUsername?: string }>;
   unlockShape: (shapeId: string) => Promise<void>;
   deleteAllShapes: () => Promise<void>;
@@ -79,6 +80,10 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.updateShape(shapeId, updates);
   };
 
+  const resizeShape = async (shapeId: string, width: number, height: number): Promise<void> => {
+    return await canvasService.resizeShape(shapeId, width, height);
+  };
+
   const lockShape = async (shapeId: string, userId: string): Promise<{ success: boolean; lockedByUsername?: string }> => {
     return await canvasService.lockShape(shapeId, userId);
   };
@@ -105,6 +110,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     shapes,
     createShape,
     updateShape,
+    resizeShape,
     lockShape,
     unlockShape,
     deleteAllShapes,

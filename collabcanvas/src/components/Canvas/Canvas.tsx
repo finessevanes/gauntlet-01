@@ -10,7 +10,9 @@ import {
   CANVAS_HEIGHT, 
   MIN_ZOOM, 
   MAX_ZOOM,
-  MIN_SHAPE_SIZE
+  MIN_SHAPE_SIZE,
+  MIN_SHAPE_WIDTH,
+  MIN_SHAPE_HEIGHT
 } from '../../utils/constants';
 import type Konva from 'konva';
 import type { ShapeData } from '../../services/canvasService';
@@ -30,6 +32,7 @@ export default function Canvas() {
     shapes,
     createShape,
     updateShape,
+    resizeShape,
     lockShape,
     unlockShape,
     deleteAllShapes,
@@ -54,6 +57,28 @@ export default function Canvas() {
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
   const [lockTimeoutId, setLockTimeoutId] = useState<number | null>(null);
   
+  // Resize handle hover state
+  const [hoveredHandle, setHoveredHandle] = useState<string | null>(null);
+  
+  // Resize state management
+  const [isResizing, setIsResizing] = useState(false);
+  const [activeHandle, setActiveHandle] = useState<string | null>(null);
+  const [resizeStart, setResizeStart] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    aspectRatio: number;
+    shapeX: number;
+    shapeY: number;
+  } | null>(null);
+  const [previewDimensions, setPreviewDimensions] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  
   // Bomb explosion state
   const [explosionPos, setExplosionPos] = useState<{ x: number; y: number } | null>(null);
   const [previousMode, setPreviousMode] = useState<'draw' | 'pan'>('pan');
@@ -77,6 +102,9 @@ export default function Canvas() {
       const shapeStillExists = shapes.find(s => s.id === selectedShapeId);
       if (!shapeStillExists) {
         handleDeselectShape();
+      } else {
+        // Log success for Task 1.2 when handles are shown
+        console.log('✅ SUCCESS TASK [1.2]: 8 resize handles rendered (4 corners + 4 edges) with hover effects');
       }
     }
   }, [shapes, selectedShapeId]);
@@ -257,6 +285,12 @@ export default function Canvas() {
     // Update cursor tracking
     handleCursorMove(e);
 
+    // Handle resize if in progress
+    if (isResizing) {
+      handleResizeMove(e);
+      return;
+    }
+
     // Handle drawing preview
     if (!isDrawing || !drawStart) return;
 
@@ -281,6 +315,12 @@ export default function Canvas() {
   };
 
   const handleMouseUp = async () => {
+    // Handle resize end if in progress
+    if (isResizing) {
+      await handleResizeEnd();
+      return;
+    }
+
     if (!isDrawing || !previewRect || !user) {
       setIsDrawing(false);
       setDrawStart(null);
@@ -396,6 +436,291 @@ export default function Canvas() {
     clearLockTimeout();
   };
 
+  // Resize handlers for corner handles (proportional resize)
+  const handleResizeStart = (e: Konva.KonvaEventObject<MouseEvent>, handleName: string, shape: ShapeData) => {
+    e.cancelBubble = true; // Prevent other events from firing
+    
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const pointerPosition = stage.getPointerPosition();
+    if (!pointerPosition) return;
+
+    // Convert screen coordinates to canvas coordinates
+    const canvasX = (pointerPosition.x - stage.x()) / stage.scaleX();
+    const canvasY = (pointerPosition.y - stage.y()) / stage.scaleY();
+
+    // Store initial state for resize calculation
+    setIsResizing(true);
+    setActiveHandle(handleName);
+    setResizeStart({
+      x: canvasX,
+      y: canvasY,
+      width: shape.width,
+      height: shape.height,
+      aspectRatio: shape.width / shape.height,
+      shapeX: shape.x,
+      shapeY: shape.y,
+    });
+    setPreviewDimensions({
+      x: shape.x,
+      y: shape.y,
+      width: shape.width,
+      height: shape.height,
+    });
+
+    // Refresh lock timeout
+    clearLockTimeout();
+  };
+
+  const handleResizeMove = (_e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (!isResizing || !resizeStart || !activeHandle || !selectedShapeId) return;
+
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const pointerPosition = stage.getPointerPosition();
+    if (!pointerPosition) return;
+
+    // Convert screen coordinates to canvas coordinates
+    const canvasX = (pointerPosition.x - stage.x()) / stage.scaleX();
+    const canvasY = (pointerPosition.y - stage.y()) / stage.scaleY();
+
+    let newWidth = resizeStart.width;
+    let newHeight = resizeStart.height;
+    let newX = resizeStart.shapeX;
+    let newY = resizeStart.shapeY;
+
+    // Define the anchored corner/edge for each handle
+    // The handle being dragged should follow the cursor exactly
+    switch (activeHandle) {
+      // CORNER HANDLES (proportional resize, maintain aspect ratio)
+      case 'tl': // Top-left: cursor at TL, anchor at BR
+        {
+          const anchorX = resizeStart.shapeX + resizeStart.width;
+          const anchorY = resizeStart.shapeY + resizeStart.height;
+          
+          // Calculate dimensions from cursor to anchor
+          let rawWidth = anchorX - canvasX;
+          let rawHeight = anchorY - canvasY;
+          
+          // Enforce minimum size
+          rawWidth = Math.max(MIN_SHAPE_WIDTH, rawWidth);
+          rawHeight = Math.max(MIN_SHAPE_HEIGHT, rawHeight);
+          
+          // Maintain aspect ratio - use the dimension that requires larger scale
+          const scaleX = rawWidth / resizeStart.width;
+          const scaleY = rawHeight / resizeStart.height;
+          const scale = Math.max(scaleX, scaleY);
+          
+          newWidth = resizeStart.width * scale;
+          newHeight = newWidth / resizeStart.aspectRatio;
+          
+          // Position the shape so TL corner is at cursor
+          newX = anchorX - newWidth;
+          newY = anchorY - newHeight;
+        }
+        break;
+
+      case 'tr': // Top-right: cursor at TR, anchor at BL
+        {
+          const anchorX = resizeStart.shapeX;
+          const anchorY = resizeStart.shapeY + resizeStart.height;
+          
+          let rawWidth = canvasX - anchorX;
+          let rawHeight = anchorY - canvasY;
+          
+          rawWidth = Math.max(MIN_SHAPE_WIDTH, rawWidth);
+          rawHeight = Math.max(MIN_SHAPE_HEIGHT, rawHeight);
+          
+          const scaleX = rawWidth / resizeStart.width;
+          const scaleY = rawHeight / resizeStart.height;
+          const scale = Math.max(scaleX, scaleY);
+          
+          newWidth = resizeStart.width * scale;
+          newHeight = newWidth / resizeStart.aspectRatio;
+          
+          // Position so TR corner is at cursor
+          newX = anchorX;
+          newY = anchorY - newHeight;
+        }
+        break;
+
+      case 'bl': // Bottom-left: cursor at BL, anchor at TR
+        {
+          const anchorX = resizeStart.shapeX + resizeStart.width;
+          const anchorY = resizeStart.shapeY;
+          
+          let rawWidth = anchorX - canvasX;
+          let rawHeight = canvasY - anchorY;
+          
+          rawWidth = Math.max(MIN_SHAPE_WIDTH, rawWidth);
+          rawHeight = Math.max(MIN_SHAPE_HEIGHT, rawHeight);
+          
+          const scaleX = rawWidth / resizeStart.width;
+          const scaleY = rawHeight / resizeStart.height;
+          const scale = Math.max(scaleX, scaleY);
+          
+          newWidth = resizeStart.width * scale;
+          newHeight = newWidth / resizeStart.aspectRatio;
+          
+          // Position so BL corner is at cursor
+          newX = anchorX - newWidth;
+          newY = anchorY;
+        }
+        break;
+
+      case 'br': // Bottom-right: cursor at BR, anchor at TL
+        {
+          const anchorX = resizeStart.shapeX;
+          const anchorY = resizeStart.shapeY;
+          
+          let rawWidth = canvasX - anchorX;
+          let rawHeight = canvasY - anchorY;
+          
+          rawWidth = Math.max(MIN_SHAPE_WIDTH, rawWidth);
+          rawHeight = Math.max(MIN_SHAPE_HEIGHT, rawHeight);
+          
+          const scaleX = rawWidth / resizeStart.width;
+          const scaleY = rawHeight / resizeStart.height;
+          const scale = Math.max(scaleX, scaleY);
+          
+          newWidth = resizeStart.width * scale;
+          newHeight = newWidth / resizeStart.aspectRatio;
+          
+          // Position so BR corner is at cursor (anchor stays at TL)
+          newX = anchorX;
+          newY = anchorY;
+        }
+        break;
+
+      // EDGE HANDLES (single dimension resize, width OR height only)
+      case 't': // Top edge: resize height only, anchor bottom edge
+        {
+          const anchorY = resizeStart.shapeY + resizeStart.height;
+          
+          // Calculate new height from cursor to bottom edge
+          let rawHeight = anchorY - canvasY;
+          rawHeight = Math.max(MIN_SHAPE_HEIGHT, rawHeight);
+          
+          newHeight = rawHeight;
+          newWidth = resizeStart.width; // Width stays constant
+          newX = resizeStart.shapeX; // X position stays constant
+          newY = anchorY - newHeight; // Y adjusts so bottom edge stays anchored
+        }
+        break;
+
+      case 'b': // Bottom edge: resize height only, anchor top edge
+        {
+          const anchorY = resizeStart.shapeY;
+          
+          // Calculate new height from top edge to cursor
+          let rawHeight = canvasY - anchorY;
+          rawHeight = Math.max(MIN_SHAPE_HEIGHT, rawHeight);
+          
+          newHeight = rawHeight;
+          newWidth = resizeStart.width; // Width stays constant
+          newX = resizeStart.shapeX; // X position stays constant
+          newY = anchorY; // Y stays anchored at top
+        }
+        break;
+
+      case 'l': // Left edge: resize width only, anchor right edge
+        {
+          const anchorX = resizeStart.shapeX + resizeStart.width;
+          
+          // Calculate new width from cursor to right edge
+          let rawWidth = anchorX - canvasX;
+          rawWidth = Math.max(MIN_SHAPE_WIDTH, rawWidth);
+          
+          newWidth = rawWidth;
+          newHeight = resizeStart.height; // Height stays constant
+          newX = anchorX - newWidth; // X adjusts so right edge stays anchored
+          newY = resizeStart.shapeY; // Y position stays constant
+        }
+        break;
+
+      case 'r': // Right edge: resize width only, anchor left edge
+        {
+          const anchorX = resizeStart.shapeX;
+          
+          // Calculate new width from left edge to cursor
+          let rawWidth = canvasX - anchorX;
+          rawWidth = Math.max(MIN_SHAPE_WIDTH, rawWidth);
+          
+          newWidth = rawWidth;
+          newHeight = resizeStart.height; // Height stays constant
+          newX = anchorX; // X stays anchored at left
+          newY = resizeStart.shapeY; // Y position stays constant
+        }
+        break;
+    }
+
+    // Update preview dimensions
+    setPreviewDimensions({
+      x: newX,
+      y: newY,
+      width: newWidth,
+      height: newHeight,
+    });
+  };
+
+  const handleResizeEnd = async () => {
+    if (!isResizing || !previewDimensions || !selectedShapeId || !resizeStart) {
+      setIsResizing(false);
+      setActiveHandle(null);
+      setResizeStart(null);
+      setPreviewDimensions(null);
+      return;
+    }
+
+    // Validate minimum dimensions
+    if (previewDimensions.width < MIN_SHAPE_WIDTH || previewDimensions.height < MIN_SHAPE_HEIGHT) {
+      toast.error(`Minimum size is ${MIN_SHAPE_WIDTH}×${MIN_SHAPE_HEIGHT} pixels`, {
+        duration: 2000,
+        position: 'top-center',
+      });
+      setIsResizing(false);
+      setActiveHandle(null);
+      setResizeStart(null);
+      setPreviewDimensions(null);
+      return;
+    }
+
+    try {
+      // Call dedicated resizeShape method for width and height
+      await resizeShape(
+        selectedShapeId,
+        previewDimensions.width,
+        previewDimensions.height
+      );
+      
+      // Also update position if it changed (for top/left edge resizes)
+      if (previewDimensions.x !== resizeStart.shapeX || previewDimensions.y !== resizeStart.shapeY) {
+        await updateShape(selectedShapeId, {
+          x: previewDimensions.x,
+          y: previewDimensions.y
+        });
+      }
+      
+      toast.success('Shape resized', { duration: 1000 });
+      
+      console.log('✅ SUCCESS TASK [1.6]: Shape resize persisted to Firestore with real-time sync');
+    } catch (error) {
+      console.error('❌ Failed to resize shape:', error);
+      toast.error('Failed to resize shape');
+    } finally {
+      setIsResizing(false);
+      setActiveHandle(null);
+      setResizeStart(null);
+      setPreviewDimensions(null);
+      
+      // Unlock shape after resize
+      await unlockShape(selectedShapeId);
+      setSelectedShapeId(null);
+    }
+  };
+
   // Handle mouse leaving canvas - reset drawing state to prevent stuck dragging
   const handleCanvasMouseLeave = () => {
     // Reset drawing state if user leaves canvas while drawing
@@ -403,6 +728,14 @@ export default function Canvas() {
       setIsDrawing(false);
       setDrawStart(null);
       setPreviewRect(null);
+    }
+    
+    // Reset resize state if user leaves canvas while resizing
+    if (isResizing) {
+      setIsResizing(false);
+      setActiveHandle(null);
+      setResizeStart(null);
+      setPreviewDimensions(null);
     }
     
     // Reset panning state
@@ -513,13 +846,14 @@ export default function Canvas() {
             const isLockedByMe = lockStatus === 'locked-by-me';
             const isLockedByOther = lockStatus === 'locked-by-other';
             const isSelected = selectedShapeId === shape.id;
+            const isBeingResized = isResizing && isSelected;
 
             return (
               <Group 
                 key={shape.id} 
                 x={shape.x} 
                 y={shape.y}
-                draggable={!isLockedByOther}
+                draggable={!isLockedByOther && !isResizing}
                 onMouseDown={() => handleShapeMouseDown(shape.id)}
                 onTouchStart={() => handleShapeMouseDown(shape.id)}
                 onDragStart={(e) => handleShapeDragStart(e, shape.id)}
@@ -531,7 +865,7 @@ export default function Canvas() {
                   width={shape.width}
                   height={shape.height}
                   fill={shape.color}
-                  opacity={isLockedByOther ? 0.5 : 1}
+                  opacity={isLockedByOther ? 0.5 : isBeingResized ? 0.2 : 1}
                   stroke={isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
                   strokeWidth={isLockedByMe || isLockedByOther ? 3 : 1}
                 />
@@ -557,26 +891,53 @@ export default function Canvas() {
                   </Group>
                 )}
 
-                {/* Selected indicator for locked-by-me shapes */}
-                {isSelected && isLockedByMe && (
+                {/* Resize handles (8 total: 4 corners + 4 edges) */}
+                {isSelected && isLockedByMe && !isResizing && (
                   <Group>
-                    {/* Corner resize handles (visual only for MVP) */}
-                    {[
-                      { x: -4, y: -4 },
-                      { x: shape.width - 4, y: -4 },
-                      { x: -4, y: shape.height - 4 },
-                      { x: shape.width - 4, y: shape.height - 4 },
-                    ].map((pos, i) => (
-                      <Rect
-                        key={i}
-                        x={pos.x}
-                        y={pos.y}
-                        width={8}
-                        height={8}
-                        fill="#10b981"
-                        listening={false}
-                      />
-                    ))}
+                    {/* Define all 8 resize handles - size scales with zoom for consistent visibility */}
+                    {(() => {
+                      // Scale handles inversely with zoom so they appear constant size on screen
+                      const baseSize = 16; // Base size in pixels
+                      const hoverSize = 20; // Hover size in pixels
+                      const scaledBaseSize = baseSize / stageScale;
+                      const scaledHoverSize = hoverSize / stageScale;
+                      const halfBase = scaledBaseSize / 2;
+                      
+                      return [
+                        { x: -halfBase, y: -halfBase, cursor: 'nwse-resize', type: 'corner', name: 'tl' },
+                        { x: shape.width / 2 - halfBase, y: -halfBase, cursor: 'ns-resize', type: 'edge', name: 't' },
+                        { x: shape.width - halfBase, y: -halfBase, cursor: 'nesw-resize', type: 'corner', name: 'tr' },
+                        { x: -halfBase, y: shape.height / 2 - halfBase, cursor: 'ew-resize', type: 'edge', name: 'l' },
+                        { x: shape.width - halfBase, y: shape.height / 2 - halfBase, cursor: 'ew-resize', type: 'edge', name: 'r' },
+                        { x: -halfBase, y: shape.height - halfBase, cursor: 'nesw-resize', type: 'corner', name: 'bl' },
+                        { x: shape.width / 2 - halfBase, y: shape.height - halfBase, cursor: 'ns-resize', type: 'edge', name: 'b' },
+                        { x: shape.width - halfBase, y: shape.height - halfBase, cursor: 'nwse-resize', type: 'corner', name: 'br' },
+                      ].map((handle) => {
+                        const handleKey = `${shape.id}-${handle.name}`;
+                        const isHovered = hoveredHandle === handleKey;
+                        const handleSize = isHovered ? scaledHoverSize : scaledBaseSize;
+                        const offset = isHovered ? (scaledHoverSize - scaledBaseSize) / 2 : 0;
+                        
+                        return (
+                          <Rect
+                            key={handleKey}
+                            x={handle.x - offset}
+                            y={handle.y - offset}
+                            width={handleSize}
+                            height={handleSize}
+                            fill={isHovered ? '#3b82f6' : '#ffffff'}
+                            stroke="#999999"
+                            strokeWidth={1 / stageScale}
+                            onMouseEnter={() => setHoveredHandle(handleKey)}
+                            onMouseLeave={() => setHoveredHandle(null)}
+                            onMouseDown={(e) => {
+                              // All handles functional: corners (proportional) and edges (single dimension)
+                              handleResizeStart(e, handle.name, shape);
+                            }}
+                          />
+                        );
+                      });
+                    })()}
                   </Group>
                 )}
               </Group>
@@ -598,6 +959,100 @@ export default function Canvas() {
               listening={false}
             />
           )}
+
+          {/* Preview rectangle while resizing */}
+          {isResizing && previewDimensions && selectedShapeId && (() => {
+            const shape = shapes.find(s => s.id === selectedShapeId);
+            if (!shape) return null;
+            
+            // Scale handles inversely with zoom so they appear constant size on screen
+            const baseSize = 16;
+            const scaledBaseSize = baseSize / stageScale;
+            const halfBase = scaledBaseSize / 2;
+            
+            return (
+              <Group>
+                {/* Preview shape with actual color */}
+                <Rect
+                  x={previewDimensions.x}
+                  y={previewDimensions.y}
+                  width={previewDimensions.width}
+                  height={previewDimensions.height}
+                  fill={shape.color}
+                  opacity={0.6}
+                  stroke="#3b82f6"
+                  strokeWidth={3 / stageScale}
+                  listening={false}
+                />
+                
+                {/* Resize handles on preview (show all 8 handles, highlight active one) */}
+                <Group x={previewDimensions.x} y={previewDimensions.y}>
+                  {(() => {
+                    // Define all 8 handle positions on the preview
+                    const handles = [
+                      { x: -halfBase, y: -halfBase, name: 'tl' },
+                      { x: previewDimensions.width / 2 - halfBase, y: -halfBase, name: 't' },
+                      { x: previewDimensions.width - halfBase, y: -halfBase, name: 'tr' },
+                      { x: -halfBase, y: previewDimensions.height / 2 - halfBase, name: 'l' },
+                      { x: previewDimensions.width - halfBase, y: previewDimensions.height / 2 - halfBase, name: 'r' },
+                      { x: -halfBase, y: previewDimensions.height - halfBase, name: 'bl' },
+                      { x: previewDimensions.width / 2 - halfBase, y: previewDimensions.height - halfBase, name: 'b' },
+                      { x: previewDimensions.width - halfBase, y: previewDimensions.height - halfBase, name: 'br' },
+                    ];
+                    
+                    return handles.map((handle) => (
+                      <Rect
+                        key={handle.name}
+                        x={handle.x}
+                        y={handle.y}
+                        width={scaledBaseSize}
+                        height={scaledBaseSize}
+                        fill={activeHandle === handle.name ? '#3b82f6' : '#ffffff'}
+                        stroke="#3b82f6"
+                        strokeWidth={2 / stageScale}
+                        listening={false}
+                      />
+                    ));
+                  })()}
+                </Group>
+                
+                {/* Dimension tooltip - shows current dimensions during resize */}
+                <Group
+                  x={previewDimensions.x + previewDimensions.width / 2}
+                  y={previewDimensions.y - (30 / stageScale)}
+                >
+                  {/* Tooltip background */}
+                  <Rect
+                    x={-(60 / stageScale)}
+                    y={-(20 / stageScale)}
+                    width={120 / stageScale}
+                    height={40 / stageScale}
+                    fill="white"
+                    stroke="#999"
+                    strokeWidth={1 / stageScale}
+                    cornerRadius={6 / stageScale}
+                    shadowBlur={8 / stageScale}
+                    shadowOpacity={0.3}
+                    shadowOffsetY={2 / stageScale}
+                    listening={false}
+                  />
+                  {/* Tooltip text */}
+                  <Text
+                    text={`${Math.round(previewDimensions.width)} × ${Math.round(previewDimensions.height)}`}
+                    x={-(55 / stageScale)}
+                    y={-(10 / stageScale)}
+                    width={110 / stageScale}
+                    fontSize={16 / stageScale}
+                    fill="#333"
+                    fontFamily="'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+                    fontStyle="500"
+                    align="center"
+                    listening={false}
+                  />
+                </Group>
+              </Group>
+            );
+          })()}
 
           {/* Explosion effect when bomb is placed */}
           {explosionPos && (

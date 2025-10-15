@@ -1479,7 +1479,7 @@ These PRs add natural language AI interface on top of all manual features.
 ## PR #11: AI Service Layer & Tool Definitions
 
 **Branch:** `feature/pr-11-ai-service-tools`  
-**Goal:** Create AI service with OpenAI integration; define all 13 function tools
+**Goal:** Create AI service with OpenAI integration; define all 15 function tools
 
 > 🚦 **Before starting:** Ask AI to create `docs/PR-11-ACTION-PLAN.md` and wait for your approval
 
@@ -1514,12 +1514,12 @@ Create `src/services/aiService.ts`:
 4. Define `executeCommand(prompt, userId)` method signature
    - Test Gate: Method exists, returns Promise
 
-#### 11.3: Define 13 function tools
+#### 11.3: Define 15 function tools
 
 Create tool definitions array:
 
 **Tools to define (see PRD Section 14):**
-1. `createShape` - Create rectangle
+1. `createRectangle` - Create rectangle
 2. `createCircle` - Create circle
 3. `createTriangle` - Create triangle
 4. `createText` - Create text with formatting options
@@ -1535,7 +1535,7 @@ Create tool definitions array:
 14. `addComment` - Add comment to shape
 15. `getCanvasState` - Fetch all shapes (called before manipulations)
 
-**Test Gate:** All 13 tool definitions follow OpenAI function calling schema
+**Test Gate:** All 15 tool definitions follow OpenAI function calling schema
 
 #### 11.4: Implement executeCommand
 
@@ -1570,7 +1570,7 @@ Create `executeSingleTool(call, userId)` method:
 Wire up creation tool calls to CanvasService:
 
 **Sub-tasks:**
-1. `createShape` → `canvasService.createShape()`
+1. `createRectangle` → `canvasService.createShape()`
    - Test Gate: Rectangle created via AI
 2. `createCircle` → `canvasService.createCircle()`
    - Test Gate: Circle created via AI
@@ -1655,9 +1655,9 @@ Create `generateSuccessMessage(results)` method:
 ### PR Checklist
 
 - [ ] AIService class created with OpenAI client
-- [ ] All 13 function tools defined correctly
+- [ ] All 15 function tools defined correctly
 - [ ] executeCommand method calls OpenAI API
-- [ ] Tool execution router handles all 13 tools
+- [ ] Tool execution router handles all 15 tools
 - [ ] Creation tools work (rectangle, circle, triangle, text)
 - [ ] Manipulation tools work (move, resize, rotate, duplicate, delete)
 - [ ] Advanced tools work (group, align, arrange, z-index, comment)
@@ -1764,7 +1764,7 @@ Add complex command examples:
 **Examples:**
 1. **Login Form:** 6-step creation (labels, inputs, button)
    - Test Gate: Example shows all 6 tool calls
-2. **Grid Creation:** 3×3 grid = 9 createShape calls
+2. **Grid Creation:** 3×3 grid = 9 createRectangle calls
    - Test Gate: Example shows calculated positions
 3. **Layout Commands:** "arrange in a row" → arrangeShapesInRow
    - Test Gate: Example emphasizes this CRITICAL command
@@ -2474,7 +2474,7 @@ Enhance main README:
 1. **Features** - List all Phase 2 features
    - Core manual features (resize, rotate, text, etc.)
    - Advanced features (multi-select, grouping, alignment, etc.)
-   - AI capabilities (13 tools, layout commands)
+   - AI capabilities (15 tools, layout commands)
 2. **Demo Video** - Embed or link to video
 3. **Quick Start** - 5-minute setup guide
 4. **Tech Stack** - Updated with OpenAI
@@ -2489,7 +2489,7 @@ Document Phase 2 architecture:
 
 **Sections to add:**
 1. AI Service Layer
-2. Tool Definitions (13 tools)
+2. Tool Definitions (15 tools)
 3. System Prompt Strategy
 4. Comments Data Model
 5. Groups Data Model
@@ -2573,7 +2573,7 @@ Final testing in production:
 2. Create all shape types
 3. Use all manual features (resize, rotate, text, delete, duplicate)
 4. Use all advanced features (multi-select, group, align, z-index, shortcuts, copy/paste, comments)
-5. Use AI commands (all 13 tools, including layout command)
+5. Use AI commands (all 15 tools, including layout command)
 6. Test with 5+ concurrent users
 7. Verify all sync working (<100ms)
 8. Verify AI latency (<5s)
@@ -2600,7 +2600,7 @@ Review Phase 2 completion:
 **Use PRD "Success Metrics" section:**
 - [ ] All core manual features working
 - [ ] All advanced features working
-- [ ] AI agent with 13 tools working
+- [ ] AI agent with 15 tools working
 - [ ] Layout command working (CRITICAL)
 - [ ] Demo video complete
 - [ ] All sync <100ms
@@ -2653,7 +2653,7 @@ Review Phase 2 completion:
 
 ### Part 3: AI Integration ✅
 
-- [ ] PR #11: AI Service & Tools (13 tools, OpenAI integration, layout command)
+- [ ] PR #11: AI Service & Tools (15 tools, OpenAI integration, layout command)
 - [ ] PR #12: System Prompt (context awareness, examples, shape identification)
 - [ ] PR #13: AI Chat UI (bottom drawer, message history, input, commands work)
 
@@ -2688,7 +2688,7 @@ Review Phase 2 completion:
 - [ ] Keyboard shortcuts (15+)
 - [ ] Copy/paste
 - [ ] Collaborative comments
-- [ ] AI agent with 13 tools
+- [ ] AI agent with 15 tools
 - [ ] AI layout command ("arrange in a row") ⚠️ CRITICAL
 - [ ] AI complex commands (login form, grid)
 - [ ] Demo video (3-5 min, all requirements)

@@ -5,7 +5,6 @@ import { useCursors } from '../../hooks/useCursors';
 import { useAuth } from '../../hooks/useAuth';
 import CursorLayer from '../Collaboration/CursorLayer';
 import TextInput from './TextInput';
-import TextControls from './TextControls';
 import toast from 'react-hot-toast';
 import { getFontStyle } from '../../utils/helpers';
 import { 
@@ -29,6 +28,8 @@ export default function Canvas() {
     setStagePosition,
     selectedColor,
     selectedTool,
+    selectedShapeId,
+    setSelectedShapeId,
     isDrawMode,
     setIsDrawMode,
     isBombMode,
@@ -37,8 +38,6 @@ export default function Canvas() {
     createShape,
     createText,
     updateText,
-    updateTextFontSize,
-    updateTextFormatting,
     updateShape,
     resizeShape,
     rotateShape,
@@ -65,7 +64,6 @@ export default function Canvas() {
   } | null>(null);
 
   // Selection and locking state
-  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
   const [lockTimeoutId, setLockTimeoutId] = useState<number | null>(null);
   
   // Resize handle hover state
@@ -318,74 +316,6 @@ export default function Canvas() {
 
   const handleTextCancel = () => {
     setTextInputVisible(false);
-  };
-
-  // Text formatting handlers
-  const handleToggleBold = async () => {
-    if (!selectedShapeId) return;
-    const shape = shapes.find(s => s.id === selectedShapeId);
-    if (!shape || shape.type !== 'text') return;
-
-    const newWeight = shape.fontWeight === 'bold' ? 'normal' : 'bold';
-    try {
-      await updateTextFormatting(selectedShapeId, { fontWeight: newWeight });
-    } catch (error) {
-      console.error('❌ Failed to toggle bold:', error);
-      toast.error('Failed to update formatting', {
-        duration: 2000,
-        position: 'top-center',
-      });
-    }
-  };
-
-  const handleToggleItalic = async () => {
-    if (!selectedShapeId) return;
-    const shape = shapes.find(s => s.id === selectedShapeId);
-    if (!shape || shape.type !== 'text') return;
-
-    const newStyle = shape.fontStyle === 'italic' ? 'normal' : 'italic';
-    try {
-      await updateTextFormatting(selectedShapeId, { fontStyle: newStyle });
-    } catch (error) {
-      console.error('❌ Failed to toggle italic:', error);
-      toast.error('Failed to update formatting', {
-        duration: 2000,
-        position: 'top-center',
-      });
-    }
-  };
-
-  const handleToggleUnderline = async () => {
-    if (!selectedShapeId) return;
-    const shape = shapes.find(s => s.id === selectedShapeId);
-    if (!shape || shape.type !== 'text') return;
-
-    const newDecoration = shape.textDecoration === 'underline' ? 'none' : 'underline';
-    try {
-      await updateTextFormatting(selectedShapeId, { textDecoration: newDecoration });
-    } catch (error) {
-      console.error('❌ Failed to toggle underline:', error);
-      toast.error('Failed to update formatting', {
-        duration: 2000,
-        position: 'top-center',
-      });
-    }
-  };
-
-  const handleChangeFontSize = async (fontSize: number) => {
-    if (!selectedShapeId) return;
-    const shape = shapes.find(s => s.id === selectedShapeId);
-    if (!shape || shape.type !== 'text') return;
-
-    try {
-      await updateTextFontSize(selectedShapeId, fontSize);
-    } catch (error) {
-      console.error('❌ Failed to change font size:', error);
-      toast.error('Failed to update font size', {
-        duration: 2000,
-        position: 'top-center',
-      });
-    }
   };
 
   // Handle double-click on text shape for editing
@@ -1825,27 +1755,6 @@ export default function Canvas() {
         );
       })()}
 
-      {/* Text Controls Panel */}
-      {selectedShapeId && (() => {
-        const selectedShape = shapes.find(s => s.id === selectedShapeId);
-        if (!selectedShape || selectedShape.type !== 'text') return null;
-        
-        const lockStatus = getShapeLockStatus(selectedShape);
-        const isLockedByMe = lockStatus === 'locked-by-me';
-        
-        return (
-          <div style={styles.textControlsPanel}>
-            <TextControls
-              selectedShape={selectedShape}
-              onToggleBold={handleToggleBold}
-              onToggleItalic={handleToggleItalic}
-              onToggleUnderline={handleToggleUnderline}
-              onChangeFontSize={handleChangeFontSize}
-              disabled={!isLockedByMe}
-            />
-          </div>
-        );
-      })()}
     </div>
   );
 }
@@ -1860,17 +1769,6 @@ const styles = {
     backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
     backgroundColor: '#e0e0e0',
     position: 'relative' as const,
-  },
-  textControlsPanel: {
-    position: 'fixed' as const,
-    right: '20px',
-    top: '100px',
-    width: '200px',
-    backgroundColor: '#f0f0f0',
-    border: '2px solid #808080',
-    borderRadius: '4px',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-    zIndex: 1000,
   },
 };
 

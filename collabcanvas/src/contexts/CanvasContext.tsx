@@ -15,6 +15,10 @@ interface CanvasContextType {
   selectedTool: 'rectangle' | 'text' | 'pan' | 'bomb';
   setSelectedTool: (tool: 'rectangle' | 'text' | 'pan' | 'bomb') => void;
   
+  // Shape selection
+  selectedShapeId: string | null;
+  setSelectedShapeId: (id: string | null) => void;
+  
   // Drawing mode (deprecated - use selectedTool)
   isDrawMode: boolean;
   setIsDrawMode: (isDrawMode: boolean) => void;
@@ -59,6 +63,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_COLOR);
   const [selectedTool, setSelectedTool] = useState<'rectangle' | 'text' | 'pan' | 'bomb'>('pan');
+  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
   const [isDrawMode, setIsDrawMode] = useState(false); // Default: Pan mode (deprecated)
   const [isBombMode, setIsBombMode] = useState(false); // Bomb tool mode (deprecated)
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
@@ -146,6 +151,8 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     setSelectedColor,
     selectedTool,
     setSelectedTool,
+    selectedShapeId,
+    setSelectedShapeId,
     isDrawMode,
     setIsDrawMode,
     isBombMode,

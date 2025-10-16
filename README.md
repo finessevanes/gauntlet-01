@@ -141,11 +141,12 @@ npm run dev
 Current features:
 - ✅ Firebase Emulators setup
 - ✅ User authentication (signup/login)
-- ✅ Canvas with pan/zoom
-- ✅ Real-time cursor tracking
+- ✅ Canvas with pan/zoom (5000x5000)
+- ✅ Real-time cursor tracking (20-30 FPS)
 - ✅ User presence awareness
-- ✅ Shape creation (rectangles)
-- ✅ Real-time shape sync
+- ✅ Shape creation (rectangles, circles, triangles)
+- ✅ Shape operations (resize, rotate, drag, delete, duplicate)
+- ✅ Real-time shape sync (<100ms)
 
 See [CollabCanvas README](./collabcanvas/README.md) for detailed feature list.
 

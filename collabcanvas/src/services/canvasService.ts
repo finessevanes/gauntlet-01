@@ -17,13 +17,19 @@ import { MIN_SHAPE_WIDTH, MIN_SHAPE_HEIGHT } from '../utils/constants';
 // Shape data types
 export interface ShapeData {
   id: string;
-  type: 'rectangle';
+  type: 'rectangle' | 'text';
   x: number;
   y: number;
   width: number;
   height: number;
   color: string;
   rotation?: number;
+  // Text-specific fields
+  text?: string;
+  fontSize?: number;
+  fontWeight?: 'normal' | 'bold';
+  fontStyle?: 'normal' | 'italic';
+  textDecoration?: 'none' | 'underline';
   createdBy: string;
   createdAt: Timestamp | null;
   lockedBy: string | null;
@@ -289,6 +295,138 @@ class CanvasService {
       console.log(`💣 Bomb: Deleted ${snapshot.docs.length} shape(s)`);
     } catch (error) {
       console.error('❌ Error deleting all shapes:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new text shape in Firestore
+   */
+  async createText(
+    text: string,
+    x: number,
+    y: number,
+    color: string,
+    createdBy: string,
+    options?: {
+      fontSize?: number;
+      fontWeight?: 'normal' | 'bold';
+      fontStyle?: 'normal' | 'italic';
+      textDecoration?: 'none' | 'underline';
+    }
+  ): Promise<string> {
+    try {
+      // Ensure parent document exists
+      await this.ensureCanvasDocExists();
+      
+      // Generate a unique ID for the text shape
+      const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
+      
+      const textData: Omit<ShapeData, 'id'> = {
+        type: 'text',
+        text,
+        x,
+        y,
+        width: 0, // Text auto-sizes
+        height: 0, // Text auto-sizes
+        color,
+        fontSize: options?.fontSize || 16,
+        fontWeight: options?.fontWeight || 'normal',
+        fontStyle: options?.fontStyle || 'normal',
+        textDecoration: options?.textDecoration || 'none',
+        rotation: 0,
+        createdBy,
+        createdAt: serverTimestamp() as Timestamp,
+        lockedBy: null,
+        lockedAt: null,
+        updatedAt: serverTimestamp() as Timestamp,
+      };
+
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await setDoc(shapeRef, textData);
+
+      console.log('✅ Text shape created:', shapeId);
+      return shapeId;
+    } catch (error) {
+      console.error('❌ Error creating text shape:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update text content of a text shape
+   */
+  async updateText(shapeId: string, text: string): Promise<void> {
+    try {
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await updateDoc(shapeRef, {
+        text,
+        updatedAt: serverTimestamp(),
+      });
+      console.log('✅ Text content updated:', shapeId);
+    } catch (error) {
+      console.error('❌ Error updating text content:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update font size of a text shape
+   */
+  async updateTextFontSize(shapeId: string, fontSize: number): Promise<void> {
+    try {
+      // Validate font size range (allow any size from 8px to 200px)
+      // This allows both dropdown selections and dynamic resize scaling
+      const MIN_FONT_SIZE = 8;
+      const MAX_FONT_SIZE = 200;
+      
+      if (fontSize < MIN_FONT_SIZE || fontSize > MAX_FONT_SIZE) {
+        throw new Error(`Font size must be between ${MIN_FONT_SIZE}px and ${MAX_FONT_SIZE}px`);
+      }
+
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await updateDoc(shapeRef, {
+        fontSize,
+        updatedAt: serverTimestamp(),
+      });
+      console.log('✅ Font size updated:', shapeId, fontSize);
+    } catch (error) {
+      console.error('❌ Error updating font size:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update text formatting (bold, italic, underline)
+   */
+  async updateTextFormatting(
+    shapeId: string,
+    formatting: {
+      fontWeight?: 'normal' | 'bold';
+      fontStyle?: 'normal' | 'italic';
+      textDecoration?: 'none' | 'underline';
+    }
+  ): Promise<void> {
+    try {
+      const updates: any = {
+        updatedAt: serverTimestamp(),
+      };
+
+      if (formatting.fontWeight !== undefined) {
+        updates.fontWeight = formatting.fontWeight;
+      }
+      if (formatting.fontStyle !== undefined) {
+        updates.fontStyle = formatting.fontStyle;
+      }
+      if (formatting.textDecoration !== undefined) {
+        updates.textDecoration = formatting.textDecoration;
+      }
+
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await updateDoc(shapeRef, updates);
+      console.log('✅ Text formatting updated:', shapeId, formatting);
+    } catch (error) {
+      console.error('❌ Error updating text formatting:', error);
       throw error;
     }
   }

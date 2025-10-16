@@ -26,7 +26,13 @@ export default function AppShell({ children }: AppShellProps) {
     deleteShape,
     duplicateShape,
     unlockShape,
-    lockShape
+    lockShape,
+    groupShapes,
+    ungroupShapes,
+    bringToFront,
+    sendToBack,
+    bringForward,
+    sendBackward
   } = useCanvasContext();
 
   // Get the currently selected shape
@@ -216,6 +222,132 @@ export default function AppShell({ children }: AppShellProps) {
     }
   };
 
+  // Grouping handlers
+  const handleGroup = async () => {
+    if (!user || selectedShapes.length < 2) return;
+    
+    try {
+      const groupId = await groupShapes(selectedShapes, user.uid);
+      console.log('✅ Group created:', groupId);
+      toast.success(`${selectedShapes.length} shapes grouped`, {
+        duration: 1500,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to group shapes:', error);
+      toast.error('Failed to group shapes', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  const handleUngroup = async () => {
+    if (!user || selectedShapes.length === 0) return;
+    
+    // Find groupId from selected shapes
+    const groupId = shapes.find(s => selectedShapes.includes(s.id))?.groupId;
+    if (!groupId) {
+      toast.error('No group to ungroup', {
+        duration: 2000,
+        position: 'top-center',
+      });
+      return;
+    }
+    
+    try {
+      await ungroupShapes(groupId);
+      console.log('✅ Group ungrouped:', groupId);
+      toast.success('Shapes ungrouped', {
+        duration: 1500,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to ungroup shapes:', error);
+      toast.error('Failed to ungroup shapes', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  // Z-Index handlers
+  const handleBringToFront = async () => {
+    const targetId = selectedShapeId || (selectedShapes.length > 0 ? selectedShapes[0] : null);
+    if (!targetId) return;
+    
+    try {
+      await bringToFront(targetId);
+      toast.success('Brought to front', {
+        duration: 1000,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to bring to front:', error);
+      toast.error('Failed to bring to front', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  const handleSendToBack = async () => {
+    const targetId = selectedShapeId || (selectedShapes.length > 0 ? selectedShapes[0] : null);
+    if (!targetId) return;
+    
+    try {
+      await sendToBack(targetId);
+      toast.success('Sent to back', {
+        duration: 1000,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to send to back:', error);
+      toast.error('Failed to send to back', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  const handleBringForward = async () => {
+    const targetId = selectedShapeId || (selectedShapes.length > 0 ? selectedShapes[0] : null);
+    if (!targetId) return;
+    
+    try {
+      await bringForward(targetId);
+      toast.success('Brought forward', {
+        duration: 1000,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to bring forward:', error);
+      toast.error('Failed to bring forward', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  const handleSendBackward = async () => {
+    const targetId = selectedShapeId || (selectedShapes.length > 0 ? selectedShapes[0] : null);
+    if (!targetId) return;
+    
+    try {
+      await sendBackward(targetId);
+      toast.success('Sent backward', {
+        duration: 1000,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to send backward:', error);
+      toast.error('Failed to send backward', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
   return (
     <div style={styles.appShell}>
       <PaintTitleBar />
@@ -228,6 +360,12 @@ export default function AppShell({ children }: AppShellProps) {
         onChangeFontSize={handleChangeFontSize}
         onDelete={handleDelete}
         onDuplicate={handleDuplicate}
+        onGroup={handleGroup}
+        onUngroup={handleUngroup}
+        onBringToFront={handleBringToFront}
+        onSendToBack={handleSendToBack}
+        onBringForward={handleBringForward}
+        onSendBackward={handleSendBackward}
         textFormattingDisabled={textFormattingDisabled}
       />
       <div style={styles.mainArea}>

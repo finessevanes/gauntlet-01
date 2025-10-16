@@ -69,6 +69,16 @@ interface CanvasContextType {
   updateTextFontSize: (shapeId: string, fontSize: number) => Promise<void>;
   updateTextFormatting: (shapeId: string, formatting: any) => Promise<void>;
   
+  // Grouping operations
+  groupShapes: (shapeIds: string[], userId: string, name?: string) => Promise<string>;
+  ungroupShapes: (groupId: string) => Promise<void>;
+  
+  // Z-Index operations
+  bringToFront: (shapeId: string) => Promise<void>;
+  sendToBack: (shapeId: string) => Promise<void>;
+  bringForward: (shapeId: string) => Promise<void>;
+  sendBackward: (shapeId: string) => Promise<void>;
+  
   // Loading state
   shapesLoading: boolean;
 }
@@ -246,6 +256,32 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.updateTextFormatting(shapeId, formatting);
   };
 
+  // Grouping operations
+  const groupShapes = async (shapeIds: string[], userId: string, name?: string): Promise<string> => {
+    return await canvasService.groupShapes(shapeIds, userId, name);
+  };
+
+  const ungroupShapes = async (groupId: string): Promise<void> => {
+    return await canvasService.ungroupShapes(groupId);
+  };
+
+  // Z-Index operations
+  const bringToFront = async (shapeId: string): Promise<void> => {
+    return await canvasService.bringToFront(shapeId);
+  };
+
+  const sendToBack = async (shapeId: string): Promise<void> => {
+    return await canvasService.sendToBack(shapeId);
+  };
+
+  const bringForward = async (shapeId: string): Promise<void> => {
+    return await canvasService.bringForward(shapeId);
+  };
+
+  const sendBackward = async (shapeId: string): Promise<void> => {
+    return await canvasService.sendBackward(shapeId);
+  };
+
   const value = {
     selectedColor,
     setSelectedColor,
@@ -285,6 +321,12 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     updateText,
     updateTextFontSize,
     updateTextFormatting,
+    groupShapes,
+    ungroupShapes,
+    bringToFront,
+    sendToBack,
+    bringForward,
+    sendBackward,
     shapesLoading,
   };
 

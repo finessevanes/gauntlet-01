@@ -498,6 +498,27 @@ const overlappingShapes = findOverlappingShapesAbove(shape, shapes); // Too comp
 
 ---
 
+## ⚠️ Bug Fix: Mutually Exclusive UI Controls (commit b897cba)
+
+**Problem:** Separate conditional blocks for group/ungroup buttons allowed BOTH to appear simultaneously when 2+ grouped shapes were selected.
+
+**Solution Pattern:**
+```typescript
+// ✅ Calculate state flags first, use single conditional block
+const hasGroupedShapes = selectedShapes.some(s => s.groupId);
+const canGroup = selectedShapes.length >= 2 && !hasGroupedShapes;
+
+return hasGroupedShapes ? <UngroupButton /> : canGroup ? <GroupButton /> : null;
+```
+
+**Future Implementation Checklist:**
+- [ ] Calculate all state flags upfront (hasX, canX)
+- [ ] Use single conditional block for opposite actions (if/else, ternary)
+- [ ] Make conditions mutually exclusive (use `&& !otherState`)
+- [ ] Test all state combinations to verify only one control shows
+
+---
+
 ## Conclusion
 
 PR #7 implementation is **complete** and ready for testing. All core features for object grouping and z-index management have been implemented following the specifications in `docs/task.md` sections 7 & 8.

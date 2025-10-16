@@ -417,11 +417,6 @@ export default function Canvas() {
       
       // Select all shapes in group
       setSelectedShapes(groupShapes);
-      
-      toast.success(`Selected group (${groupShapes.length} shapes)`, {
-        duration: 1000,
-        position: 'top-center',
-      });
       return;
     }
 

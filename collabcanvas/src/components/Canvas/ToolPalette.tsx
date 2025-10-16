@@ -268,40 +268,64 @@ export default function ToolPalette({
       </div>
 
       {/* Grouping Controls */}
-      {selectedShapes.length >= 2 && (
-        <div style={styles.shapeActionsSection}>
-          <button
-            onClick={onGroup}
-            disabled={isChanging}
-            style={{
-              ...styles.actionButton,
-            }}
-            title={`Group ${selectedShapes.length} shapes`}
-          >
-            <span style={{ fontSize: '18px' }}>
-              🔗
-            </span>
-          </button>
-        </div>
-      )}
-
-      {/* Ungroup Control - show when grouped shapes are selected */}
-      {selectedShapes.length > 0 && shapes.filter(s => selectedShapes.includes(s.id)).some(s => s.groupId) && (
-        <div style={styles.shapeActionsSection}>
-          <button
-            onClick={onUngroup}
-            disabled={isChanging}
-            style={{
-              ...styles.actionButton,
-            }}
-            title="Ungroup shapes"
-          >
-            <span style={{ fontSize: '18px' }}>
-              ⛓️‍💥
-            </span>
-          </button>
-        </div>
-      )}
+      {(() => {
+        const hasGroupedShapes = selectedShapes.length > 0 && shapes.filter(s => selectedShapes.includes(s.id)).some(s => s.groupId);
+        const canGroup = selectedShapes.length >= 2 && !hasGroupedShapes;
+        
+        if (!hasGroupedShapes && !canGroup) return null;
+        
+        return (
+          <div style={styles.shapeActionsSection}>
+            {/* Group Button - shown as selected (blue) when shapes are grouped */}
+            {hasGroupedShapes ? (
+              <button
+                disabled
+                style={{
+                  ...styles.actionButton,
+                  backgroundColor: '#0066cc',
+                  color: '#ffffff',
+                  boxShadow: 'inset 1px 1px 0 0 #004499, inset -1px -1px 0 0 #0088ff',
+                  cursor: 'default',
+                }}
+                title="Shapes are grouped"
+              >
+                <span style={{ fontSize: '18px' }}>
+                  🔒
+                </span>
+              </button>
+            ) : (
+              <button
+                onClick={onGroup}
+                disabled={isChanging}
+                style={{
+                  ...styles.actionButton,
+                }}
+                title={`Group ${selectedShapes.length} shapes`}
+              >
+                <span style={{ fontSize: '18px' }}>
+                  🔒
+                </span>
+              </button>
+            )}
+            
+            {/* Ungroup Button - only show when shapes are grouped */}
+            {hasGroupedShapes && (
+              <button
+                onClick={onUngroup}
+                disabled={isChanging}
+                style={{
+                  ...styles.actionButton,
+                }}
+                title="Ungroup shapes"
+              >
+                <span style={{ fontSize: '18px' }}>
+                  ⛓️‍💥
+                </span>
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Z-Index Controls - show when shape(s) are selected */}
       {(selectedShape || selectedShapes.length > 0) && (

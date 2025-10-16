@@ -426,6 +426,8 @@ export default function AppShell({ children }: AppShellProps) {
         canvasWidth={CANVAS_WIDTH}
         canvasHeight={CANVAS_HEIGHT}
         zoom={stageScale}
+        selectedShapes={selectedShapes}
+        shapes={shapes}
       />
     </div>
   );

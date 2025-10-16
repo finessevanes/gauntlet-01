@@ -596,6 +596,45 @@ The following features are explicitly out of scope for this PR:
 
 ---
 
+## Known UI Issues
+
+### Text Box/Input Overlay
+The following UI bugs have been identified with the text input overlay:
+
+#### Bug: Multiple Text Creation Flow Issues
+**Status**: Not Fixed - Deferred to future PR  
+**Severity**: Medium - Impacts user experience but workaround exists
+
+**Symptoms**:
+1. When a text input is visible and user clicks elsewhere on canvas, multiple toast notifications appear (up to 6 "Text created!" messages)
+2. New text box appears a few pixels from the original location instead of at the new click position
+3. Original text box (even with default "Text" placeholder) disappears instead of remaining visible
+
+**Expected Behavior**:
+1. User clicks at position A → text input appears with "Text" selected
+2. User clicks at position B → current text is saved at position A and remains visible
+3. New text input appears at position B (NEW click location)
+4. Only one success toast appears
+
+**Workaround**: 
+- First click closes current text input and saves it
+- Second click creates new text input at desired location
+- Requires two clicks instead of one
+
+**Root Cause**:
+- Multiple event handlers (click-outside handler + canvas mousedown) conflicting
+- TextInput unmount cleanup causing duplicate saves
+- Position state not updating correctly when transitioning between text inputs
+
+**Technical Details**:
+- `TextInput.tsx`: Click-outside handler and unmount effect both triggering saves
+- `Canvas.tsx`: handleMouseDown not properly handling transition from existing to new text input
+- Event handler stale closures capturing old position values
+
+> **Note**: These issues are non-critical and do not block core functionality. Users can still create and edit text successfully with a two-click workflow. Consider addressing these in a future polish/refinement PR.
+
+---
+
 ## Known Limitations
 
 ### Text Measurement

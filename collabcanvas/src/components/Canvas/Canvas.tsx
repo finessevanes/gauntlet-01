@@ -1,12 +1,15 @@
 import { useRef, useState, useEffect } from 'react';
-import { Stage, Layer, Rect, Group, Text, Circle, Line } from 'react-konva';
+import { Stage, Layer, Rect, Group, Text } from 'react-konva';
 import { useCanvasContext } from '../../contexts/CanvasContext';
 import { useCursors } from '../../hooks/useCursors';
 import { useAuth } from '../../hooks/useAuth';
 import CursorLayer from '../Collaboration/CursorLayer';
 import TextInput from './TextInput';
+import CanvasShape from './CanvasShape';
+import CanvasPreview from './CanvasPreview';
+import CanvasTooltips from './CanvasTooltips';
+import { getShapeLockStatus, getCursorStyle } from './canvasHelpers';
 import toast from 'react-hot-toast';
-import { getFontStyle } from '../../utils/helpers';
 import { 
   CANVAS_WIDTH, 
   CANVAS_HEIGHT, 
@@ -320,33 +323,6 @@ export default function Canvas() {
     }
   };
 
-  // Helper: Get lock status for a shape
-  const getShapeLockStatus = (shape: ShapeData): 'locked-by-me' | 'locked-by-other' | 'unlocked' => {
-    if (!user) return 'unlocked';
-    
-    // IMPORTANT: Only show as "locked-by-me" if it's actually SELECTED
-    // This prevents the green outline from appearing independently
-    if (shape.lockedBy === user.uid && selectedShapeId === shape.id) {
-      return 'locked-by-me';
-    } else if (shape.lockedBy && shape.lockedAt && shape.lockedBy !== user.uid) {
-      // Check if lock is still valid (< 5s)
-      const lockAge = Date.now() - shape.lockedAt.toMillis();
-      if (lockAge < 5000) {
-        return 'locked-by-other';
-      }
-    }
-    
-    return 'unlocked';
-  };
-
-  // Helper: Calculate triangle points from bounding box
-  const getTrianglePoints = (x: number, y: number, width: number, height: number): number[] => {
-    return [
-      x + width / 2, y,              // Top vertex
-      x, y + height,                  // Bottom-left vertex
-      x + width, y + height,          // Bottom-right vertex
-    ];
-  };
 
   // Track previous mode when switching to bomb mode
   useEffect(() => {
@@ -1539,16 +1515,6 @@ export default function Canvas() {
     handleMouseLeave();
   };
 
-  // Get cursor style based on current interaction mode
-  const getCursorStyle = () => {
-    if (isDrawing) return 'crosshair'; // Drawing a shape
-    if (isPanning) return 'grabbing'; // Actively panning
-    if (activeTool === 'bomb') return 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewport=\'0 0 40 40\' style=\'font-size:32px\'><text y=\'32\'>💣</text></svg>") 16 16, crosshair'; // Bomb mode: show bomb cursor
-    if (activeTool === 'rectangle' || activeTool === 'circle' || activeTool === 'triangle') return 'crosshair'; // Shape tool: ready to draw
-    if (activeTool === 'text') return 'text'; // Text mode: show text cursor
-    if (activeTool === 'pan') return 'grab'; // Pan mode: ready to pan
-    return 'default'; // Select mode: default cursor (objects will have pointer cursor on hover)
-  };
 
   // Handle wheel zoom (cursor-centered)
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
@@ -1603,7 +1569,7 @@ export default function Canvas() {
       ref={containerRef}
       style={{
         ...styles.canvasContainer,
-        cursor: getCursorStyle(),
+        cursor: getCursorStyle(isDrawing, isPanning, activeTool),
       }}
     >
       <Stage
@@ -1638,572 +1604,59 @@ export default function Canvas() {
 
           {/* Render all shapes from Firestore */}
           {!shapesLoading && shapes.map((shape) => {
-            const lockStatus = getShapeLockStatus(shape);
+            const lockStatus = getShapeLockStatus(shape, user, selectedShapeId);
             const isLockedByMe = lockStatus === 'locked-by-me';
             const isLockedByOther = lockStatus === 'locked-by-other';
             const isSelected = selectedShapeId === shape.id;
-            const isBeingResized = isResizing && isSelected;
-            const isBeingRotated = isRotating && isSelected;
-            
-            // Use preview rotation if currently rotating this shape, otherwise use stored rotation
-            const currentRotation = isBeingRotated && previewRotation !== null 
-              ? previewRotation 
-              : (shape.rotation || 0);
-            
-            // Calculate current dimensions/position based on shape type
-            let currentX: number = shape.x;
-            let currentY: number = shape.y;
-            let currentWidth: number | undefined;
-            let currentHeight: number | undefined;
-            let currentRadius: number | undefined;
-            
-            if (shape.type === 'rectangle' || shape.type === 'triangle') {
-              currentX = isBeingResized && previewDimensions ? previewDimensions.x : shape.x;
-              currentY = isBeingResized && previewDimensions ? previewDimensions.y : shape.y;
-              currentWidth = isBeingResized && previewDimensions ? previewDimensions.width : shape.width;
-              currentHeight = isBeingResized && previewDimensions ? previewDimensions.height : shape.height;
-            } else if (shape.type === 'circle') {
-              // Circle type
-              currentX = isBeingResized && previewDimensions ? previewDimensions.x : shape.x;
-              currentY = isBeingResized && previewDimensions ? previewDimensions.y : shape.y;
-              currentRadius = isBeingResized && previewDimensions ? previewDimensions.width / 2 : shape.radius;
-            } else if (shape.type === 'text') {
-              // Text type - calculate dimensions based on content
-              const textContent = shape.text || '';
-              const textFontSize = shape.fontSize || 16;
-              const estimatedWidth = textContent.length * textFontSize * 0.6;
-              const estimatedHeight = textFontSize * 1.2;
-              const padding = 4;
-              
-              currentX = shape.x;
-              currentY = shape.y;
-              currentWidth = estimatedWidth + padding * 2;
-              currentHeight = estimatedHeight + padding * 2;
-            }
-
-            // Calculate Group position and offset based on shape type
-            let groupX: number, groupY: number, offsetX: number, offsetY: number;
-            if (shape.type === 'circle') {
-              groupX = currentX;
-              groupY = currentY;
-              offsetX = 0;
-              offsetY = 0;
-            } else if (currentWidth !== undefined && currentHeight !== undefined) {
-              groupX = currentX + currentWidth / 2;
-              groupY = currentY + currentHeight / 2;
-              offsetX = currentWidth / 2;
-              offsetY = currentHeight / 2;
-            } else {
-              groupX = currentX;
-              groupY = currentY;
-              offsetX = 0;
-              offsetY = 0;
-            }
 
             return (
-              <Group 
-                key={shape.id} 
-                x={groupX} 
-                y={groupY}
-                offsetX={offsetX}
-                offsetY={offsetY}
-                rotation={currentRotation}
-                draggable={activeTool === 'select' && !isLockedByOther && !isResizing && !isRotating}
-                onMouseDown={activeTool === 'select' ? () => handleShapeMouseDown(shape.id) : undefined}
-                onTouchStart={activeTool === 'select' ? () => handleShapeMouseDown(shape.id) : undefined}
-                onDragStart={(e) => handleShapeDragStart(e, shape.id)}
-                onDragMove={(e) => handleShapeDragMove(e, shape.id)}
-                onDragEnd={(e) => handleShapeDragEnd(e, shape.id)}
-              >
-                {/* Main shape - render based on type */}
-                {shape.type === 'rectangle' && currentWidth !== undefined && currentHeight !== undefined && (
-                  <Rect
-                    width={currentWidth}
-                    height={currentHeight}
-                    fill={shape.color}
-                    opacity={isLockedByOther ? 0.5 : 1}
-                    stroke={isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
-                    strokeWidth={isLockedByMe || isLockedByOther ? 3 : 1}
-                    onMouseEnter={() => {
-                      if (activeTool === 'select' && !isLockedByOther) {
-                        document.body.style.cursor = 'move';
-                      }
-                    }}
-                    onMouseLeave={() => {
-                      document.body.style.cursor = '';
-                    }}
-                  />
-                )}
-                {shape.type === 'circle' && currentRadius !== undefined && (
-                  <Circle
-                    x={0}
-                    y={0}
-                    radius={currentRadius}
-                    fill={shape.color}
-                    opacity={isLockedByOther ? 0.5 : 1}
-                    stroke={isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
-                    strokeWidth={isLockedByMe || isLockedByOther ? 3 : 1}
-                    onMouseEnter={() => {
-                      if (activeTool === 'select' && !isLockedByOther) {
-                        document.body.style.cursor = 'move';
-                      }
-                    }}
-                    onMouseLeave={() => {
-                      document.body.style.cursor = '';
-                    }}
-                  />
-                )}
-                {shape.type === 'triangle' && currentWidth !== undefined && currentHeight !== undefined && (() => {
-                  return (
-                    <Line
-                      points={[
-                        currentWidth / 2, 0,              // Top vertex (centered at top of bounding box)
-                        0, currentHeight,                  // Bottom-left vertex
-                        currentWidth, currentHeight,       // Bottom-right vertex
-                      ]}
-                      closed={true}
-                      fill={shape.color}
-                      opacity={isLockedByOther ? 0.5 : 1}
-                      stroke={isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
-                      strokeWidth={isLockedByMe || isLockedByOther ? 3 : 1}
-                      onMouseEnter={() => {
-                        if (activeTool === 'select' && !isLockedByOther) {
-                          document.body.style.cursor = 'move';
-                        }
-                      }}
-                      onMouseLeave={() => {
-                        document.body.style.cursor = '';
-                      }}
-                    />
-                  );
-                })()}
-                {shape.type === 'text' && currentWidth !== undefined && currentHeight !== undefined && (() => {
-                  const textContent = shape.text || '';
-                  const textFontSize = shape.fontSize || 16;
-                  const padding = 4;
-                  
-                  return (
-                    <>
-                      {/* Invisible hitbox to make the entire text area draggable */}
-                      <Rect
-                        x={0}
-                        y={0}
-                        width={currentWidth}
-                        height={currentHeight}
-                        fill="transparent"
-                        listening={true}
-                        onMouseEnter={() => {
-                          if (activeTool === 'select' && !isLockedByOther) {
-                            document.body.style.cursor = 'move';
-                          }
-                        }}
-                        onMouseLeave={() => {
-                          document.body.style.cursor = '';
-                        }}
-                      />
-                      
-                      {/* Selection box with dotted border (Paint-style) - show when selected OR when editing */}
-                      {(isSelected || editingTextId === shape.id) && (
-                        <Rect
-                          x={0}
-                          y={0}
-                          width={currentWidth}
-                          height={currentHeight}
-                          stroke={isLockedByMe ? '#000000' : '#ff0000'}
-                          strokeWidth={1}
-                          dash={[4, 4]}
-                          fill="transparent"
-                          listening={false}
-                        />
-                      )}
-                      
-                      {/* The actual text - hide when editing to avoid showing duplicate */}
-                      {editingTextId !== shape.id && (
-                        <Text
-                          x={padding}
-                          y={padding}
-                          text={textContent}
-                          fontSize={textFontSize}
-                          fill={shape.color}
-                          fontStyle={getFontStyle(shape)}
-                          fontWeight={shape.fontWeight || 'normal'}
-                          textDecoration={shape.textDecoration || 'none'}
-                          align="left"
-                          opacity={isLockedByOther ? 0.5 : 1}
-                          listening={false}
-                        />
-                      )}
-                    </>
-                  );
-                })()}
-
-                {/* Lock icon for shapes locked by others */}
-                {isLockedByOther && currentWidth !== undefined && currentHeight !== undefined && (
-                  <Group x={currentWidth / 2 - 15} y={currentHeight / 2 - 15}>
-                    {/* Lock icon background */}
-                    <Rect
-                      width={30}
-                      height={30}
-                      fill="rgba(239, 68, 68, 0.9)"
-                      cornerRadius={4}
-                    />
-                    {/* Lock icon text (🔒) */}
-                    <Text
-                      text="🔒"
-                      fontSize={20}
-                      x={5}
-                      y={3}
-                      listening={false}
-                    />
-                  </Group>
-                )}
-                {/* Lock icon for circles locked by others */}
-                {isLockedByOther && shape.type === 'circle' && (
-                  <Group x={-15} y={-15}>
-                    {/* Lock icon background */}
-                    <Rect
-                      width={30}
-                      height={30}
-                      fill="rgba(239, 68, 68, 0.9)"
-                      cornerRadius={4}
-                    />
-                    {/* Lock icon text (🔒) */}
-                    <Text
-                      text="🔒"
-                      fontSize={20}
-                      x={5}
-                      y={3}
-                      listening={false}
-                    />
-                  </Group>
-                )}
-
-                {/* Resize handles for rectangles and triangles (8 total: 4 corners + 4 edges) */}
-                {isSelected && isLockedByMe && !isResizing && (shape.type === 'rectangle' || shape.type === 'triangle') && currentWidth !== undefined && currentHeight !== undefined && (
-                  <Group>
-                    {/* Define all 8 resize handles - size scales with zoom for consistent visibility */}
-                    {(() => {
-                      // Scale handles inversely with zoom so they appear constant size on screen
-                      const baseSize = 16; // Base size in pixels
-                      const hoverSize = 20; // Hover size in pixels
-                      const scaledBaseSize = baseSize / stageScale;
-                      const scaledHoverSize = hoverSize / stageScale;
-                      const halfBase = scaledBaseSize / 2;
-                      
-                      return [
-                        { x: -halfBase, y: -halfBase, cursor: 'nwse-resize', type: 'corner', name: 'tl' },
-                        { x: currentWidth / 2 - halfBase, y: -halfBase, cursor: 'ns-resize', type: 'edge', name: 't' },
-                        { x: currentWidth - halfBase, y: -halfBase, cursor: 'nesw-resize', type: 'corner', name: 'tr' },
-                        { x: -halfBase, y: currentHeight / 2 - halfBase, cursor: 'ew-resize', type: 'edge', name: 'l' },
-                        { x: currentWidth - halfBase, y: currentHeight / 2 - halfBase, cursor: 'ew-resize', type: 'edge', name: 'r' },
-                        { x: -halfBase, y: currentHeight - halfBase, cursor: 'nesw-resize', type: 'corner', name: 'bl' },
-                        { x: currentWidth / 2 - halfBase, y: currentHeight - halfBase, cursor: 'ns-resize', type: 'edge', name: 'b' },
-                        { x: currentWidth - halfBase, y: currentHeight - halfBase, cursor: 'nwse-resize', type: 'corner', name: 'br' },
-                      ].map((handle) => {
-                        const handleKey = `${shape.id}-${handle.name}`;
-                        const isHovered = hoveredHandle === handleKey;
-                        const handleSize = isHovered ? scaledHoverSize : scaledBaseSize;
-                        const offset = isHovered ? (scaledHoverSize - scaledBaseSize) / 2 : 0;
-                        
-                        return (
-                          <Rect
-                            key={handleKey}
-                            x={handle.x - offset}
-                            y={handle.y - offset}
-                            width={handleSize}
-                            height={handleSize}
-                            fill={isHovered ? '#3b82f6' : '#ffffff'}
-                            stroke="#999999"
-                            strokeWidth={1 / stageScale}
-                            onMouseEnter={() => setHoveredHandle(handleKey)}
-                            onMouseLeave={() => setHoveredHandle(null)}
-                            onMouseDown={(e) => {
-                              // All handles functional: corners (proportional) and edges (single dimension)
-                              handleResizeStart(e, handle.name, shape);
-                            }}
-                          />
-                        );
-                      });
-                    })()}
-                  </Group>
-                )}
-
-                {/* Resize handles for circles (4 total: N, S, E, W) - all adjust radius */}
-                {isSelected && isLockedByMe && !isResizing && shape.type === 'circle' && currentRadius !== undefined && (
-                  <Group>
-                    {(() => {
-                      // Scale handles inversely with zoom so they appear constant size on screen
-                      const baseSize = 16;
-                      const hoverSize = 20;
-                      const scaledBaseSize = baseSize / stageScale;
-                      const scaledHoverSize = hoverSize / stageScale;
-                      const halfBase = scaledBaseSize / 2;
-                      
-                      return [
-                        { x: -halfBase, y: -currentRadius - halfBase, cursor: 'ns-resize', name: 'n' },
-                        { x: -halfBase, y: currentRadius - halfBase, cursor: 'ns-resize', name: 's' },
-                        { x: -currentRadius - halfBase, y: -halfBase, cursor: 'ew-resize', name: 'w' },
-                        { x: currentRadius - halfBase, y: -halfBase, cursor: 'ew-resize', name: 'e' },
-                      ].map((handle) => {
-                        const handleKey = `${shape.id}-${handle.name}`;
-                        const isHovered = hoveredHandle === handleKey;
-                        const handleSize = isHovered ? scaledHoverSize : scaledBaseSize;
-                        const offset = isHovered ? (scaledHoverSize - scaledBaseSize) / 2 : 0;
-                        
-                        return (
-                          <Rect
-                            key={handleKey}
-                            x={handle.x - offset}
-                            y={handle.y - offset}
-                            width={handleSize}
-                            height={handleSize}
-                            fill={isHovered ? '#3b82f6' : '#ffffff'}
-                            stroke="#999999"
-                            strokeWidth={1 / stageScale}
-                            onMouseEnter={() => setHoveredHandle(handleKey)}
-                            onMouseLeave={() => setHoveredHandle(null)}
-                            onMouseDown={(e) => {
-                              // All circle handles adjust radius proportionally
-                              handleResizeStart(e, handle.name, shape);
-                            }}
-                          />
-                        );
-                      });
-                    })()}
-                  </Group>
-                )}
-
-                {/* Rotation handle - appears 50px above the top of the shape when locked */}
-                {isSelected && isLockedByMe && !isResizing && (() => {
-                  // Calculate shape center and rotation handle position based on type
-                  let centerX: number;
-                  let centerY: number;
-                  let handleY: number;
-                  const handleDistance = 50;
-                  
-                  if (shape.type === 'circle' && currentRadius !== undefined) {
-                    centerX = 0;
-                    centerY = 0;
-                    handleY = -currentRadius - handleDistance;
-                  } else if ((shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text') && currentWidth !== undefined && currentHeight !== undefined) {
-                    centerX = currentWidth / 2;
-                    centerY = currentHeight / 2;
-                    handleY = -handleDistance;
-                  } else {
-                    return null;
-                  }
-                  
-                  const handleX = centerX;
-                  
-                  // Scale handle size inversely with zoom
-                  const handleSize = 12 / stageScale; // 12px diameter
-                  const handleRadius = handleSize / 2;
-                  
-                  const rotationHandleKey = `${shape.id}-rotation`;
-                  const isHovered = hoveredRotationHandle === rotationHandleKey;
-                  
-                  return (
-                    <Group>
-                      {/* Connecting line from handle to shape center (dashed gray line) */}
-                      <Line
-                        points={[handleX, handleY + handleRadius, centerX, centerY]}
-                        stroke="#999999"
-                        strokeWidth={1 / stageScale}
-                        dash={[4 / stageScale, 4 / stageScale]}
-                        opacity={0.7}
-                        listening={false}
-                      />
-                      
-                      {/* Rotation handle circle */}
-                      <Circle
-                        x={handleX}
-                        y={handleY}
-                        radius={handleRadius}
-                        fill={isHovered ? '#3b82f6' : '#ffffff'}
-                        stroke="#999999"
-                        strokeWidth={2 / stageScale}
-                        onMouseEnter={() => setHoveredRotationHandle(rotationHandleKey)}
-                        onMouseLeave={() => setHoveredRotationHandle(null)}
-                        onMouseDown={(e) => {
-                          handleRotationStart(e, shape);
-                        }}
-                      />
-                      
-                      {/* Rotation icon (↻) inside the circle */}
-                      <Text
-                        x={handleX - handleRadius}
-                        y={handleY - handleRadius}
-                        width={handleSize}
-                        height={handleSize}
-                        text="↻"
-                        fontSize={handleSize * 0.8}
-                        fill={isHovered ? '#ffffff' : '#666666'}
-                        align="center"
-                        verticalAlign="middle"
-                        listening={false}
-                      />
-                    </Group>
-                  );
-                })()}
-              </Group>
+              <CanvasShape
+                key={shape.id}
+                shape={shape}
+                isSelected={isSelected}
+                isLockedByMe={isLockedByMe}
+                isLockedByOther={isLockedByOther}
+                isResizing={isResizing}
+                isRotating={isRotating}
+                activeTool={activeTool}
+                previewDimensions={previewDimensions}
+                previewRotation={previewRotation}
+                hoveredHandle={hoveredHandle}
+                hoveredRotationHandle={hoveredRotationHandle}
+                stageScale={stageScale}
+                editingTextId={editingTextId}
+                onShapeMouseDown={handleShapeMouseDown}
+                onResizeStart={handleResizeStart}
+                onRotationStart={handleRotationStart}
+                onDragStart={handleShapeDragStart}
+                onDragMove={handleShapeDragMove}
+                onDragEnd={handleShapeDragEnd}
+                setHoveredHandle={setHoveredHandle}
+                setHoveredRotationHandle={setHoveredRotationHandle}
+              />
             );
           })}
 
-          {/* Preview rectangle while drawing */}
-          {previewRect && activeTool === 'rectangle' && (
-            <Rect
-              x={previewRect.x}
-              y={previewRect.y}
-              width={previewRect.width}
-              height={previewRect.height}
-              fill={selectedColor}
-              opacity={0.5}
-              stroke={selectedColor}
-              strokeWidth={2}
-              dash={[10, 5]}
-              listening={false}
-            />
-          )}
+          {/* Shape drawing previews */}
+          <CanvasPreview
+            previewRect={previewRect}
+            previewCircle={previewCircle}
+            previewTriangle={previewTriangle}
+            activeTool={activeTool}
+            selectedColor={selectedColor}
+          />
 
-          {/* Preview circle while drawing */}
-          {previewCircle && activeTool === 'circle' && (
-            <Circle
-              x={previewCircle.x}
-              y={previewCircle.y}
-              radius={previewCircle.radius}
-              fill={selectedColor}
-              opacity={0.5}
-              stroke={selectedColor}
-              strokeWidth={2}
-              dash={[10, 5]}
-              listening={false}
-            />
-          )}
 
-          {/* Preview triangle while drawing */}
-          {previewTriangle && activeTool === 'triangle' && (
-            <Line
-              points={getTrianglePoints(previewTriangle.x, previewTriangle.y, previewTriangle.width, previewTriangle.height)}
-              closed={true}
-              fill={selectedColor}
-              opacity={0.5}
-              stroke={selectedColor}
-              strokeWidth={2}
-              dash={[10, 5]}
-              listening={false}
-            />
-          )}
-
-          
-          {/* Dimension tooltip while resizing - always appears upright above the shape */}
-          {isResizing && previewDimensions && selectedShapeId && (() => {
-            const shape = shapes.find(s => s.id === selectedShapeId);
-            if (!shape) return null;
-            
-            // Calculate the center of the shape using current (preview) dimensions
-            const centerX = previewDimensions.x + previewDimensions.width / 2;
-            const centerY = previewDimensions.y + previewDimensions.height / 2;
-            
-            // Position tooltip above the shape, accounting for rotation
-            // Use the maximum dimension to ensure tooltip is always above the shape bounds
-            const maxDimension = Math.max(previewDimensions.height / 2, previewDimensions.width / 2);
-            const tooltipY = centerY - maxDimension - (50 / stageScale);
-            
-            return (
-              <Group x={centerX} y={tooltipY}>
-                {/* Tooltip background */}
-                <Rect
-                  x={-(60 / stageScale)}
-                  y={-(20 / stageScale)}
-                  width={120 / stageScale}
-                  height={40 / stageScale}
-                  fill="white"
-                  stroke="#999"
-                  strokeWidth={1 / stageScale}
-                  cornerRadius={6 / stageScale}
-                  shadowBlur={8 / stageScale}
-                  shadowOpacity={0.3}
-                  shadowOffsetY={2 / stageScale}
-                  listening={false}
-                />
-                {/* Tooltip text */}
-                <Text
-                  text={`${Math.round(previewDimensions.width)} × ${Math.round(previewDimensions.height)}`}
-                  x={-(55 / stageScale)}
-                  y={-(10 / stageScale)}
-                  width={110 / stageScale}
-                  fontSize={16 / stageScale}
-                  fill="#333"
-                  fontFamily="'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-                  fontStyle="500"
-                  align="center"
-                  listening={false}
-                />
-              </Group>
-            );
-          })()}
-
-          {/* Angle tooltip while rotating */}
-          {isRotating && previewRotation !== null && selectedShapeId && (() => {
-            const shape = shapes.find(s => s.id === selectedShapeId);
-            if (!shape) return null;
-            
-            // Calculate rotation handle position (same as in rotation handle rendering)
-            let centerX: number;
-            let handleY: number;
-            const handleDistance = 50;
-            
-            if (shape.type === 'circle' && shape.radius !== undefined) {
-              centerX = shape.x;
-              handleY = shape.y - shape.radius - handleDistance;
-            } else if (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text') {
-              centerX = shape.x + shape.width / 2;
-              handleY = shape.y - handleDistance;
-            } else {
-              return null;
-            }
-            
-            // Position tooltip 15px above rotation handle
-            const tooltipX = centerX;
-            const tooltipY = handleY - (15 / stageScale);
-            
-            // Normalize angle to 0-360 and round to nearest degree
-            const normalizedAngle = ((previewRotation % 360) + 360) % 360;
-            const displayAngle = Math.round(normalizedAngle);
-            
-            return (
-              <Group x={tooltipX} y={tooltipY}>
-                {/* Tooltip background */}
-                <Rect
-                  x={-(35 / stageScale)}
-                  y={-(20 / stageScale)}
-                  width={70 / stageScale}
-                  height={40 / stageScale}
-                  fill="white"
-                  stroke="#999"
-                  strokeWidth={1 / stageScale}
-                  cornerRadius={6 / stageScale}
-                  shadowBlur={8 / stageScale}
-                  shadowOpacity={0.3}
-                  shadowOffsetY={2 / stageScale}
-                  listening={false}
-                />
-                {/* Tooltip text - angle in degrees */}
-                <Text
-                  text={`${displayAngle}°`}
-                  x={-(30 / stageScale)}
-                  y={-(10 / stageScale)}
-                  width={60 / stageScale}
-                  fontSize={16 / stageScale}
-                  fill="#333"
-                  fontFamily="'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-                  fontStyle="500"
-                  align="center"
-                  listening={false}
-                />
-              </Group>
-            );
-          })()}
+          {/* Tooltips for resizing and rotating */}
+          <CanvasTooltips
+            isResizing={isResizing}
+            isRotating={isRotating}
+            previewDimensions={previewDimensions}
+            previewRotation={previewRotation}
+            selectedShapeId={selectedShapeId}
+            shapes={shapes}
+            stageScale={stageScale}
+          />
 
           {/* Explosion effect when bomb is placed */}
           {explosionPos && (

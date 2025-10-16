@@ -4,7 +4,9 @@ import { useCanvasContext } from '../../contexts/CanvasContext';
 import { useCursors } from '../../hooks/useCursors';
 import { useAuth } from '../../hooks/useAuth';
 import CursorLayer from '../Collaboration/CursorLayer';
+import TextInput from './TextInput';
 import toast from 'react-hot-toast';
+import { getFontStyle } from '../../utils/helpers';
 import { 
   CANVAS_WIDTH, 
   CANVAS_HEIGHT, 
@@ -37,6 +39,9 @@ export default function Canvas() {
     createShape,
     createCircle,
     createTriangle,
+    createText,
+    updateText,
+    updateTextFontSize,
     updateShape,
     resizeShape,
     resizeCircle,
@@ -46,6 +51,8 @@ export default function Canvas() {
     deleteAllShapes,
     selectedShapeId,
     setSelectedShapeId,
+    editingTextId,
+    setEditingTextId,
     shapesLoading
   } = useCanvasContext();
   
@@ -83,6 +90,14 @@ export default function Canvas() {
   // Rotation handle hover state
   const [hoveredRotationHandle, setHoveredRotationHandle] = useState<string | null>(null);
   
+  // Text hover state
+  const [hoveredTextId, setHoveredTextId] = useState<string | null>(null);
+  
+  // Text input state
+  const [textInputVisible, setTextInputVisible] = useState(false);
+  const [textInputPosition, setTextInputPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const textInputClosedTimeRef = useRef<number>(0);
+  
   // Resize state management
   const [isResizing, setIsResizing] = useState(false);
   const [activeHandle, setActiveHandle] = useState<string | null>(null);
@@ -116,6 +131,13 @@ export default function Canvas() {
   
   // Cursor tracking
   const { cursors, handleMouseMove: handleCursorMove, handleMouseLeave } = useCursors(stageRef);
+
+  // Track when text input is closed for cooldown
+  useEffect(() => {
+    if (!textInputVisible) {
+      textInputClosedTimeRef.current = Date.now();
+    }
+  }, [textInputVisible, editingTextId]);
 
   // Auto-timeout unlock after 5s of inactivity
   useEffect(() => {
@@ -274,6 +296,101 @@ export default function Canvas() {
     }, 800);
   };
 
+  // Text input handlers
+  const handleTextSave = async (text: string) => {
+    if (!user) return;
+    
+    if (!text.trim()) {
+      toast.error('Text cannot be empty', {
+        duration: 2000,
+        position: 'top-center',
+      });
+      return;
+    }
+
+    try {
+      await createText(
+        text,
+        textInputPosition.x,
+        textInputPosition.y,
+        selectedColor,
+        user.uid
+      );
+      setTextInputVisible(false);
+      toast.success('Text created!', {
+        duration: 1000,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to create text:', error);
+      toast.error('Failed to create text', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  const handleTextCancel = () => {
+    setTextInputVisible(false);
+  };
+
+  // Handle double-click on text shape for editing
+  const handleTextDoubleClick = (shapeId: string) => {
+    if (!user) return;
+    
+    const shape = shapes.find(s => s.id === shapeId);
+    if (!shape || shape.type !== 'text') return;
+
+    const lockStatus = getShapeLockStatus(shape);
+    if (lockStatus !== 'locked-by-me') {
+      toast.error('You must lock the text before editing', {
+        duration: 2000,
+        position: 'top-center',
+      });
+      return;
+    }
+
+    // Set editing state
+    setEditingTextId(shapeId);
+    setTextInputPosition({ x: shape.x, y: shape.y });
+    setTextInputVisible(true);
+  };
+
+  // Handle text edit save
+  const handleTextEditSave = async (text: string) => {
+    if (!user || !editingTextId) return;
+    
+    if (!text.trim()) {
+      toast.error('Text cannot be empty', {
+        duration: 2000,
+        position: 'top-center',
+      });
+      return;
+    }
+
+    try {
+      await updateText(editingTextId, text.trim());
+      setTextInputVisible(false);
+      setEditingTextId(null);
+      toast.success('Text updated!', {
+        duration: 1000,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to update text:', error);
+      toast.error('Failed to update text', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  // Handle text edit cancel
+  const handleTextEditCancel = () => {
+    setTextInputVisible(false);
+    setEditingTextId(null);
+  };
+
   // Drawing handlers: Click-and-drag to create rectangles
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current;
@@ -306,6 +423,20 @@ export default function Canvas() {
       // Handle bomb mode - place bomb and explode
       if (activeTool === 'bomb') {
         handleBombClick(x, y);
+        return;
+      }
+
+      // Handle text tool - show text input at click position
+      if (activeTool === 'text') {
+        // Don't create new text input if one is already visible
+        if (textInputVisible) return;
+        
+        // Don't immediately create a new input after closing one (cooldown)
+        const timeSinceClose = Date.now() - textInputClosedTimeRef.current;
+        if (timeSinceClose < 200) return;
+        
+        setTextInputPosition({ x, y });
+        setTextInputVisible(true);
         return;
       }
 
@@ -1303,6 +1434,8 @@ export default function Canvas() {
     if (isPanning) return 'grabbing'; // Actively panning
     if (activeTool === 'bomb') return 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewport=\'0 0 40 40\' style=\'font-size:32px\'><text y=\'32\'>💣</text></svg>") 16 16, crosshair'; // Bomb mode: show bomb cursor
     if (activeTool === 'rectangle' || activeTool === 'circle' || activeTool === 'triangle') return 'crosshair'; // Shape tool: ready to draw
+    if (activeTool === 'text') return 'text'; // Text mode: show text cursor
+    if (hoveredTextId) return 'pointer'; // Hovering over text: show pointer cursor
     return 'grab'; // Pan mode: ready to pan
   };
 
@@ -1418,11 +1551,23 @@ export default function Canvas() {
               currentY = isBeingResized && previewDimensions ? previewDimensions.y : shape.y;
               currentWidth = isBeingResized && previewDimensions ? previewDimensions.width : shape.width;
               currentHeight = isBeingResized && previewDimensions ? previewDimensions.height : shape.height;
-            } else {
+            } else if (shape.type === 'circle') {
               // Circle type
               currentX = isBeingResized && previewDimensions ? previewDimensions.x : shape.x;
               currentY = isBeingResized && previewDimensions ? previewDimensions.y : shape.y;
               currentRadius = isBeingResized && previewDimensions ? previewDimensions.width / 2 : shape.radius;
+            } else if (shape.type === 'text') {
+              // Text type - calculate dimensions based on content
+              const textContent = shape.text || '';
+              const textFontSize = shape.fontSize || 16;
+              const estimatedWidth = textContent.length * textFontSize * 0.6;
+              const estimatedHeight = textFontSize * 1.2;
+              const padding = 4;
+              
+              currentX = shape.x;
+              currentY = shape.y;
+              currentWidth = estimatedWidth + padding * 2;
+              currentHeight = estimatedHeight + padding * 2;
             }
 
             // Calculate Group position and offset based on shape type
@@ -1506,6 +1651,57 @@ export default function Canvas() {
                       stroke={isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
                       strokeWidth={isLockedByMe || isLockedByOther ? 3 : 1}
                     />
+                  );
+                })()}
+                {shape.type === 'text' && currentWidth !== undefined && currentHeight !== undefined && (() => {
+                  const textContent = shape.text || '';
+                  const textFontSize = shape.fontSize || 16;
+                  const padding = 4;
+                  
+                  return (
+                    <>
+                      {/* Invisible hitbox to make the entire text area draggable */}
+                      <Rect
+                        x={0}
+                        y={0}
+                        width={currentWidth}
+                        height={currentHeight}
+                        fill="transparent"
+                        listening={true}
+                      />
+                      
+                      {/* Selection box with dotted border (Paint-style) - show when selected OR when editing */}
+                      {(isSelected || editingTextId === shape.id) && (
+                        <Rect
+                          x={0}
+                          y={0}
+                          width={currentWidth}
+                          height={currentHeight}
+                          stroke={isLockedByMe ? '#000000' : '#ff0000'}
+                          strokeWidth={1}
+                          dash={[4, 4]}
+                          fill="transparent"
+                          listening={false}
+                        />
+                      )}
+                      
+                      {/* The actual text - hide when editing to avoid showing duplicate */}
+                      {editingTextId !== shape.id && (
+                        <Text
+                          x={padding}
+                          y={padding}
+                          text={textContent}
+                          fontSize={textFontSize}
+                          fill={shape.color}
+                          fontStyle={getFontStyle(shape)}
+                          fontWeight={shape.fontWeight || 'normal'}
+                          textDecoration={shape.textDecoration || 'none'}
+                          align="left"
+                          opacity={isLockedByOther ? 0.5 : 1}
+                          listening={false}
+                        />
+                      )}
+                    </>
                   );
                 })()}
 
@@ -1905,6 +2101,43 @@ export default function Canvas() {
         {/* Cursor Layer - render other users' cursors */}
         <CursorLayer cursors={cursors} />
       </Stage>
+
+      {/* Text Input Overlay */}
+      {textInputVisible && (() => {
+        // Check if we're editing an existing text
+        if (editingTextId) {
+          const shape = shapes.find(s => s.id === editingTextId);
+          return (
+            <TextInput
+              initialText={shape?.type === 'text' ? shape.text : ''}
+              x={textInputPosition.x}
+              y={textInputPosition.y}
+              fontSize={shape?.type === 'text' ? shape.fontSize : 16}
+              color={shape?.color || selectedColor}
+              onSave={handleTextEditSave}
+              onCancel={handleTextEditCancel}
+              stageScale={stageScale}
+              stagePosition={stagePosition}
+            />
+          );
+        }
+        
+        // Creating new text
+        return (
+          <TextInput
+            initialText="Text"
+            x={textInputPosition.x}
+            y={textInputPosition.y}
+            fontSize={16}
+            color={selectedColor}
+            onSave={handleTextSave}
+            onCancel={handleTextCancel}
+            stageScale={stageScale}
+            stagePosition={stagePosition}
+          />
+        );
+      })()}
+
     </div>
   );
 }

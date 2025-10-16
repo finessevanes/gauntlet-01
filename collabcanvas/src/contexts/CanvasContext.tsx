@@ -6,7 +6,7 @@ import type { ShapeData, ShapeCreateInput } from '../services/canvasService';
 import { useAuth } from '../hooks/useAuth';
 import type { Unsubscribe } from 'firebase/firestore';
 
-export type ToolType = 'pan' | 'rectangle' | 'circle' | 'triangle' | 'bomb';
+export type ToolType = 'pan' | 'rectangle' | 'circle' | 'triangle' | 'text' | 'bomb';
 
 interface CanvasContextType {
   // Color selection
@@ -17,13 +17,21 @@ interface CanvasContextType {
   activeTool: ToolType;
   setActiveTool: (tool: ToolType) => void;
   
-  // Drawing mode (deprecated, kept for backward compatibility)
+  // Shape selection
+  selectedShapeId: string | null;
+  setSelectedShapeId: (id: string | null) => void;
+  
+  // Drawing mode (deprecated - kept for backward compatibility)
   isDrawMode: boolean;
   setIsDrawMode: (isDrawMode: boolean) => void;
   
-  // Bomb mode (deprecated, kept for backward compatibility)
+  // Bomb mode (deprecated - kept for backward compatibility)
   isBombMode: boolean;
   setIsBombMode: (isBombMode: boolean) => void;
+  
+  // Text editing
+  editingTextId: string | null;
+  setEditingTextId: (id: string | null) => void;
   
   // Stage transform
   stageScale: number;
@@ -31,7 +39,7 @@ interface CanvasContextType {
   stagePosition: { x: number; y: number };
   setStagePosition: (position: { x: number; y: number }) => void;
   
-  // Shapes
+  // Shape operations
   shapes: ShapeData[];
   createShape: (shapeInput: ShapeCreateInput) => Promise<string>;
   createCircle: (circleData: { x: number; y: number; radius: number; color: string; createdBy: string }) => Promise<string>;
@@ -46,9 +54,11 @@ interface CanvasContextType {
   duplicateShape: (shapeId: string, userId: string) => Promise<string>;
   deleteAllShapes: () => Promise<void>;
   
-  // Selection state
-  selectedShapeId: string | null;
-  setSelectedShapeId: (shapeId: string | null) => void;
+  // Text operations
+  createText: (text: string, x: number, y: number, color: string, createdBy: string, options?: any) => Promise<string>;
+  updateText: (shapeId: string, text: string) => Promise<void>;
+  updateTextFontSize: (shapeId: string, fontSize: number) => Promise<void>;
+  updateTextFormatting: (shapeId: string, formatting: any) => Promise<void>;
   
   // Loading state
   shapesLoading: boolean;
@@ -59,14 +69,15 @@ const CanvasContext = createContext<CanvasContextType | undefined>(undefined);
 export function CanvasProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_COLOR);
-  const [activeTool, setActiveTool] = useState<ToolType>('pan'); // Default: Pan mode
+  const [activeTool, setActiveTool] = useState<ToolType>('pan');
+  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
   const [isDrawMode, setIsDrawMode] = useState(false); // Deprecated: kept for backward compatibility
   const [isBombMode, setIsBombMode] = useState(false); // Deprecated: kept for backward compatibility
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [stageScale, setStageScale] = useState(1);
   const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 });
   const [shapes, setShapes] = useState<ShapeData[]>([]);
   const [shapesLoading, setShapesLoading] = useState(true);
-  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
 
   // Subscribe to real-time shape updates
   useEffect(() => {
@@ -110,7 +121,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.resizeShape(shapeId, width, height);
   };
 
-  const resizeCircle = async (shapeId: string, radius: number): Promise<void> => {
+  const resizeCircle = async (shapeId: string, radius: number) => {
     return await canvasService.resizeCircle(shapeId, radius);
   };
 
@@ -138,15 +149,43 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.deleteAllShapes();
   };
 
+  // Text operations
+  const createText = async (
+    text: string,
+    x: number,
+    y: number,
+    color: string,
+    createdBy: string,
+    options?: any
+  ): Promise<string> => {
+    return await canvasService.createText(text, x, y, color, createdBy, options);
+  };
+
+  const updateText = async (shapeId: string, text: string): Promise<void> => {
+    return await canvasService.updateText(shapeId, text);
+  };
+
+  const updateTextFontSize = async (shapeId: string, fontSize: number): Promise<void> => {
+    return await canvasService.updateTextFontSize(shapeId, fontSize);
+  };
+
+  const updateTextFormatting = async (shapeId: string, formatting: any): Promise<void> => {
+    return await canvasService.updateTextFormatting(shapeId, formatting);
+  };
+
   const value = {
     selectedColor,
     setSelectedColor,
     activeTool,
     setActiveTool,
+    selectedShapeId,
+    setSelectedShapeId,
     isDrawMode,
     setIsDrawMode,
     isBombMode,
     setIsBombMode,
+    editingTextId,
+    setEditingTextId,
     stageScale,
     setStageScale,
     stagePosition,
@@ -164,8 +203,10 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     deleteShape,
     duplicateShape,
     deleteAllShapes,
-    selectedShapeId,
-    setSelectedShapeId,
+    createText,
+    updateText,
+    updateTextFontSize,
+    updateTextFormatting,
     shapesLoading,
   };
 

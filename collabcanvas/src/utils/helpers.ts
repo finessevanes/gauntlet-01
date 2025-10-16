@@ -58,3 +58,31 @@ export const formatTimestamp = (timestamp: number): string => {
   return new Date(timestamp).toLocaleString();
 };
 
+/**
+ * Allowed font sizes for text shapes
+ */
+export const ALLOWED_FONT_SIZES = [12, 14, 16, 18, 20, 24, 32, 48];
+
+/**
+ * Validates if a font size is allowed
+ */
+export const validateFontSize = (fontSize: number): boolean => {
+  return ALLOWED_FONT_SIZES.includes(fontSize);
+};
+
+/**
+ * Gets combined Konva font style string from shape formatting
+ */
+export const getFontStyle = (shape: { 
+  fontWeight?: 'normal' | 'bold'; 
+  fontStyle?: 'normal' | 'italic' 
+}): string => {
+  const isBold = shape.fontWeight === 'bold';
+  const isItalic = shape.fontStyle === 'italic';
+  
+  if (isBold && isItalic) return 'bold italic';
+  if (isBold) return 'bold';
+  if (isItalic) return 'italic';
+  return 'normal';
+};
+

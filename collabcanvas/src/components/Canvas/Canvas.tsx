@@ -322,6 +322,56 @@ export default function Canvas() {
     }
   };
 
+  // Helper: Handle text double-click for editing
+  const handleTextDoubleClick = async (shapeId: string) => {
+    if (!user) return;
+    
+    const shape = shapes.find(s => s.id === shapeId);
+    if (!shape || shape.type !== 'text') return;
+    
+    // Check if text is locked by another user
+    if (shape.lockedBy && shape.lockedBy !== user.uid) {
+      const lockStatus = getShapeLockStatus(shape, user, selectedShapeId);
+      if (lockStatus === 'locked-by-other') {
+        toast.error('Text is locked by another user', {
+          duration: 2000,
+          position: 'top-center',
+        });
+        return;
+      }
+    }
+    
+    // Lock the shape if not already locked
+    if (selectedShapeId !== shapeId) {
+      // Deselect current shape first
+      if (selectedShapeId) {
+        await handleDeselectShape();
+      }
+      
+      // Select and lock the text
+      setSelectedShapeId(shapeId);
+      const result = await lockShape(shapeId, user.uid);
+      
+      if (!result.success) {
+        setSelectedShapeId(null);
+        const username = result.lockedByUsername || 'another user';
+        toast.error(`Text locked by ${username}`, {
+          duration: 2000,
+          position: 'top-center',
+        });
+        return;
+      }
+    }
+    
+    // Clear any existing lock timeout since we're entering edit mode
+    clearLockTimeout();
+    
+    // Enter edit mode
+    setEditingTextId(shapeId);
+    setTextInputPosition({ x: shape.x, y: shape.y });
+    setTextInputVisible(true);
+  };
+
 
   // Track previous mode when switching to bomb mode
   useEffect(() => {
@@ -418,6 +468,11 @@ export default function Canvas() {
 
     try {
       await updateText(editingTextId, text.trim());
+      
+      // Unlock the shape after editing
+      await unlockShape(editingTextId);
+      setSelectedShapeId(null);
+      
       setTextInputVisible(false);
       setEditingTextId(null);
       toast.success('Text updated!', {
@@ -434,7 +489,12 @@ export default function Canvas() {
   };
 
   // Handle text edit cancel
-  const handleTextEditCancel = () => {
+  const handleTextEditCancel = async () => {
+    if (editingTextId) {
+      // Unlock the shape when canceling edit
+      await unlockShape(editingTextId);
+      setSelectedShapeId(null);
+    }
     setTextInputVisible(false);
     setEditingTextId(null);
   };
@@ -1097,6 +1157,7 @@ export default function Canvas() {
                 stageScale={stageScale}
                 editingTextId={editingTextId}
                 onShapeMouseDown={handleShapeMouseDown}
+                onTextDoubleClick={handleTextDoubleClick}
                 onResizeStart={handleResizeStart}
                 onRotationStart={handleRotationStart}
                 onDragStart={handleShapeDragStart}
@@ -1163,19 +1224,24 @@ export default function Canvas() {
         // Check if we're editing an existing text
         if (editingTextId) {
           const shape = shapes.find(s => s.id === editingTextId);
-          return (
-            <TextInput
-              initialText={shape?.type === 'text' ? shape.text : ''}
-              x={textInputPosition.x}
-              y={textInputPosition.y}
-              fontSize={(shape?.type === 'text' ? shape.fontSize : undefined) || 16}
-              color={shape?.color || selectedColor}
-              onSave={handleTextEditSave}
-              onCancel={handleTextEditCancel}
-              stageScale={stageScale}
-              stagePosition={stagePosition}
-            />
-          );
+          if (shape && shape.type === 'text') {
+            return (
+              <TextInput
+                initialText={shape.text}
+                x={textInputPosition.x}
+                y={textInputPosition.y}
+                width={shape.width}
+                height={shape.height}
+                fontSize={shape.fontSize || 16}
+                color={shape.color}
+                rotation={shape.rotation || 0}
+                onSave={handleTextEditSave}
+                onCancel={handleTextEditCancel}
+                stageScale={stageScale}
+                stagePosition={stagePosition}
+              />
+            );
+          }
         }
         
         // Creating new text
@@ -1186,6 +1252,7 @@ export default function Canvas() {
             y={textInputPosition.y}
             fontSize={16}
             color={selectedColor}
+            rotation={0}
             onSave={handleTextSave}
             onCancel={handleTextCancel}
             stageScale={stageScale}

@@ -23,6 +23,7 @@ interface CanvasShapeProps {
   stageScale: number;
   editingTextId: string | null;
   onShapeMouseDown: (id: string) => void;
+  onTextDoubleClick: (id: string) => void;
   onResizeStart: (e: Konva.KonvaEventObject<MouseEvent>, handle: string, shape: ShapeData) => void;
   onRotationStart: (e: Konva.KonvaEventObject<MouseEvent>, shape: ShapeData) => void;
   onDragStart: (e: Konva.KonvaEventObject<DragEvent>, shapeId: string) => void;
@@ -47,6 +48,7 @@ export default function CanvasShape({
   stageScale,
   editingTextId,
   onShapeMouseDown,
+  onTextDoubleClick,
   onResizeStart,
   onRotationStart,
   onDragStart,
@@ -193,14 +195,14 @@ export default function CanvasShape({
         
         return (
           <>
-            {/* Invisible hitbox to make the entire text area draggable */}
+            {/* Invisible hitbox to make the entire text area draggable - disabled when editing */}
             <Rect
               x={0}
               y={0}
               width={currentWidth}
               height={currentHeight}
               fill="transparent"
-              listening={true}
+              listening={editingTextId !== shape.id}
               onMouseEnter={() => {
                 if (activeTool === 'select' && !isLockedByOther) {
                   document.body.style.cursor = 'move';
@@ -209,10 +211,16 @@ export default function CanvasShape({
               onMouseLeave={() => {
                 document.body.style.cursor = '';
               }}
+              onDblClick={(e) => {
+                e.cancelBubble = true;
+                if (activeTool === 'select' || activeTool === 'pan') {
+                  onTextDoubleClick(shape.id);
+                }
+              }}
             />
             
-            {/* Selection box with dotted border (Paint-style) - show when selected OR when editing */}
-            {(isSelected || editingTextId === shape.id) && (
+            {/* Selection box with dotted border (Paint-style) - show when selected but NOT when editing */}
+            {isSelected && editingTextId !== shape.id && (
               <Rect
                 x={0}
                 y={0}

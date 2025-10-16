@@ -4,8 +4,11 @@ interface TextInputProps {
   initialText?: string;
   x: number;
   y: number;
+  width?: number;
+  height?: number;
   fontSize: number;
   color: string;
+  rotation?: number;
   onSave: (text: string) => void;
   onCancel: () => void;
   stageScale?: number;
@@ -16,8 +19,11 @@ export default function TextInput({
   initialText = '',
   x,
   y,
+  width,
+  height,
   fontSize,
   color,
+  rotation = 0,
   onSave,
   onCancel,
   stageScale = 1,
@@ -27,10 +33,17 @@ export default function TextInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Calculate screen position from canvas position
-  // Position directly at click point without offset
-  const screenX = x * stageScale + stagePosition.x;
-  const screenY = y * stageScale + stagePosition.y;
+  // Calculate dimensions for rotation (use passed width/height or estimate)
+  const textWidth = width || (initialText.length || 4) * fontSize * 0.6;
+  const textHeight = height || fontSize * 1.2;
+  
+  // Calculate center position in canvas coordinates
+  const centerX = x + textWidth / 2;
+  const centerY = y + textHeight / 2;
+  
+  // Convert center position to screen coordinates
+  const screenCenterX = centerX * stageScale + stagePosition.x;
+  const screenCenterY = centerY * stageScale + stagePosition.y;
 
   const handleSave = () => {
     if (text.trim()) {
@@ -114,8 +127,10 @@ export default function TextInput({
       ref={containerRef}
       style={{
         position: 'absolute',
-        left: screenX,
-        top: screenY,
+        left: screenCenterX,
+        top: screenCenterY,
+        transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+        transformOrigin: 'center center',
         zIndex: 10000,
       }}
       onClick={(e) => {
@@ -144,7 +159,8 @@ export default function TextInput({
           padding: '1px 3px',
           margin: '0',
           fontFamily: 'Arial, sans-serif',
-          width: `${(text.length || 4) * fontSize * stageScale * 0.55}px`,
+          width: width ? `${width * stageScale}px` : `${(text.length || 4) * fontSize * stageScale * 0.55}px`,
+          minWidth: `${fontSize * stageScale * 2}px`,
           maxWidth: '800px',
           lineHeight: '1.2',
         }}

@@ -45,6 +45,7 @@ export default function Canvas() {
     createText,
     updateText,
     updateShape,
+    batchUpdateShapes,
     resizeShape,
     resizeCircle,
     rotateShape,
@@ -1279,19 +1280,21 @@ export default function Canvas() {
       console.log('🟢 MULTI-DRAG END - Moving', selectedShapes.length, 'shapes');
       console.log('   Delta: dx=' + deltaX.toFixed(2) + ', dy=' + deltaY.toFixed(2));
       
-      // Update all selected shapes with the same delta
-      const updatePromises = selectedShapes.map(async (id) => {
+      // Prepare batch updates for all selected shapes
+      const batchUpdates: Array<{ shapeId: string; updates: { x: number; y: number } }> = [];
+      
+      for (const id of selectedShapes) {
         const targetShape = shapes.find(s => s.id === id);
         const targetInitialPos = multiDragInitialPositions.get(id);
         
         if (!targetShape) {
           console.error('❌ ERROR: Target shape not found:', id);
-          return;
+          continue;
         }
         
         if (!targetInitialPos) {
           console.error('❌ ERROR: Initial position not found for shape:', id);
-          return;
+          continue;
         }
         
         const targetNewX = targetInitialPos.x + deltaX;
@@ -1320,20 +1323,19 @@ export default function Canvas() {
           clampedY = Math.max(0, Math.min(CANVAS_HEIGHT - height, targetNewY));
         }
         
-        // Update shape position in Firestore
-        try {
-          await updateShape(id, { x: clampedX, y: clampedY });
-        } catch (error) {
-          console.error(`❌ Failed to update shape position for ${id}:`, error);
-        }
-      });
+        // Add to batch updates
+        batchUpdates.push({
+          shapeId: id,
+          updates: { x: clampedX, y: clampedY }
+        });
+      }
       
-      // Wait for all updates to complete
+      // Send all updates in a single batch operation
       try {
-        await Promise.all(updatePromises);
-        console.log('✅ All', selectedShapes.length, 'shapes updated in Firestore');
+        await batchUpdateShapes(batchUpdates);
+        console.log('✅ All', selectedShapes.length, 'shapes updated atomically in Firestore');
       } catch (error) {
-        console.error('❌ ERROR: Failed to update some shapes:', error);
+        console.error('❌ ERROR: Failed to batch update shapes:', error);
       }
       
       // Clear multi-drag state

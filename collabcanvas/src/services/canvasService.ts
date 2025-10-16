@@ -8,7 +8,8 @@ import {
   getDoc,
   deleteDoc,
   serverTimestamp,
-  query
+  query,
+  writeBatch
 } from 'firebase/firestore';
 import type { Timestamp, Unsubscribe } from 'firebase/firestore';
 import { firestore } from '../firebase';
@@ -100,6 +101,30 @@ class CanvasService {
       });
     } catch (error) {
       console.error('❌ Error updating shape:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Batch update multiple shapes in a single atomic operation
+   * This ensures all shapes update simultaneously, preventing visual lag for remote users
+   */
+  async batchUpdateShapes(updates: Array<{ shapeId: string; updates: ShapeUpdateInput }>): Promise<void> {
+    try {
+      const batch = writeBatch(firestore);
+      
+      for (const { shapeId, updates: shapeUpdates } of updates) {
+        const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+        batch.update(shapeRef, {
+          ...shapeUpdates,
+          updatedAt: serverTimestamp(),
+        });
+      }
+      
+      await batch.commit();
+      console.log(`✅ Batch updated ${updates.length} shapes atomically`);
+    } catch (error) {
+      console.error('❌ Error batch updating shapes:', error);
       throw error;
     }
   }

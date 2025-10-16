@@ -41,13 +41,14 @@ export default function Canvas() {
     createTriangle,
     createText,
     updateText,
-    updateTextFontSize,
     updateShape,
     resizeShape,
     resizeCircle,
     rotateShape,
     lockShape,
     unlockShape,
+    deleteShape,
+    duplicateShape,
     deleteAllShapes,
     selectedShapeId,
     setSelectedShapeId,
@@ -89,9 +90,6 @@ export default function Canvas() {
   
   // Rotation handle hover state
   const [hoveredRotationHandle, setHoveredRotationHandle] = useState<string | null>(null);
-  
-  // Text hover state
-  const [hoveredTextId, setHoveredTextId] = useState<string | null>(null);
   
   // Text input state
   const [textInputVisible, setTextInputVisible] = useState(false);
@@ -161,6 +159,70 @@ export default function Canvas() {
       }
     }
   }, [shapes, selectedShapeId]);
+
+  // Keyboard shortcuts for delete and duplicate
+  useEffect(() => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      // Don't trigger shortcuts when typing in text input
+      if (textInputVisible || editingTextId) return;
+      
+      // Don't trigger if no shape is selected
+      if (!selectedShapeId || !user) return;
+
+      // Delete key - delete selected shape
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        try {
+          await deleteShape(selectedShapeId);
+          setSelectedShapeId(null);
+          toast.success('Shape deleted', {
+            duration: 1000,
+            position: 'top-center',
+          });
+        } catch (error) {
+          console.error('❌ Failed to delete shape:', error);
+          toast.error('Failed to delete shape', {
+            duration: 2000,
+            position: 'top-center',
+          });
+        }
+      }
+
+      // Ctrl+D or Cmd+D - duplicate selected shape
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault();
+        try {
+          // Unlock the current shape first
+          await unlockShape(selectedShapeId);
+          
+          // Duplicate the shape and get the new shape ID
+          const newShapeId = await duplicateShape(selectedShapeId, user.uid);
+          
+          // Select and lock the new shape immediately
+          setSelectedShapeId(newShapeId);
+          startLockTimeout(newShapeId);
+          await lockShape(newShapeId, user.uid);
+          
+          toast.success('Shape duplicated', {
+            duration: 1000,
+            position: 'top-center',
+          });
+        } catch (error) {
+          console.error('❌ Failed to duplicate shape:', error);
+          toast.error('Failed to duplicate shape', {
+            duration: 2000,
+            position: 'top-center',
+          });
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedShapeId, user, textInputVisible, editingTextId, deleteShape, duplicateShape]);
 
   // Helper: Clear any existing lock timeout
   const clearLockTimeout = () => {
@@ -332,28 +394,6 @@ export default function Canvas() {
 
   const handleTextCancel = () => {
     setTextInputVisible(false);
-  };
-
-  // Handle double-click on text shape for editing
-  const handleTextDoubleClick = (shapeId: string) => {
-    if (!user) return;
-    
-    const shape = shapes.find(s => s.id === shapeId);
-    if (!shape || shape.type !== 'text') return;
-
-    const lockStatus = getShapeLockStatus(shape);
-    if (lockStatus !== 'locked-by-me') {
-      toast.error('You must lock the text before editing', {
-        duration: 2000,
-        position: 'top-center',
-      });
-      return;
-    }
-
-    // Set editing state
-    setEditingTextId(shapeId);
-    setTextInputPosition({ x: shape.x, y: shape.y });
-    setTextInputVisible(true);
   };
 
   // Handle text edit save
@@ -667,7 +707,7 @@ export default function Canvas() {
     let centerY = node.y();
     
     // Constrain based on shape type
-    if (shape.type === 'circle') {
+    if (shape.type === 'circle' && shape.radius !== undefined) {
       // Circle: constrain center to stay within canvas minus radius
       centerX = Math.max(shape.radius, Math.min(CANVAS_WIDTH - shape.radius, centerX));
       centerY = Math.max(shape.radius, Math.min(CANVAS_HEIGHT - shape.radius, centerY));
@@ -700,7 +740,7 @@ export default function Canvas() {
     let newX: number;
     let newY: number;
     
-    if (shape.type === 'circle') {
+    if (shape.type === 'circle' && shape.radius !== undefined) {
       // For circles, we store center position
       newX = Math.max(shape.radius, Math.min(CANVAS_WIDTH - shape.radius, centerX));
       newY = Math.max(shape.radius, Math.min(CANVAS_HEIGHT - shape.radius, centerY));
@@ -751,7 +791,7 @@ export default function Canvas() {
     setIsResizing(true);
     setActiveHandle(handleName);
     
-    if (shape.type === 'circle') {
+    if (shape.type === 'circle' && shape.radius !== undefined) {
       // For circles, store radius as width (we'll use it as radius)
       setResizeStart({
         x: canvasX,
@@ -1435,7 +1475,6 @@ export default function Canvas() {
     if (activeTool === 'bomb') return 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewport=\'0 0 40 40\' style=\'font-size:32px\'><text y=\'32\'>💣</text></svg>") 16 16, crosshair'; // Bomb mode: show bomb cursor
     if (activeTool === 'rectangle' || activeTool === 'circle' || activeTool === 'triangle') return 'crosshair'; // Shape tool: ready to draw
     if (activeTool === 'text') return 'text'; // Text mode: show text cursor
-    if (hoveredTextId) return 'pointer'; // Hovering over text: show pointer cursor
     return 'grab'; // Pan mode: ready to pan
   };
 
@@ -1540,8 +1579,8 @@ export default function Canvas() {
               : (shape.rotation || 0);
             
             // Calculate current dimensions/position based on shape type
-            let currentX: number;
-            let currentY: number;
+            let currentX: number = shape.x;
+            let currentY: number = shape.y;
             let currentWidth: number | undefined;
             let currentHeight: number | undefined;
             let currentRadius: number | undefined;
@@ -2021,7 +2060,7 @@ export default function Canvas() {
             let handleY: number;
             const handleDistance = 50;
             
-            if (shape.type === 'circle') {
+            if (shape.type === 'circle' && shape.radius !== undefined) {
               centerX = shape.x;
               handleY = shape.y - shape.radius - handleDistance;
             } else if (shape.type === 'rectangle' || shape.type === 'triangle') {
@@ -2112,7 +2151,7 @@ export default function Canvas() {
               initialText={shape?.type === 'text' ? shape.text : ''}
               x={textInputPosition.x}
               y={textInputPosition.y}
-              fontSize={shape?.type === 'text' ? shape.fontSize : 16}
+              fontSize={(shape?.type === 'text' ? shape.fontSize : undefined) || 16}
               color={shape?.color || selectedColor}
               onSave={handleTextEditSave}
               onCancel={handleTextEditCancel}

@@ -18,8 +18,13 @@ export default function AppShell({ children }: AppShellProps) {
     stageScale, 
     shapes, 
     selectedShapeId,
+    setSelectedShapeId,
     updateTextFormatting,
-    updateTextFontSize 
+    updateTextFontSize,
+    deleteShape,
+    duplicateShape,
+    unlockShape,
+    lockShape
   } = useCanvasContext();
 
   // Get the currently selected shape
@@ -102,6 +107,51 @@ export default function AppShell({ children }: AppShellProps) {
     }
   };
 
+  // Shape action handlers
+  const handleDelete = async () => {
+    if (!selectedShapeId || !user) return;
+    try {
+      await deleteShape(selectedShapeId);
+      setSelectedShapeId(null);
+      toast.success('Shape deleted', {
+        duration: 1000,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to delete shape:', error);
+      toast.error('Failed to delete shape', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  const handleDuplicate = async () => {
+    if (!selectedShapeId || !user) return;
+    try {
+      // Unlock the current shape first
+      await unlockShape(selectedShapeId);
+      
+      // Duplicate the shape and get the new shape ID
+      const newShapeId = await duplicateShape(selectedShapeId, user.uid);
+      
+      // Select and lock the new shape immediately
+      setSelectedShapeId(newShapeId);
+      await lockShape(newShapeId, user.uid);
+      
+      toast.success('Shape duplicated', {
+        duration: 1000,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to duplicate shape:', error);
+      toast.error('Failed to duplicate shape', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
   return (
     <div style={styles.appShell}>
       <PaintTitleBar />
@@ -111,6 +161,8 @@ export default function AppShell({ children }: AppShellProps) {
         onToggleItalic={handleToggleItalic}
         onToggleUnderline={handleToggleUnderline}
         onChangeFontSize={handleChangeFontSize}
+        onDelete={handleDelete}
+        onDuplicate={handleDuplicate}
         textFormattingDisabled={textFormattingDisabled}
       />
       <div style={styles.mainArea}>

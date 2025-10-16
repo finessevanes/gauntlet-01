@@ -16,6 +16,8 @@ interface ToolPaletteProps {
   onToggleItalic?: () => void;
   onToggleUnderline?: () => void;
   onChangeFontSize?: (size: number) => void;
+  onDelete?: () => void;
+  onDuplicate?: () => void;
   textFormattingDisabled?: boolean;
 }
 
@@ -25,11 +27,13 @@ export default function ToolPalette({
   onToggleItalic,
   onToggleUnderline,
   onChangeFontSize,
+  onDelete,
+  onDuplicate,
   textFormattingDisabled = false
 }: ToolPaletteProps) {
   const { 
-    selectedTool, 
-    setSelectedTool,
+    activeTool, 
+    setActiveTool,
     setIsDrawMode, 
     setIsBombMode, 
     selectedColor 
@@ -38,27 +42,37 @@ export default function ToolPalette({
   const [isChanging, setIsChanging] = useState(false);
 
   const tools: Tool[] = [
-    { id: 'pan', icon: '✋', name: 'Pan / Move Canvas', active: selectedTool === 'pan' },
-    { id: 'rectangle', icon: '⬜', name: 'Rectangle / Draw', active: selectedTool === 'rectangle' },
-    { id: 'text', icon: 'T', name: 'Text Tool', active: selectedTool === 'text' },
-    { id: 'bomb', icon: '💣', name: 'Bomb / Clear Canvas', active: selectedTool === 'bomb' },
+    { id: 'pan', icon: '✋', name: 'Pan / Move Canvas', active: activeTool === 'pan' },
+    { id: 'rectangle', icon: '⬜', name: 'Rectangle', active: activeTool === 'rectangle' },
+    { id: 'circle', icon: '⭕', name: 'Circle', active: activeTool === 'circle' },
+    { id: 'triangle', icon: '△', name: 'Triangle', active: activeTool === 'triangle' },
+    { id: 'text', icon: 'T', name: 'Text Tool', active: activeTool === 'text' },
+    { id: 'bomb', icon: '💣', name: 'Bomb / Clear Canvas', active: activeTool === 'bomb' },
   ];
 
   const handleToolClick = (toolId: string) => {
     if (toolId === 'rectangle') {
-      setSelectedTool('rectangle');
+      setActiveTool('rectangle');
+      setIsDrawMode(true);
+      setIsBombMode(false);
+    } else if (toolId === 'circle') {
+      setActiveTool('circle');
+      setIsDrawMode(true);
+      setIsBombMode(false);
+    } else if (toolId === 'triangle') {
+      setActiveTool('triangle');
       setIsDrawMode(true);
       setIsBombMode(false);
     } else if (toolId === 'pan') {
-      setSelectedTool('pan');
+      setActiveTool('pan');
       setIsDrawMode(false);
       setIsBombMode(false);
     } else if (toolId === 'text') {
-      setSelectedTool('text');
+      setActiveTool('text');
       setIsDrawMode(false);
       setIsBombMode(false);
     } else if (toolId === 'bomb') {
-      setSelectedTool('bomb');
+      setActiveTool('bomb');
       setIsDrawMode(false);
       setIsBombMode(true);
     }
@@ -112,6 +126,10 @@ export default function ToolPalette({
           >
             {tool.id === 'rectangle' ? (
               <div style={styles.rectangleIcon} />
+            ) : tool.id === 'circle' ? (
+              <div style={styles.circleIcon} />
+            ) : tool.id === 'triangle' ? (
+              <div style={styles.triangleIcon} />
             ) : (
               tool.icon
             )}
@@ -134,6 +152,43 @@ export default function ToolPalette({
             }} />
           </div>
         </div>
+      </div>
+
+      {/* Shape Actions Section - Delete and Duplicate */}
+      <div style={styles.shapeActionsSection}>
+        <button
+          onClick={onDuplicate}
+          disabled={!selectedShape || isChanging}
+          style={{
+            ...styles.actionButton,
+            ...(!selectedShape ? styles.disabledButton : {}),
+          }}
+          title={selectedShape ? "Duplicate (Ctrl+D)" : "Duplicate (select a shape first)"}
+        >
+          <span style={{ 
+            fontSize: '20px',
+            color: !selectedShape ? '#a0a0a0' : '#000000'
+          }}>
+            📋
+          </span>
+        </button>
+
+        <button
+          onClick={onDelete}
+          disabled={!selectedShape || isChanging}
+          style={{
+            ...styles.actionButton,
+            ...(!selectedShape ? styles.disabledButton : {}),
+          }}
+          title={selectedShape ? "Delete (Del)" : "Delete (select a shape first)"}
+        >
+          <span style={{ 
+            fontSize: '20px',
+            color: !selectedShape ? '#a0a0a0' : '#000000'
+          }}>
+            🗑️
+          </span>
+        </button>
       </div>
 
       {/* Text Formatting Controls - always visible, disabled when no text is selected */}
@@ -267,6 +322,22 @@ const styles = {
     border: '2px dashed #000000',
     boxSizing: 'border-box' as const,
   },
+  circleIcon: {
+    width: '30px',
+    height: '30px',
+    backgroundColor: 'transparent',
+    border: '2px dashed #000000',
+    borderRadius: '50%',
+    boxSizing: 'border-box' as const,
+  },
+  triangleIcon: {
+    width: 0,
+    height: 0,
+    borderLeft: '16px solid transparent',
+    borderRight: '16px solid transparent',
+    borderBottom: '28px dashed #000000',
+    boxSizing: 'border-box' as const,
+  },
   textIcon: {
     fontFamily: 'serif',
     fontSize: '32px',
@@ -304,6 +375,29 @@ const styles = {
     height: '34px',
     border: '2px solid #000000',
     boxShadow: 'inset -1px -1px 0 0 rgba(0,0,0,0.3), inset 1px 1px 0 0 rgba(255,255,255,0.5), 0 2px 4px rgba(0,0,0,0.2)',
+  },
+  shapeActionsSection: {
+    marginTop: '12px',
+    paddingTop: '12px',
+    borderTop: '1px solid #a0a0a0',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '4px',
+  },
+  actionButton: {
+    width: '54px',
+    height: '40px',
+    backgroundColor: '#d8d8d8',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '16px',
+    padding: 0,
+    borderRadius: '3px',
+    boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
+    transition: 'none',
   },
   textFormattingSection: {
     marginTop: '12px',

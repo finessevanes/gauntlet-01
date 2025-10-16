@@ -17,13 +17,15 @@ import { MIN_SHAPE_WIDTH, MIN_SHAPE_HEIGHT } from '../utils/constants';
 // Shape data types
 export interface ShapeData {
   id: string;
-  type: 'rectangle' | 'text';
+  type: 'rectangle' | 'text' | 'circle' | 'triangle';
   x: number;
   y: number;
   width: number;
   height: number;
   color: string;
   rotation?: number;
+  // Circle-specific fields
+  radius?: number;
   // Text-specific fields
   text?: string;
   fontSize?: number;
@@ -427,6 +429,178 @@ class CanvasService {
       console.log('✅ Text formatting updated:', shapeId, formatting);
     } catch (error) {
       console.error('❌ Error updating text formatting:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new circle shape in Firestore
+   */
+  async createCircle(circleData: { 
+    x: number; 
+    y: number; 
+    radius: number; 
+    color: string; 
+    createdBy: string;
+  }): Promise<string> {
+    try {
+      // Ensure parent document exists
+      await this.ensureCanvasDocExists();
+      
+      // Generate a unique ID for the circle
+      const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
+      
+      const shapeData: Omit<ShapeData, 'id'> = {
+        type: 'circle',
+        x: circleData.x,
+        y: circleData.y,
+        width: circleData.radius * 2,
+        height: circleData.radius * 2,
+        radius: circleData.radius,
+        color: circleData.color,
+        rotation: 0,
+        createdBy: circleData.createdBy,
+        createdAt: serverTimestamp() as Timestamp,
+        lockedBy: null,
+        lockedAt: null,
+        updatedAt: serverTimestamp() as Timestamp,
+      };
+
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await setDoc(shapeRef, shapeData);
+
+      console.log('✅ Circle shape created:', shapeId);
+      return shapeId;
+    } catch (error) {
+      console.error('❌ Error creating circle shape:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new triangle shape in Firestore
+   */
+  async createTriangle(triangleData: { 
+    x: number; 
+    y: number; 
+    width: number; 
+    height: number; 
+    color: string; 
+    createdBy: string;
+  }): Promise<string> {
+    try {
+      // Ensure parent document exists
+      await this.ensureCanvasDocExists();
+      
+      // Generate a unique ID for the triangle
+      const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
+      
+      const shapeData: Omit<ShapeData, 'id'> = {
+        type: 'triangle',
+        x: triangleData.x,
+        y: triangleData.y,
+        width: triangleData.width,
+        height: triangleData.height,
+        color: triangleData.color,
+        rotation: 0,
+        createdBy: triangleData.createdBy,
+        createdAt: serverTimestamp() as Timestamp,
+        lockedBy: null,
+        lockedAt: null,
+        updatedAt: serverTimestamp() as Timestamp,
+      };
+
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await setDoc(shapeRef, shapeData);
+
+      console.log('✅ Triangle shape created:', shapeId);
+      return shapeId;
+    } catch (error) {
+      console.error('❌ Error creating triangle shape:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Resize a circle by updating its radius
+   */
+  async resizeCircle(shapeId: string, radius: number): Promise<void> {
+    try {
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await updateDoc(shapeRef, {
+        radius: radius,
+        width: radius * 2,
+        height: radius * 2,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log(`✅ Circle resized to radius ${radius}`);
+    } catch (error) {
+      console.error('❌ Error resizing circle:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a specific shape
+   */
+  async deleteShape(shapeId: string): Promise<void> {
+    try {
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await deleteDoc(shapeRef);
+      console.log('✅ Shape deleted:', shapeId);
+    } catch (error) {
+      console.error('❌ Error deleting shape:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Duplicate a shape
+   */
+  async duplicateShape(shapeId: string, userId: string): Promise<string> {
+    try {
+      // Get the original shape
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const shapeSnap = await getDoc(shapeRef);
+      
+      if (!shapeSnap.exists()) {
+        throw new Error('Shape not found');
+      }
+
+      const originalShape = shapeSnap.data() as ShapeData;
+      
+      // Create a new shape with slightly offset position
+      const OFFSET = 20;
+      const newShapeInput: ShapeCreateInput = {
+        type: originalShape.type,
+        x: originalShape.x + OFFSET,
+        y: originalShape.y + OFFSET,
+        width: originalShape.width,
+        height: originalShape.height,
+        color: originalShape.color,
+        rotation: originalShape.rotation,
+        createdBy: userId,
+      };
+
+      // Copy type-specific properties
+      if (originalShape.type === 'circle' && originalShape.radius) {
+        newShapeInput.radius = originalShape.radius;
+      }
+      
+      if (originalShape.type === 'text') {
+        newShapeInput.text = originalShape.text;
+        newShapeInput.fontSize = originalShape.fontSize;
+        newShapeInput.fontWeight = originalShape.fontWeight;
+        newShapeInput.fontStyle = originalShape.fontStyle;
+        newShapeInput.textDecoration = originalShape.textDecoration;
+      }
+
+      const newShapeId = await this.createShape(newShapeInput);
+      console.log('✅ Shape duplicated:', shapeId, '->', newShapeId);
+      return newShapeId;
+    } catch (error) {
+      console.error('❌ Error duplicating shape:', error);
       throw error;
     }
   }

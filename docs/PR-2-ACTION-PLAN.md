@@ -536,6 +536,32 @@ For rectangles (and later, all shapes):
 - **Normalization:** Always normalize to 0-360 range before saving to Firestore
 - **Future Enhancement:** Snap to 15° increments when Shift key held (can add in polish PR)
 
+## Known Issues
+
+### Resize Ghosting on Rotated Shapes
+**Status:** Not perfect, needs polish in future PR
+
+**Issue Description:**
+When resizing a rotated shape and releasing the mouse, there's a brief visual artifact where a "ghost" preview may appear at another location on the canvas. This occurs due to timing between:
+1. Clearing the resize preview state
+2. Firestore write completing
+3. Real-time listener updating the local shape data
+
+**Current Mitigation:**
+- Shape renders at preview dimensions during resize (no separate overlay)
+- State cleanup happens immediately on mouse release
+- Firestore updates execute in parallel (Promise.all)
+- Most noticeable with slower network connections or under heavy load
+
+**Future Fix Options:**
+1. Implement optimistic updates with local cache before Firestore confirmation
+2. Add transition animations to smooth the visual change
+3. Keep preview visible slightly longer (50-100ms delay) to bridge the gap
+4. Use Firestore's pending/committed state to manage UI transitions
+
+**Workaround:**
+Issue is cosmetic and doesn't affect functionality. Shapes always end up at the correct final dimensions/position.
+
 ---
 
 ## Ready to Proceed?

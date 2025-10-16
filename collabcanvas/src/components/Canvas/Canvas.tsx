@@ -59,7 +59,6 @@ export default function Canvas() {
     setSelectedShapeId,
     selectedShapes,
     setSelectedShapes,
-    lastClickedShapeId,
     setLastClickedShapeId,
     userSelections,
     editingTextId,

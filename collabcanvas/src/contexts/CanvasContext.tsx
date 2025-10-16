@@ -11,25 +11,13 @@ interface CanvasContextType {
   selectedColor: string;
   setSelectedColor: (color: string) => void;
   
-  // Tool selection
-  selectedTool: 'rectangle' | 'text' | 'pan' | 'bomb';
-  setSelectedTool: (tool: 'rectangle' | 'text' | 'pan' | 'bomb') => void;
-  
-  // Shape selection
-  selectedShapeId: string | null;
-  setSelectedShapeId: (id: string | null) => void;
-  
-  // Drawing mode (deprecated - use selectedTool)
+  // Drawing mode
   isDrawMode: boolean;
   setIsDrawMode: (isDrawMode: boolean) => void;
   
-  // Bomb mode (deprecated - use selectedTool)
+  // Bomb mode
   isBombMode: boolean;
   setIsBombMode: (isBombMode: boolean) => void;
-  
-  // Text editing
-  editingTextId: string | null;
-  setEditingTextId: (id: string | null) => void;
   
   // Stage transform
   stageScale: number;
@@ -47,12 +35,6 @@ interface CanvasContextType {
   unlockShape: (shapeId: string) => Promise<void>;
   deleteAllShapes: () => Promise<void>;
   
-  // Text operations
-  createText: (text: string, x: number, y: number, color: string, createdBy: string, options?: any) => Promise<string>;
-  updateText: (shapeId: string, text: string) => Promise<void>;
-  updateTextFontSize: (shapeId: string, fontSize: number) => Promise<void>;
-  updateTextFormatting: (shapeId: string, formatting: any) => Promise<void>;
-  
   // Loading state
   shapesLoading: boolean;
 }
@@ -62,11 +44,8 @@ const CanvasContext = createContext<CanvasContextType | undefined>(undefined);
 export function CanvasProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_COLOR);
-  const [selectedTool, setSelectedTool] = useState<'rectangle' | 'text' | 'pan' | 'bomb'>('pan');
-  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
-  const [isDrawMode, setIsDrawMode] = useState(false); // Default: Pan mode (deprecated)
-  const [isBombMode, setIsBombMode] = useState(false); // Bomb tool mode (deprecated)
-  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [isDrawMode, setIsDrawMode] = useState(false); // Default: Pan mode
+  const [isBombMode, setIsBombMode] = useState(false); // Bomb tool mode
   const [stageScale, setStageScale] = useState(1);
   const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 });
   const [shapes, setShapes] = useState<ShapeData[]>([]);
@@ -122,43 +101,13 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.deleteAllShapes();
   };
 
-  // Text operations
-  const createText = async (
-    text: string,
-    x: number,
-    y: number,
-    color: string,
-    createdBy: string,
-    options?: any
-  ): Promise<string> => {
-    return await canvasService.createText(text, x, y, color, createdBy, options);
-  };
-
-  const updateText = async (shapeId: string, text: string): Promise<void> => {
-    return await canvasService.updateText(shapeId, text);
-  };
-
-  const updateTextFontSize = async (shapeId: string, fontSize: number): Promise<void> => {
-    return await canvasService.updateTextFontSize(shapeId, fontSize);
-  };
-
-  const updateTextFormatting = async (shapeId: string, formatting: any): Promise<void> => {
-    return await canvasService.updateTextFormatting(shapeId, formatting);
-  };
-
   const value = {
     selectedColor,
     setSelectedColor,
-    selectedTool,
-    setSelectedTool,
-    selectedShapeId,
-    setSelectedShapeId,
     isDrawMode,
     setIsDrawMode,
     isBombMode,
     setIsBombMode,
-    editingTextId,
-    setEditingTextId,
     stageScale,
     setStageScale,
     stagePosition,
@@ -171,10 +120,6 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     lockShape,
     unlockShape,
     deleteAllShapes,
-    createText,
-    updateText,
-    updateTextFontSize,
-    updateTextFormatting,
     shapesLoading,
   };
 

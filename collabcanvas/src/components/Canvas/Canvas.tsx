@@ -4,7 +4,10 @@ import { useCanvasContext } from '../../contexts/CanvasContext';
 import { useCursors } from '../../hooks/useCursors';
 import { useAuth } from '../../hooks/useAuth';
 import CursorLayer from '../Collaboration/CursorLayer';
+import TextInput from './TextInput';
+import TextControls from './TextControls';
 import toast from 'react-hot-toast';
+import { getFontStyle } from '../../utils/helpers';
 import { 
   CANVAS_WIDTH, 
   CANVAS_HEIGHT, 
@@ -25,19 +28,26 @@ export default function Canvas() {
     stagePosition, 
     setStagePosition,
     selectedColor,
+    selectedTool,
     isDrawMode,
     setIsDrawMode,
     isBombMode,
     setIsBombMode,
     shapes,
     createShape,
+    createText,
+    updateText,
+    updateTextFontSize,
+    updateTextFormatting,
     updateShape,
     resizeShape,
     rotateShape,
     lockShape,
     unlockShape,
     deleteAllShapes,
-    shapesLoading
+    shapesLoading,
+    editingTextId,
+    setEditingTextId
   } = useCanvasContext();
   
   const stageRef = useRef<Konva.Stage>(null);
@@ -63,6 +73,9 @@ export default function Canvas() {
   
   // Rotation handle hover state
   const [hoveredRotationHandle, setHoveredRotationHandle] = useState<string | null>(null);
+  
+  // Text hover state
+  const [hoveredTextId, setHoveredTextId] = useState<string | null>(null);
   
   // Resize state management
   const [isResizing, setIsResizing] = useState(false);
@@ -94,6 +107,20 @@ export default function Canvas() {
   // Bomb explosion state
   const [explosionPos, setExplosionPos] = useState<{ x: number; y: number } | null>(null);
   const [previousMode, setPreviousMode] = useState<'draw' | 'pan'>('pan');
+  
+  // Text input state
+  const [textInputVisible, setTextInputVisible] = useState(false);
+  const [textInputPosition, setTextInputPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const textInputClosedTimeRef = useRef<number>(0);
+
+  // Track when text input is closed for cooldown
+  useEffect(() => {
+    console.log('👁️ textInputVisible changed to:', textInputVisible);
+    console.log('👁️ editingTextId:', editingTextId);
+    if (!textInputVisible) {
+      textInputClosedTimeRef.current = Date.now();
+    }
+  }, [textInputVisible, editingTextId]);
   
   // Cursor tracking
   const { cursors, handleMouseMove: handleCursorMove, handleMouseLeave } = useCursors(stageRef);
@@ -150,18 +177,27 @@ export default function Canvas() {
 
   // Helper: Handle shape mousedown (optimistic selection + background lock)
   const handleShapeMouseDown = (shapeId: string) => {
+    console.log('🖱️ handleShapeMouseDown called for:', shapeId);
     if (!user) return;
 
     // If clicking on already selected shape, refresh timeout
     if (selectedShapeId === shapeId) {
+      console.log('⏰ Same shape clicked, refreshing timeout');
       clearLockTimeout();
       startLockTimeout(shapeId);
       return;
     }
 
-    // Deselect current shape first
-    if (selectedShapeId) {
-      handleDeselectShape();
+    console.log('🔄 Switching from', selectedShapeId, 'to', shapeId);
+
+    // Unlock previous shape (if any) in background, but DON'T deselect yet
+    const previousShapeId = selectedShapeId;
+    if (previousShapeId) {
+      clearLockTimeout();
+      // Unlock in background (non-blocking, don't change selection)
+      unlockShape(previousShapeId).catch(err => {
+        console.error('Failed to unlock previous shape:', err);
+      });
     }
 
     // OPTIMISTIC: Set as selected immediately (makes shape draggable right away)
@@ -246,6 +282,171 @@ export default function Canvas() {
     }, 800);
   };
 
+  // Text input handlers
+  const handleTextSave = async (text: string) => {
+    if (!user) return;
+    
+    if (!text.trim()) {
+      toast.error('Text cannot be empty', {
+        duration: 2000,
+        position: 'top-center',
+      });
+      return;
+    }
+
+    try {
+      await createText(
+        text,
+        textInputPosition.x,
+        textInputPosition.y,
+        selectedColor,
+        user.uid
+      );
+      setTextInputVisible(false);
+      toast.success('Text created!', {
+        duration: 1000,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to create text:', error);
+      toast.error('Failed to create text', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  const handleTextCancel = () => {
+    setTextInputVisible(false);
+  };
+
+  // Text formatting handlers
+  const handleToggleBold = async () => {
+    if (!selectedShapeId) return;
+    const shape = shapes.find(s => s.id === selectedShapeId);
+    if (!shape || shape.type !== 'text') return;
+
+    const newWeight = shape.fontWeight === 'bold' ? 'normal' : 'bold';
+    try {
+      await updateTextFormatting(selectedShapeId, { fontWeight: newWeight });
+    } catch (error) {
+      console.error('❌ Failed to toggle bold:', error);
+      toast.error('Failed to update formatting', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  const handleToggleItalic = async () => {
+    if (!selectedShapeId) return;
+    const shape = shapes.find(s => s.id === selectedShapeId);
+    if (!shape || shape.type !== 'text') return;
+
+    const newStyle = shape.fontStyle === 'italic' ? 'normal' : 'italic';
+    try {
+      await updateTextFormatting(selectedShapeId, { fontStyle: newStyle });
+    } catch (error) {
+      console.error('❌ Failed to toggle italic:', error);
+      toast.error('Failed to update formatting', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  const handleToggleUnderline = async () => {
+    if (!selectedShapeId) return;
+    const shape = shapes.find(s => s.id === selectedShapeId);
+    if (!shape || shape.type !== 'text') return;
+
+    const newDecoration = shape.textDecoration === 'underline' ? 'none' : 'underline';
+    try {
+      await updateTextFormatting(selectedShapeId, { textDecoration: newDecoration });
+    } catch (error) {
+      console.error('❌ Failed to toggle underline:', error);
+      toast.error('Failed to update formatting', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  const handleChangeFontSize = async (fontSize: number) => {
+    if (!selectedShapeId) return;
+    const shape = shapes.find(s => s.id === selectedShapeId);
+    if (!shape || shape.type !== 'text') return;
+
+    try {
+      await updateTextFontSize(selectedShapeId, fontSize);
+    } catch (error) {
+      console.error('❌ Failed to change font size:', error);
+      toast.error('Failed to update font size', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  // Handle double-click on text shape for editing
+  const handleTextDoubleClick = (shapeId: string) => {
+    console.log('⚡ DOUBLE CLICK detected on:', shapeId);
+    if (!user) return;
+    
+    const shape = shapes.find(s => s.id === shapeId);
+    if (!shape || shape.type !== 'text') return;
+
+    const lockStatus = getShapeLockStatus(shape);
+    if (lockStatus !== 'locked-by-me') {
+      toast.error('You must lock the text before editing', {
+        duration: 2000,
+        position: 'top-center',
+      });
+      return;
+    }
+
+    console.log('✏️ Opening text editor for:', shapeId);
+    // Set editing state
+    setEditingTextId(shapeId);
+    setTextInputPosition({ x: shape.x, y: shape.y });
+    setTextInputVisible(true);
+  };
+
+  // Handle text edit save
+  const handleTextEditSave = async (text: string) => {
+    if (!user || !editingTextId) return;
+    
+    if (!text.trim()) {
+      toast.error('Text cannot be empty', {
+        duration: 2000,
+        position: 'top-center',
+      });
+      return;
+    }
+
+    try {
+      await updateText(editingTextId, text.trim());
+      setTextInputVisible(false);
+      setEditingTextId(null);
+      toast.success('Text updated!', {
+        duration: 1000,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to update text:', error);
+      toast.error('Failed to update text', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  // Handle text edit cancel
+  const handleTextEditCancel = () => {
+    setTextInputVisible(false);
+    setEditingTextId(null);
+  };
+
   // Drawing handlers: Click-and-drag to create rectangles
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current;
@@ -278,6 +479,20 @@ export default function Canvas() {
       // Handle bomb mode - place bomb and explode
       if (isBombMode) {
         handleBombClick(x, y);
+        return;
+      }
+
+      // Handle text tool - show text input at click position
+      if (selectedTool === 'text') {
+        // Don't create new text input if one is already visible
+        if (textInputVisible) return;
+        
+        // Don't immediately create a new input after closing one (cooldown)
+        const timeSinceClose = Date.now() - textInputClosedTimeRef.current;
+        if (timeSinceClose < 200) return;
+        
+        setTextInputPosition({ x, y });
+        setTextInputVisible(true);
         return;
       }
 
@@ -1070,6 +1285,8 @@ export default function Canvas() {
     if (isPanning) return 'grabbing'; // Actively panning
     if (isBombMode) return 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewport=\'0 0 40 40\' style=\'font-size:32px\'><text y=\'32\'>💣</text></svg>") 16 16, crosshair'; // Bomb mode: show bomb cursor
     if (isDrawMode) return 'crosshair'; // Draw mode: ready to draw
+    if (selectedTool === 'text') return 'text'; // Text mode: show text cursor
+    if (hoveredTextId) return 'pointer'; // Hovering over text: show pointer cursor
     return 'grab'; // Pan mode: ready to pan
   };
 
@@ -1133,7 +1350,7 @@ export default function Canvas() {
         ref={stageRef}
         width={window.innerWidth - 70} // Account for tool palette
         height={window.innerHeight - 131} // Account for title bar, menu bar, color palette, status bar
-        draggable={!isDrawMode && !isBombMode} // Only allow dragging in pan mode
+        draggable={selectedTool === 'pan'} // Only allow dragging in pan mode
         onWheel={handleWheel}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
@@ -1179,6 +1396,85 @@ export default function Canvas() {
             const currentWidth = isBeingResized && previewDimensions ? previewDimensions.width : shape.width;
             const currentHeight = isBeingResized && previewDimensions ? previewDimensions.height : shape.height;
 
+            // Render text shapes differently
+            if (shape.type === 'text') {
+              // Create a text node to measure dimensions
+              const tempText = shape.text || '';
+              const textFontSize = shape.fontSize || 16;
+              
+              // Estimate text dimensions (rough approximation)
+              // More accurate would be to use a canvas measureText, but this works for the selection box
+              const estimatedWidth = tempText.length * textFontSize * 0.6; // Approximate character width
+              const estimatedHeight = textFontSize * 1.2; // Line height
+              const padding = 4; // Padding around text
+              
+              return (
+                <Group
+                  key={shape.id}
+                  x={shape.x}
+                  y={shape.y}
+                  rotation={currentRotation}
+                  draggable={!isLockedByOther && !isResizing && !isRotating}
+                  onMouseEnter={() => setHoveredTextId(shape.id)}
+                  onMouseLeave={() => setHoveredTextId(null)}
+                  onMouseDown={(e) => {
+                    e.cancelBubble = true; // Stop propagation to canvas background
+                    handleShapeMouseDown(shape.id);
+                  }}
+                  onTouchStart={(e) => {
+                    e.cancelBubble = true; // Stop propagation to canvas background
+                    handleShapeMouseDown(shape.id);
+                  }}
+                  onDblClick={(e) => {
+                    e.cancelBubble = true; // Stop propagation to canvas background
+                    handleTextDoubleClick(shape.id);
+                  }}
+                  onDragStart={(e) => handleShapeDragStart(e, shape.id)}
+                  onDragMove={(e) => handleShapeDragMove(e, shape.id)}
+                  onDragEnd={(e) => handleShapeDragEnd(e, shape.id)}
+                >
+                  {/* Invisible hitbox to make the entire text area draggable */}
+                  <Rect
+                    x={-padding}
+                    y={-padding}
+                    width={estimatedWidth + padding * 2}
+                    height={estimatedHeight + padding * 2}
+                    fill="transparent"
+                    listening={true} // Capture mouse events for larger draggable area
+                  />
+                  
+                  {/* Selection box with dotted border (Paint-style) */}
+                  {isSelected && (
+                    <Rect
+                      x={-padding}
+                      y={-padding}
+                      width={estimatedWidth + padding * 2}
+                      height={estimatedHeight + padding * 2}
+                      stroke={isLockedByMe ? '#000000' : '#ff0000'}
+                      strokeWidth={1}
+                      dash={[4, 4]} // Dotted line pattern
+                      fill="transparent"
+                      listening={false} // Don't capture mouse events
+                    />
+                  )}
+                  
+                  {/* The actual text */}
+                  <Text
+                    x={0}
+                    y={0}
+                    text={tempText}
+                    fontSize={textFontSize}
+                    fill={shape.color}
+                    fontStyle={getFontStyle(shape)}
+                    textDecoration={shape.textDecoration || 'none'}
+                    opacity={isLockedByOther ? 0.5 : 1}
+                    listening={false} // Let the hitbox rectangle handle events
+                  />
+                </Group>
+              );
+            }
+
+            // Render rectangle shapes
             return (
               <Group 
                 key={shape.id} 
@@ -1188,8 +1484,14 @@ export default function Canvas() {
                 offsetY={currentHeight / 2}
                 rotation={currentRotation}
                 draggable={!isLockedByOther && !isResizing && !isRotating}
-                onMouseDown={() => handleShapeMouseDown(shape.id)}
-                onTouchStart={() => handleShapeMouseDown(shape.id)}
+                onMouseDown={(e) => {
+                  e.cancelBubble = true; // Stop propagation to canvas background
+                  handleShapeMouseDown(shape.id);
+                }}
+                onTouchStart={(e) => {
+                  e.cancelBubble = true; // Stop propagation to canvas background
+                  handleShapeMouseDown(shape.id);
+                }}
                 onDragStart={(e) => handleShapeDragStart(e, shape.id)}
                 onDragMove={(e) => handleShapeDragMove(e, shape.id)}
                 onDragEnd={(e) => handleShapeDragEnd(e, shape.id)}
@@ -1487,6 +1789,63 @@ export default function Canvas() {
         {/* Cursor Layer - render other users' cursors */}
         <CursorLayer cursors={cursors} />
       </Stage>
+
+      {/* Text Input Overlay */}
+      {textInputVisible && (() => {
+        // Check if we're editing an existing text
+        if (editingTextId) {
+          const shape = shapes.find(s => s.id === editingTextId);
+          return (
+            <TextInput
+              initialText={shape?.text || ''}
+              x={textInputPosition.x}
+              y={textInputPosition.y}
+              fontSize={shape?.fontSize || 16}
+              color={shape?.color || selectedColor}
+              onSave={handleTextEditSave}
+              onCancel={handleTextEditCancel}
+              stageScale={stageScale}
+              stagePosition={stagePosition}
+            />
+          );
+        }
+        
+        // Creating new text
+        return (
+          <TextInput
+            x={textInputPosition.x}
+            y={textInputPosition.y}
+            fontSize={16}
+            color={selectedColor}
+            onSave={handleTextSave}
+            onCancel={handleTextCancel}
+            stageScale={stageScale}
+            stagePosition={stagePosition}
+          />
+        );
+      })()}
+
+      {/* Text Controls Panel */}
+      {selectedShapeId && (() => {
+        const selectedShape = shapes.find(s => s.id === selectedShapeId);
+        if (!selectedShape || selectedShape.type !== 'text') return null;
+        
+        const lockStatus = getShapeLockStatus(selectedShape);
+        const isLockedByMe = lockStatus === 'locked-by-me';
+        
+        return (
+          <div style={styles.textControlsPanel}>
+            <TextControls
+              selectedShape={selectedShape}
+              onToggleBold={handleToggleBold}
+              onToggleItalic={handleToggleItalic}
+              onToggleUnderline={handleToggleUnderline}
+              onChangeFontSize={handleChangeFontSize}
+              disabled={!isLockedByMe}
+            />
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -1501,6 +1860,17 @@ const styles = {
     backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
     backgroundColor: '#e0e0e0',
     position: 'relative' as const,
+  },
+  textControlsPanel: {
+    position: 'fixed' as const,
+    right: '20px',
+    top: '100px',
+    width: '200px',
+    backgroundColor: '#f0f0f0',
+    border: '2px solid #808080',
+    borderRadius: '4px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+    zIndex: 1000,
   },
 };
 

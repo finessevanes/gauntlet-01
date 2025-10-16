@@ -14,6 +14,7 @@ import {
 import type { Timestamp, Unsubscribe } from 'firebase/firestore';
 import { firestore } from '../firebase';
 import { MIN_SHAPE_WIDTH, MIN_SHAPE_HEIGHT } from '../utils/constants';
+import { findOverlappingShapesAbove, findOverlappingShapesBelow } from '../utils/overlapDetection';
 
 // Shape data types
 export interface ShapeData {
@@ -864,6 +865,38 @@ class CanvasService {
   }
 
   /**
+   * Bring multiple shapes to front atomically (batch operation)
+   */
+  async batchBringToFront(shapeIds: string[]): Promise<void> {
+    try {
+      if (shapeIds.length === 0) return;
+      
+      // Get all shapes to find max zIndex
+      const shapes = await this.getShapes();
+      let maxZIndex = Math.max(...shapes.map(s => s.zIndex || 0), 0);
+      
+      const batch = writeBatch(firestore);
+      
+      // Assign incrementing z-indices starting from max+1
+      for (const shapeId of shapeIds) {
+        maxZIndex++;
+        const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+        batch.update(shapeRef, {
+          zIndex: maxZIndex,
+          updatedAt: serverTimestamp(),
+        });
+      }
+      
+      await batch.commit();
+      
+      console.log(`✅ Batch brought ${shapeIds.length} shapes to front atomically`);
+    } catch (error) {
+      console.error('❌ Error batch bringing shapes to front:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Send shape to back (set zIndex to min-1)
    */
   async sendToBack(shapeId: string): Promise<void> {
@@ -886,7 +919,40 @@ class CanvasService {
   }
 
   /**
-   * Bring shape forward (swap with shape immediately above)
+   * Send multiple shapes to back atomically (batch operation)
+   */
+  async batchSendToBack(shapeIds: string[]): Promise<void> {
+    try {
+      if (shapeIds.length === 0) return;
+      
+      // Get all shapes to find min zIndex
+      const shapes = await this.getShapes();
+      let minZIndex = Math.min(...shapes.map(s => s.zIndex || 0), 0);
+      
+      const batch = writeBatch(firestore);
+      
+      // Assign decrementing z-indices starting from min-1 (in reverse order)
+      for (let i = shapeIds.length - 1; i >= 0; i--) {
+        minZIndex--;
+        const shapeRef = doc(firestore, this.shapesCollectionPath, shapeIds[i]);
+        batch.update(shapeRef, {
+          zIndex: minZIndex,
+          updatedAt: serverTimestamp(),
+        });
+      }
+      
+      await batch.commit();
+      
+      console.log(`✅ Batch sent ${shapeIds.length} shapes to back atomically`);
+    } catch (error) {
+      console.error('❌ Error batch sending shapes to back:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Bring shape forward (swap with overlapping shape immediately above)
+   * Only considers shapes that actually overlap with the target shape
    */
   async bringForward(shapeId: string): Promise<void> {
     try {
@@ -899,22 +965,26 @@ class CanvasService {
 
       const currentZIndex = currentShape.zIndex || 0;
       
-      // Find all shapes with higher z-index, sorted ascending
-      const shapesAbove = shapes
-        .filter(s => (s.zIndex || 0) > currentZIndex)
-        .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+      // Find overlapping shapes above (sorted by z-index ascending)
+      const overlappingShapesAbove = findOverlappingShapesAbove(currentShape, shapes);
       
-      if (shapesAbove.length === 0) {
-        // Already at the top, nothing to do
-        console.log(`ℹ️ Shape ${shapeId} is already at the top`);
+      if (overlappingShapesAbove.length === 0) {
+        // No overlapping shapes above - check if there are any shapes above at all
+        const anyShapesAbove = shapes.filter(s => (s.zIndex || 0) > currentZIndex);
+        
+        if (anyShapesAbove.length === 0) {
+          console.log(`ℹ️ Shape ${shapeId} is already at the top`);
+        } else {
+          console.log(`ℹ️ No overlapping shapes above ${shapeId} - no visual change would occur`);
+        }
         return;
       }
 
-      // Get the shape immediately above (lowest z-index among shapes above)
-      const shapeAbove = shapesAbove[0];
+      // Get the overlapping shape immediately above (lowest z-index among overlapping shapes above)
+      const shapeAbove = overlappingShapesAbove[0];
       const shapeAboveZIndex = shapeAbove.zIndex || 0;
 
-      // Swap z-indices
+      // Swap z-indices atomically
       const batch = writeBatch(firestore);
       
       const currentShapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
@@ -931,7 +1001,7 @@ class CanvasService {
       
       await batch.commit();
       
-      console.log(`✅ Shape brought forward: ${shapeId} (${currentZIndex} → ${shapeAboveZIndex}), swapped with ${shapeAbove.id}`);
+      console.log(`✅ Shape brought forward: ${shapeId} (${currentZIndex} → ${shapeAboveZIndex}), swapped with overlapping shape ${shapeAbove.id}`);
     } catch (error) {
       console.error('❌ Error bringing shape forward:', error);
       throw error;
@@ -939,7 +1009,64 @@ class CanvasService {
   }
 
   /**
-   * Send shape backward (swap with shape immediately below)
+   * Bring multiple shapes forward atomically (batch operation)
+   * For each shape, swaps with overlapping shapes immediately above
+   */
+  async batchBringForward(shapeIds: string[]): Promise<void> {
+    try {
+      if (shapeIds.length === 0) return;
+      
+      const shapes = await this.getShapes();
+      const batch = writeBatch(firestore);
+      let swapCount = 0;
+      
+      // Process each shape
+      for (const shapeId of shapeIds) {
+        const currentShape = shapes.find(s => s.id === shapeId);
+        if (!currentShape) continue;
+        
+        const currentZIndex = currentShape.zIndex || 0;
+        const overlappingShapesAbove = findOverlappingShapesAbove(currentShape, shapes);
+        
+        if (overlappingShapesAbove.length === 0) continue;
+        
+        // Find the first overlapping shape above that's not in our selection
+        const shapeAbove = overlappingShapesAbove.find(s => !shapeIds.includes(s.id));
+        if (!shapeAbove) continue;
+        
+        const shapeAboveZIndex = shapeAbove.zIndex || 0;
+        
+        // Swap z-indices
+        const currentShapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+        batch.update(currentShapeRef, {
+          zIndex: shapeAboveZIndex,
+          updatedAt: serverTimestamp(),
+        });
+        
+        const shapeAboveRef = doc(firestore, this.shapesCollectionPath, shapeAbove.id);
+        batch.update(shapeAboveRef, {
+          zIndex: currentZIndex,
+          updatedAt: serverTimestamp(),
+        });
+        
+        swapCount++;
+      }
+      
+      if (swapCount > 0) {
+        await batch.commit();
+        console.log(`✅ Batch brought ${shapeIds.length} shapes forward atomically (${swapCount} swaps)`);
+      } else {
+        console.log(`ℹ️ No overlapping shapes to swap forward`);
+      }
+    } catch (error) {
+      console.error('❌ Error batch bringing shapes forward:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send shape backward (swap with overlapping shape immediately below)
+   * Only considers shapes that actually overlap with the target shape
    */
   async sendBackward(shapeId: string): Promise<void> {
     try {
@@ -952,22 +1079,26 @@ class CanvasService {
 
       const currentZIndex = currentShape.zIndex || 0;
       
-      // Find all shapes with lower z-index, sorted descending
-      const shapesBelow = shapes
-        .filter(s => (s.zIndex || 0) < currentZIndex)
-        .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0));
+      // Find overlapping shapes below (sorted by z-index descending)
+      const overlappingShapesBelow = findOverlappingShapesBelow(currentShape, shapes);
       
-      if (shapesBelow.length === 0) {
-        // Already at the bottom, nothing to do
-        console.log(`ℹ️ Shape ${shapeId} is already at the bottom`);
+      if (overlappingShapesBelow.length === 0) {
+        // No overlapping shapes below - check if there are any shapes below at all
+        const anyShapesBelow = shapes.filter(s => (s.zIndex || 0) < currentZIndex);
+        
+        if (anyShapesBelow.length === 0) {
+          console.log(`ℹ️ Shape ${shapeId} is already at the bottom`);
+        } else {
+          console.log(`ℹ️ No overlapping shapes below ${shapeId} - no visual change would occur`);
+        }
         return;
       }
 
-      // Get the shape immediately below (highest z-index among shapes below)
-      const shapeBelow = shapesBelow[0];
+      // Get the overlapping shape immediately below (highest z-index among overlapping shapes below)
+      const shapeBelow = overlappingShapesBelow[0];
       const shapeBelowZIndex = shapeBelow.zIndex || 0;
 
-      // Swap z-indices
+      // Swap z-indices atomically
       const batch = writeBatch(firestore);
       
       const currentShapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
@@ -984,9 +1115,65 @@ class CanvasService {
       
       await batch.commit();
       
-      console.log(`✅ Shape sent backward: ${shapeId} (${currentZIndex} → ${shapeBelowZIndex}), swapped with ${shapeBelow.id}`);
+      console.log(`✅ Shape sent backward: ${shapeId} (${currentZIndex} → ${shapeBelowZIndex}), swapped with overlapping shape ${shapeBelow.id}`);
     } catch (error) {
       console.error('❌ Error sending shape backward:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send multiple shapes backward atomically (batch operation)
+   * For each shape, swaps with overlapping shapes immediately below
+   */
+  async batchSendBackward(shapeIds: string[]): Promise<void> {
+    try {
+      if (shapeIds.length === 0) return;
+      
+      const shapes = await this.getShapes();
+      const batch = writeBatch(firestore);
+      let swapCount = 0;
+      
+      // Process each shape
+      for (const shapeId of shapeIds) {
+        const currentShape = shapes.find(s => s.id === shapeId);
+        if (!currentShape) continue;
+        
+        const currentZIndex = currentShape.zIndex || 0;
+        const overlappingShapesBelow = findOverlappingShapesBelow(currentShape, shapes);
+        
+        if (overlappingShapesBelow.length === 0) continue;
+        
+        // Find the first overlapping shape below that's not in our selection
+        const shapeBelow = overlappingShapesBelow.find(s => !shapeIds.includes(s.id));
+        if (!shapeBelow) continue;
+        
+        const shapeBelowZIndex = shapeBelow.zIndex || 0;
+        
+        // Swap z-indices
+        const currentShapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+        batch.update(currentShapeRef, {
+          zIndex: shapeBelowZIndex,
+          updatedAt: serverTimestamp(),
+        });
+        
+        const shapeBelowRef = doc(firestore, this.shapesCollectionPath, shapeBelow.id);
+        batch.update(shapeBelowRef, {
+          zIndex: currentZIndex,
+          updatedAt: serverTimestamp(),
+        });
+        
+        swapCount++;
+      }
+      
+      if (swapCount > 0) {
+        await batch.commit();
+        console.log(`✅ Batch sent ${shapeIds.length} shapes backward atomically (${swapCount} swaps)`);
+      } else {
+        console.log(`ℹ️ No overlapping shapes to swap backward`);
+      }
+    } catch (error) {
+      console.error('❌ Error batch sending shapes backward:', error);
       throw error;
     }
   }

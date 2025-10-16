@@ -32,7 +32,11 @@ export default function AppShell({ children }: AppShellProps) {
     bringToFront,
     sendToBack,
     bringForward,
-    sendBackward
+    sendBackward,
+    batchBringToFront,
+    batchSendToBack,
+    batchBringForward,
+    batchSendBackward
   } = useCanvasContext();
 
   // Get the currently selected shape
@@ -273,12 +277,23 @@ export default function AppShell({ children }: AppShellProps) {
 
   // Z-Index handlers
   const handleBringToFront = async () => {
-    const targetId = selectedShapeId || (selectedShapes.length > 0 ? selectedShapes[0] : null);
-    if (!targetId) return;
+    // Handle both single and multi-selection
+    const targetIds = selectedShapes.length > 0 ? selectedShapes : (selectedShapeId ? [selectedShapeId] : []);
+    if (targetIds.length === 0) return;
     
     try {
-      await bringToFront(targetId);
-      toast.success('Brought to front', {
+      // Use batch operation for multiple shapes (atomic update)
+      if (targetIds.length > 1) {
+        await batchBringToFront(targetIds);
+      } else {
+        await bringToFront(targetIds[0]);
+      }
+      
+      const message = targetIds.length > 1 
+        ? `${targetIds.length} shapes brought to front`
+        : 'Brought to front';
+      
+      toast.success(message, {
         duration: 1000,
         position: 'top-center',
       });
@@ -292,12 +307,23 @@ export default function AppShell({ children }: AppShellProps) {
   };
 
   const handleSendToBack = async () => {
-    const targetId = selectedShapeId || (selectedShapes.length > 0 ? selectedShapes[0] : null);
-    if (!targetId) return;
+    // Handle both single and multi-selection
+    const targetIds = selectedShapes.length > 0 ? selectedShapes : (selectedShapeId ? [selectedShapeId] : []);
+    if (targetIds.length === 0) return;
     
     try {
-      await sendToBack(targetId);
-      toast.success('Sent to back', {
+      // Use batch operation for multiple shapes (atomic update)
+      if (targetIds.length > 1) {
+        await batchSendToBack(targetIds);
+      } else {
+        await sendToBack(targetIds[0]);
+      }
+      
+      const message = targetIds.length > 1 
+        ? `${targetIds.length} shapes sent to back`
+        : 'Sent to back';
+      
+      toast.success(message, {
         duration: 1000,
         position: 'top-center',
       });
@@ -311,12 +337,23 @@ export default function AppShell({ children }: AppShellProps) {
   };
 
   const handleBringForward = async () => {
-    const targetId = selectedShapeId || (selectedShapes.length > 0 ? selectedShapes[0] : null);
-    if (!targetId) return;
+    // Handle both single and multi-selection
+    const targetIds = selectedShapes.length > 0 ? selectedShapes : (selectedShapeId ? [selectedShapeId] : []);
+    if (targetIds.length === 0) return;
     
     try {
-      await bringForward(targetId);
-      toast.success('Brought forward', {
+      // Use batch operation for multiple shapes (atomic update)
+      if (targetIds.length > 1) {
+        await batchBringForward(targetIds);
+      } else {
+        await bringForward(targetIds[0]);
+      }
+      
+      const message = targetIds.length > 1 
+        ? `${targetIds.length} shapes brought forward`
+        : 'Brought forward';
+      
+      toast.success(message, {
         duration: 1000,
         position: 'top-center',
       });
@@ -330,12 +367,23 @@ export default function AppShell({ children }: AppShellProps) {
   };
 
   const handleSendBackward = async () => {
-    const targetId = selectedShapeId || (selectedShapes.length > 0 ? selectedShapes[0] : null);
-    if (!targetId) return;
+    // Handle both single and multi-selection
+    const targetIds = selectedShapes.length > 0 ? selectedShapes : (selectedShapeId ? [selectedShapeId] : []);
+    if (targetIds.length === 0) return;
     
     try {
-      await sendBackward(targetId);
-      toast.success('Sent backward', {
+      // Use batch operation for multiple shapes (atomic update)
+      if (targetIds.length > 1) {
+        await batchSendBackward(targetIds);
+      } else {
+        await sendBackward(targetIds[0]);
+      }
+      
+      const message = targetIds.length > 1 
+        ? `${targetIds.length} shapes sent backward`
+        : 'Sent backward';
+      
+      toast.success(message, {
         duration: 1000,
         position: 'top-center',
       });

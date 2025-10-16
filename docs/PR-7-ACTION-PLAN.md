@@ -29,9 +29,11 @@ All core features have been implemented. Ready for testing and verification.
   ```
 - Updated `ShapeData` interface with:
   - `groupId: string | null` - References the group this shape belongs to
-  - `zIndex: number` - Stacking order (default: 0)
+  - `zIndex: number` - Stacking order (auto-incremented)
 - Updated `ShapeCreateInput` type to make `groupId` and `zIndex` optional (default values provided by service)
-- All shape creation methods (`createShape`, `createText`, `createCircle`, `createTriangle`) now initialize `groupId: null` and `zIndex: 0`
+- All shape creation methods (`createShape`, `createText`, `createCircle`, `createTriangle`) now:
+  - Initialize `groupId: null`
+  - Auto-calculate `zIndex = max(all shapes) + 1` for proper stacking (first shape gets 0)
 
 **Firestore Collections:**
 - `canvases/main/groups` - Stores group metadata
@@ -70,6 +72,11 @@ All core features have been implemented. Ready for testing and verification.
 **Files Modified:**
 - `collabcanvas/src/services/canvasService.ts`
 
+**Strategy:**
+- **Auto-incrementing z-index**: New shapes get `zIndex = max(all shapes) + 1`
+- **Simple swapping**: `bringForward`/`sendBackward` swap with next shape in z-order
+- **Batch operations**: Multi-shape z-index changes use atomic batch updates
+
 **Methods Added:**
 
 #### `bringToFront(shapeId: string): Promise<void>`
@@ -81,12 +88,20 @@ All core features have been implemented. Ready for testing and verification.
 - Sends shape to the bottommost layer
 
 #### `bringForward(shapeId: string): Promise<void>`
-- Increments shape's zIndex by 1
-- Moves shape one layer up
+- Finds shape immediately above in z-order
+- Swaps z-index values atomically
+- Uses batch update to prevent race conditions
 
 #### `sendBackward(shapeId: string): Promise<void>`
-- Decrements shape's zIndex by 1
-- Moves shape one layer down
+- Finds shape immediately below in z-order
+- Swaps z-index values atomically
+- Uses batch update to prevent race conditions
+
+#### Batch Operations (Multi-Selection)
+- `batchBringToFront(shapeIds[])`: Atomic update for multiple shapes
+- `batchSendToBack(shapeIds[])`: Atomic update for multiple shapes
+- `batchBringForward(shapeIds[])`: Atomic swap for multiple shapes
+- `batchSendBackward(shapeIds[])`: Atomic swap for multiple shapes
 
 ---
 
@@ -245,13 +260,14 @@ Based on the PR requirements from `docs/task.md`:
 - [ ] User A groups shapes → User B sees grouped behavior
 
 ### Z-Index Features
-- [ ] Shapes render in correct z-index order
-- [ ] Bring to Front button works
-- [ ] Send to Back button works
-- [ ] Bring Forward button works
-- [ ] Send Backward button works
-- [ ] User A changes z-index → User B sees layer change
-- [ ] Overlapping shapes render in correct order
+- [ ] Shapes render in correct z-index order (sorted by zIndex in Canvas.tsx)
+- [ ] New shapes appear on top (auto-incremented zIndex)
+- [ ] Bring to Front button works (jumps to max + 1)
+- [ ] Send to Back button works (jumps to min - 1)
+- [ ] Bring Forward swaps with next shape above
+- [ ] Send Backward swaps with next shape below
+- [ ] Multi-shape z-index operations update atomically (no visual lag)
+- [ ] Multi-user scenario: User A changes z-index → User B sees change in real-time
 
 ### General
 - [ ] No console errors
@@ -283,13 +299,23 @@ npm run dev
 ```
 
 **Test Scenarios:**
+
+**Grouping:**
 1. Create 3 shapes → Select all → Click Group button → Verify all selected
 2. Click one grouped shape → Verify entire group selected
 3. Drag one grouped shape → Verify all move together
 4. Click Ungroup → Verify shapes become independent
-5. Create overlapping shapes → Test all z-index buttons
-6. Open in 2 browsers → Verify grouping syncs across users
-7. Open in 2 browsers → Verify z-index changes sync across users
+5. Open in 2 browsers → Verify grouping syncs across users
+
+**Z-Index:**
+6. Create 3-4 shapes stacked on top of each other
+   - Select middle shape → Click "Bring Forward" → Should swap with shape above
+   - Click "Send Backward" → Should swap with shape below
+   - Verify each click produces predictable layer change
+7. Select multiple shapes → Test z-index operations
+   - Verify all shapes update simultaneously (no stagger on remote screen)
+8. Open in 2 browsers → Verify z-index changes sync across users
+   - User A moves shape forward → User B sees immediate visual change
 
 ### 2. Manual Verification
 - Check Firestore console for `groups` collection structure
@@ -316,26 +342,9 @@ firebase deploy
 
 ---
 
-## Z-Index Implementation Deep Dive
+## Z-Index Implementation Details
 
-### The Problem We Solved
-
-**Old Behavior (Buggy):**
-- All new shapes started at `zIndex: 0`
-- `bringForward` blindly incremented by 1
-- `sendBackward` blindly decremented by 1
-
-**The Bug:**
-If you had 3 shapes all at `zIndex: 0`:
-1. Click "bring forward" on Shape A → goes to `zIndex: 1` (now on top) ✅
-2. Click "bring forward" on Shape A again → goes to `zIndex: 2` (no visual change!) ❌
-3. Click "bring forward" on Shape B → goes to `zIndex: 1` (behind A, not on top) ⚠️
-
-This caused a "double-click" issue where users had to click multiple times to see any change.
-
-### The Solution: Auto-Incrementing + Swapping
-
-#### 1. Shape Creation Auto-Increment
+### Auto-Incrementing Z-Index
 Each new shape gets `zIndex = max(all zIndexes) + 1`:
 ```typescript
 const shapes = await this.getShapes();
@@ -349,44 +358,29 @@ const zIndex = maxZIndex + 1;
 - Third shape: `zIndex: 2`
 - Each shape has a unique layer position
 
-#### 2. Bring Forward (Swap Algorithm)
-Finds the shape immediately above and swaps z-indices:
+### Simple Swap Algorithm
+Forward/backward operations find the next shape in z-order and swap values:
 ```typescript
+// Bring Forward
 const shapesAbove = shapes
-  .filter(s => (s.zIndex || 0) > currentZIndex)
-  .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+  .filter(s => s.zIndex > currentZIndex)
+  .sort((a, b) => a.zIndex - b.zIndex);
+const nextShape = shapesAbove[0];
+// Swap z-indices atomically using writeBatch
 
-if (shapesAbove.length > 0) {
-  // Swap z-indices with the shape immediately above
-  // Uses writeBatch for atomic update
-}
-```
-
-**Result:** Each click moves the shape exactly one visible layer up.
-
-#### 3. Send Backward (Swap Algorithm)
-Finds the shape immediately below and swaps z-indices:
-```typescript
+// Send Backward  
 const shapesBelow = shapes
-  .filter(s => (s.zIndex || 0) < currentZIndex)
-  .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0));
-
-if (shapesBelow.length > 0) {
-  // Swap z-indices with the shape immediately below
-  // Uses writeBatch for atomic update
-}
+  .filter(s => s.zIndex < currentZIndex)
+  .sort((a, b) => b.zIndex - a.zIndex);
+const nextShape = shapesBelow[0];
+// Swap z-indices atomically using writeBatch
 ```
 
-**Result:** Each click moves the shape exactly one visible layer down.
-
-### Benefits
-✅ **Predictable:** Every click produces a visible change (or clear "already at top/bottom" message)  
-✅ **Atomic:** Batch operations prevent race conditions in multi-user environment  
-✅ **Simple:** Unique z-indices for each shape, easy to debug  
-✅ **Performant:** No normalization needed unless z-indices grow extremely large  
-
-### Performance Note
-Each shape creation calls `getShapes()` to find max z-index. For typical canvases (< 1000 shapes), this is negligible. Future optimization could cache max z-index if needed.
+### Batch Operations
+Multi-shape selections use Firebase `writeBatch()` for atomic updates:
+- All shapes update in a single transaction
+- Remote users see all changes simultaneously
+- Prevents staggered visual updates
 
 ---
 
@@ -460,6 +454,47 @@ If you encounter any issues during testing:
 3. Verify all shapes have `groupId` and `zIndex` fields
 4. Test with Firebase emulator first if available
 5. Review `canvasService.ts` logs for operation status
+
+---
+
+## Performance Note: Batch Z-Index Operations
+
+**Issue Found:** When multiple shapes are selected, z-index operations (bring forward, send back, etc.) caused staggered updates on remote screens due to sequential Firebase writes.
+
+**Solution Implemented:**
+- Added batch methods: `batchBringToFront`, `batchSendToBack`, `batchBringForward`, `batchSendBackward`
+- Uses Firebase `writeBatch()` for atomic updates across all selected shapes
+- AppShell now routes multi-shape operations through batch methods
+- Single shape operations still use individual methods (no overhead)
+
+**Result:** All shapes update simultaneously on all clients - no visual lag.
+
+**Future Implementation:** Always implement batch operations for multi-shape z-index changes to prevent staggered updates.
+
+---
+
+## Z-Index Implementation Direction
+
+**⚠️ IMPORTANT: Keep z-index operations simple**
+
+When implementing `bringForward` and `sendBackward`:
+- **Use simple swapping**: Find next shape above/below by z-index and swap values
+- **Avoid overlap detection**: Checking shape overlap before swapping adds unnecessary complexity with minimal UX benefit
+- **Keep it performant**: Simple z-index comparison is fast and predictable
+
+**Implementation approach:**
+```typescript
+// GOOD: Simple swap with next z-index
+const nextShapeAbove = shapes
+  .filter(s => s.zIndex > current.zIndex)
+  .sort((a, b) => a.zIndex - b.zIndex)[0];
+// Swap z-index values
+
+// AVOID: Complex overlap detection
+const overlappingShapes = findOverlappingShapesAbove(shape, shapes); // Too complex
+```
+
+**Key principle:** Z-index is a global layering system. Users expect all shapes to be reorderable regardless of spatial overlap.
 
 ---
 

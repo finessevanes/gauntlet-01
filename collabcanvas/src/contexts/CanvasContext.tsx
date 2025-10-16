@@ -78,6 +78,10 @@ interface CanvasContextType {
   sendToBack: (shapeId: string) => Promise<void>;
   bringForward: (shapeId: string) => Promise<void>;
   sendBackward: (shapeId: string) => Promise<void>;
+  batchBringToFront: (shapeIds: string[]) => Promise<void>;
+  batchSendToBack: (shapeIds: string[]) => Promise<void>;
+  batchBringForward: (shapeIds: string[]) => Promise<void>;
+  batchSendBackward: (shapeIds: string[]) => Promise<void>;
   
   // Loading state
   shapesLoading: boolean;
@@ -282,6 +286,23 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.sendBackward(shapeId);
   };
 
+  // Batch Z-Index operations (for multi-selection)
+  const batchBringToFront = async (shapeIds: string[]): Promise<void> => {
+    return await canvasService.batchBringToFront(shapeIds);
+  };
+
+  const batchSendToBack = async (shapeIds: string[]): Promise<void> => {
+    return await canvasService.batchSendToBack(shapeIds);
+  };
+
+  const batchBringForward = async (shapeIds: string[]): Promise<void> => {
+    return await canvasService.batchBringForward(shapeIds);
+  };
+
+  const batchSendBackward = async (shapeIds: string[]): Promise<void> => {
+    return await canvasService.batchSendBackward(shapeIds);
+  };
+
   const value = {
     selectedColor,
     setSelectedColor,
@@ -327,6 +348,10 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     sendToBack,
     bringForward,
     sendBackward,
+    batchBringToFront,
+    batchSendToBack,
+    batchBringForward,
+    batchSendBackward,
     shapesLoading,
   };
 

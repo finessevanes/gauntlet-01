@@ -24,6 +24,8 @@ interface CanvasContextType {
   setSelectedShapeId: (id: string | null) => void;
   selectedShapes: string[];
   setSelectedShapes: (shapes: string[]) => void;
+  lastClickedShapeId: string | null;
+  setLastClickedShapeId: (id: string | null) => void;
   
   // Other users' selections (for locking visibility)
   userSelections: Record<string, UserSelection>;
@@ -95,6 +97,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   const [activeTool, setActiveTool] = useState<ToolType>('select');
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
   const [selectedShapes, setSelectedShapes] = useState<string[]>([]);
+  const [lastClickedShapeId, setLastClickedShapeId] = useState<string | null>(null);
   const [userSelections, setUserSelections] = useState<Record<string, UserSelection>>({});
   const [isDrawMode, setIsDrawMode] = useState(false); // Deprecated: kept for backward compatibility
   const [isBombMode, setIsBombMode] = useState(false); // Deprecated: kept for backward compatibility
@@ -312,6 +315,8 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     setSelectedShapeId,
     selectedShapes,
     setSelectedShapes,
+    lastClickedShapeId,
+    setLastClickedShapeId,
     userSelections,
     setUserSelections,
     isDrawMode,

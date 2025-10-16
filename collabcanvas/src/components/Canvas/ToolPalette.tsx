@@ -319,7 +319,7 @@ export default function ToolPalette({
                 title="Ungroup shapes"
               >
                 <span style={{ fontSize: '18px' }}>
-                  ⛓️‍💥
+                  🔓
                 </span>
               </button>
             )}

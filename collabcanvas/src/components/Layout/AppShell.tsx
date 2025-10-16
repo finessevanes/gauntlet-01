@@ -21,6 +21,7 @@ export default function AppShell({ children }: AppShellProps) {
     setSelectedShapeId,
     selectedShapes,
     setSelectedShapes,
+    lastClickedShapeId,
     updateTextFormatting,
     updateTextFontSize,
     deleteShape,
@@ -262,6 +263,16 @@ export default function AppShell({ children }: AppShellProps) {
     try {
       await ungroupShapes(groupId);
       console.log('✅ Group ungrouped:', groupId);
+      
+      // After ungrouping, select only the last clicked shape
+      if (lastClickedShapeId && selectedShapes.includes(lastClickedShapeId)) {
+        console.log('🔵 Setting selection to last clicked shape:', lastClickedShapeId);
+        setSelectedShapes([lastClickedShapeId]);
+      } else {
+        // Fallback: clear selection if last clicked shape isn't available
+        setSelectedShapes([]);
+      }
+      
       toast.success('Shapes ungrouped', {
         duration: 1500,
         position: 'top-center',

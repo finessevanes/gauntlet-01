@@ -60,6 +60,7 @@ All core features have been implemented. Ready for testing and verification.
 - Clears `groupId` from all member shapes using batch write
 - Deletes the group document
 - All operations are atomic
+- **UI Integration:** After ungrouping, only the last clicked shape remains selected (uses `lastClickedShapeId` from CanvasContext)
 
 #### `getGroup(groupId: string): Promise<GroupData | null>`
 - Retrieves group data by ID
@@ -189,6 +190,8 @@ All core features have been implemented. Ready for testing and verification.
 **Handler Functions (AppShell.tsx):**
 - `handleGroup()` - Calls `groupShapes()` with selected shape IDs
 - `handleUngroup()` - Finds groupId from selection and calls `ungroupShapes()`
+  - **Selection Behavior:** After ungrouping, only the last clicked shape remains selected (tracked via `lastClickedShapeId` in CanvasContext)
+  - This prevents all group members from showing blue borders after ungroup
 - Both display success/error toasts
 
 ---

@@ -59,6 +59,8 @@ export default function Canvas() {
     setSelectedShapeId,
     selectedShapes,
     setSelectedShapes,
+    lastClickedShapeId,
+    setLastClickedShapeId,
     userSelections,
     editingTextId,
     setEditingTextId,
@@ -408,12 +410,16 @@ export default function Canvas() {
         groupId,
         shapeCount: groupShapes.length,
         shapeIds: groupShapes,
+        lastClickedShapeId: shapeId,
       });
       
       // Clear single selection if any
       if (selectedShapeId) {
         await handleDeselectShape();
       }
+      
+      // Track which shape was actually clicked
+      setLastClickedShapeId(shapeId);
       
       // Select all shapes in group
       setSelectedShapes(groupShapes);
@@ -451,6 +457,8 @@ export default function Canvas() {
         newSelection.push(shapeId);
       }
       
+      // Track the last clicked shape
+      setLastClickedShapeId(shapeId);
       setSelectedShapes(newSelection);
       
       // Log final selection state

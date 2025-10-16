@@ -706,20 +706,40 @@ export default function Canvas() {
     let centerX = node.x();
     let centerY = node.y();
     
-    // Constrain based on shape type
-    if (shape.type === 'circle' && shape.radius !== undefined) {
+    // Get dimensions (calculate for text, use stored values for others)
+    let width: number;
+    let height: number;
+    
+    if (shape.type === 'text') {
+      // Calculate text dimensions dynamically
+      const textContent = shape.text || '';
+      const textFontSize = shape.fontSize || 16;
+      const estimatedWidth = textContent.length * textFontSize * 0.6;
+      const estimatedHeight = textFontSize * 1.2;
+      const padding = 4;
+      width = estimatedWidth + padding * 2;
+      height = estimatedHeight + padding * 2;
+    } else if (shape.type === 'rectangle' || shape.type === 'triangle') {
+      width = shape.width;
+      height = shape.height;
+    } else if (shape.type === 'circle' && shape.radius !== undefined) {
       // Circle: constrain center to stay within canvas minus radius
       centerX = Math.max(shape.radius, Math.min(CANVAS_WIDTH - shape.radius, centerX));
       centerY = Math.max(shape.radius, Math.min(CANVAS_HEIGHT - shape.radius, centerY));
-    } else if (shape.type === 'rectangle' || shape.type === 'triangle') {
-      // Rectangle/Triangle: convert to top-left, constrain, then convert back
-      const topLeftX = centerX - shape.width / 2;
-      const topLeftY = centerY - shape.height / 2;
-      const constrainedTopLeftX = Math.max(0, Math.min(CANVAS_WIDTH - shape.width, topLeftX));
-      const constrainedTopLeftY = Math.max(0, Math.min(CANVAS_HEIGHT - shape.height, topLeftY));
-      centerX = constrainedTopLeftX + shape.width / 2;
-      centerY = constrainedTopLeftY + shape.height / 2;
+      node.x(centerX);
+      node.y(centerY);
+      return;
+    } else {
+      return;
     }
+    
+    // Constrain to canvas bounds
+    const topLeftX = centerX - width / 2;
+    const topLeftY = centerY - height / 2;
+    const constrainedTopLeftX = Math.max(0, Math.min(CANVAS_WIDTH - width, topLeftX));
+    const constrainedTopLeftY = Math.max(0, Math.min(CANVAS_HEIGHT - height, topLeftY));
+    centerX = constrainedTopLeftX + width / 2;
+    centerY = constrainedTopLeftY + height / 2;
     
     // Update position if constrained
     node.x(centerX);
@@ -754,6 +774,24 @@ export default function Canvas() {
       newY = Math.max(0, Math.min(CANVAS_HEIGHT - shape.height, newY));
       const finalCenterX = newX + shape.width / 2;
       const finalCenterY = newY + shape.height / 2;
+      node.x(finalCenterX);
+      node.y(finalCenterY);
+    } else if (shape.type === 'text') {
+      // For text, calculate dimensions dynamically then convert center to top-left
+      const textContent = shape.text || '';
+      const textFontSize = shape.fontSize || 16;
+      const estimatedWidth = textContent.length * textFontSize * 0.6;
+      const estimatedHeight = textFontSize * 1.2;
+      const padding = 4;
+      const width = estimatedWidth + padding * 2;
+      const height = estimatedHeight + padding * 2;
+      
+      newX = centerX - width / 2;
+      newY = centerY - height / 2;
+      newX = Math.max(0, Math.min(CANVAS_WIDTH - width, newX));
+      newY = Math.max(0, Math.min(CANVAS_HEIGHT - height, newY));
+      const finalCenterX = newX + width / 2;
+      const finalCenterY = newY + height / 2;
       node.x(finalCenterX);
       node.y(finalCenterY);
     } else {
@@ -1322,7 +1360,7 @@ export default function Canvas() {
     if (shape.type === 'circle') {
       centerX = shape.x;
       centerY = shape.y;
-    } else if (shape.type === 'rectangle' || shape.type === 'triangle') {
+    } else if (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text') {
       centerX = shape.x + shape.width / 2;
       centerY = shape.y + shape.height / 2;
     } else {
@@ -1373,7 +1411,7 @@ export default function Canvas() {
     if (shape.type === 'circle') {
       centerX = shape.x;
       centerY = shape.y;
-    } else if (shape.type === 'rectangle' || shape.type === 'triangle') {
+    } else if (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text') {
       centerX = shape.x + shape.width / 2;
       centerY = shape.y + shape.height / 2;
     } else {
@@ -1892,7 +1930,7 @@ export default function Canvas() {
                     centerX = 0;
                     centerY = 0;
                     handleY = -currentRadius - handleDistance;
-                  } else if ((shape.type === 'rectangle' || shape.type === 'triangle') && currentWidth !== undefined && currentHeight !== undefined) {
+                  } else if ((shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text') && currentWidth !== undefined && currentHeight !== undefined) {
                     centerX = currentWidth / 2;
                     centerY = currentHeight / 2;
                     handleY = -handleDistance;
@@ -2063,7 +2101,7 @@ export default function Canvas() {
             if (shape.type === 'circle' && shape.radius !== undefined) {
               centerX = shape.x;
               handleY = shape.y - shape.radius - handleDistance;
-            } else if (shape.type === 'rectangle' || shape.type === 'triangle') {
+            } else if (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text') {
               centerX = shape.x + shape.width / 2;
               handleY = shape.y - handleDistance;
             } else {

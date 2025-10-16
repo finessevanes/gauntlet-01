@@ -24,6 +24,8 @@ interface CanvasContextType {
   setSelectedShapeId: (id: string | null) => void;
   selectedShapes: string[];
   setSelectedShapes: (shapes: string[]) => void;
+  lastClickedShapeId: string | null;
+  setLastClickedShapeId: (id: string | null) => void;
   
   // Other users' selections (for locking visibility)
   userSelections: Record<string, UserSelection>;
@@ -69,6 +71,20 @@ interface CanvasContextType {
   updateTextFontSize: (shapeId: string, fontSize: number) => Promise<void>;
   updateTextFormatting: (shapeId: string, formatting: any) => Promise<void>;
   
+  // Grouping operations
+  groupShapes: (shapeIds: string[], userId: string, name?: string) => Promise<string>;
+  ungroupShapes: (groupId: string) => Promise<void>;
+  
+  // Z-Index operations
+  bringToFront: (shapeId: string) => Promise<void>;
+  sendToBack: (shapeId: string) => Promise<void>;
+  bringForward: (shapeId: string) => Promise<void>;
+  sendBackward: (shapeId: string) => Promise<void>;
+  batchBringToFront: (shapeIds: string[]) => Promise<void>;
+  batchSendToBack: (shapeIds: string[]) => Promise<void>;
+  batchBringForward: (shapeIds: string[]) => Promise<void>;
+  batchSendBackward: (shapeIds: string[]) => Promise<void>;
+  
   // Loading state
   shapesLoading: boolean;
 }
@@ -81,6 +97,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   const [activeTool, setActiveTool] = useState<ToolType>('select');
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
   const [selectedShapes, setSelectedShapes] = useState<string[]>([]);
+  const [lastClickedShapeId, setLastClickedShapeId] = useState<string | null>(null);
   const [userSelections, setUserSelections] = useState<Record<string, UserSelection>>({});
   const [isDrawMode, setIsDrawMode] = useState(false); // Deprecated: kept for backward compatibility
   const [isBombMode, setIsBombMode] = useState(false); // Deprecated: kept for backward compatibility
@@ -246,6 +263,49 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.updateTextFormatting(shapeId, formatting);
   };
 
+  // Grouping operations
+  const groupShapes = async (shapeIds: string[], userId: string, name?: string): Promise<string> => {
+    return await canvasService.groupShapes(shapeIds, userId, name);
+  };
+
+  const ungroupShapes = async (groupId: string): Promise<void> => {
+    return await canvasService.ungroupShapes(groupId);
+  };
+
+  // Z-Index operations
+  const bringToFront = async (shapeId: string): Promise<void> => {
+    return await canvasService.bringToFront(shapeId);
+  };
+
+  const sendToBack = async (shapeId: string): Promise<void> => {
+    return await canvasService.sendToBack(shapeId);
+  };
+
+  const bringForward = async (shapeId: string): Promise<void> => {
+    return await canvasService.bringForward(shapeId);
+  };
+
+  const sendBackward = async (shapeId: string): Promise<void> => {
+    return await canvasService.sendBackward(shapeId);
+  };
+
+  // Batch Z-Index operations (for multi-selection)
+  const batchBringToFront = async (shapeIds: string[]): Promise<void> => {
+    return await canvasService.batchBringToFront(shapeIds);
+  };
+
+  const batchSendToBack = async (shapeIds: string[]): Promise<void> => {
+    return await canvasService.batchSendToBack(shapeIds);
+  };
+
+  const batchBringForward = async (shapeIds: string[]): Promise<void> => {
+    return await canvasService.batchBringForward(shapeIds);
+  };
+
+  const batchSendBackward = async (shapeIds: string[]): Promise<void> => {
+    return await canvasService.batchSendBackward(shapeIds);
+  };
+
   const value = {
     selectedColor,
     setSelectedColor,
@@ -255,6 +315,8 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     setSelectedShapeId,
     selectedShapes,
     setSelectedShapes,
+    lastClickedShapeId,
+    setLastClickedShapeId,
     userSelections,
     setUserSelections,
     isDrawMode,
@@ -285,6 +347,16 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     updateText,
     updateTextFontSize,
     updateTextFormatting,
+    groupShapes,
+    ungroupShapes,
+    bringToFront,
+    sendToBack,
+    bringForward,
+    sendBackward,
+    batchBringToFront,
+    batchSendToBack,
+    batchBringForward,
+    batchSendBackward,
     shapesLoading,
   };
 

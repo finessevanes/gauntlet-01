@@ -4,6 +4,8 @@ interface StatusBarProps {
   cursorX?: number;
   cursorY?: number;
   zoom: number;
+  selectedShapes?: string[];
+  shapes?: Array<{ id: string; groupId: string | null }>;
 }
 
 export default function StatusBar({ 
@@ -11,8 +13,19 @@ export default function StatusBar({
   canvasHeight, 
   cursorX, 
   cursorY, 
-  zoom 
+  zoom,
+  selectedShapes = [],
+  shapes = []
 }: StatusBarProps) {
+  // Check if any selected shapes are grouped
+  const firstSelectedShape = selectedShapes.length > 0 
+    ? shapes.find(s => selectedShapes.includes(s.id))
+    : null;
+  
+  const hasGroupedShapes = firstSelectedShape?.groupId !== null && firstSelectedShape?.groupId !== undefined;
+  const groupId = hasGroupedShapes ? firstSelectedShape?.groupId : null;
+  const shapesInGroup = groupId ? shapes.filter(s => s.groupId === groupId).length : 0;
+
   return (
     <div style={styles.statusBar}>
       <div style={styles.statusSection}>
@@ -32,6 +45,15 @@ export default function StatusBar({
       <div style={styles.statusSection}>
         {Math.round(zoom * 100)}%
       </div>
+      {hasGroupedShapes && (
+        <>
+          <div style={styles.divider} />
+          <div style={styles.groupedStatusSection}>
+            <span style={{ fontSize: '12px', marginRight: '4px' }}>🔒</span>
+            {shapesInGroup} {shapesInGroup === 1 ? 'shape' : 'shapes'} grouped
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -59,6 +81,15 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     color: '#000000',
+  },
+  groupedStatusSection: {
+    padding: '0 8px',
+    height: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    backgroundColor: '#0066cc',
+    color: '#ffffff',
+    fontWeight: 500,
   },
   divider: {
     width: '1px',

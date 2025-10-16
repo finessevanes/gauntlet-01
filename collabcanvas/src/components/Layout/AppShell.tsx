@@ -21,12 +21,23 @@ export default function AppShell({ children }: AppShellProps) {
     setSelectedShapeId,
     selectedShapes,
     setSelectedShapes,
+    lastClickedShapeId,
     updateTextFormatting,
     updateTextFontSize,
     deleteShape,
     duplicateShape,
     unlockShape,
-    lockShape
+    lockShape,
+    groupShapes,
+    ungroupShapes,
+    bringToFront,
+    sendToBack,
+    bringForward,
+    sendBackward,
+    batchBringToFront,
+    batchSendToBack,
+    batchBringForward,
+    batchSendBackward
   } = useCanvasContext();
 
   // Get the currently selected shape
@@ -216,6 +227,186 @@ export default function AppShell({ children }: AppShellProps) {
     }
   };
 
+  // Grouping handlers
+  const handleGroup = async () => {
+    if (!user || selectedShapes.length < 2) return;
+    
+    try {
+      const groupId = await groupShapes(selectedShapes, user.uid);
+      console.log('✅ Group created:', groupId);
+      toast.success(`${selectedShapes.length} shapes grouped`, {
+        duration: 1500,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to group shapes:', error);
+      toast.error('Failed to group shapes', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  const handleUngroup = async () => {
+    if (!user || selectedShapes.length === 0) return;
+    
+    // Find groupId from selected shapes
+    const groupId = shapes.find(s => selectedShapes.includes(s.id))?.groupId;
+    if (!groupId) {
+      toast.error('No group to ungroup', {
+        duration: 2000,
+        position: 'top-center',
+      });
+      return;
+    }
+    
+    try {
+      await ungroupShapes(groupId);
+      console.log('✅ Group ungrouped:', groupId);
+      
+      // After ungrouping, select only the last clicked shape
+      if (lastClickedShapeId && selectedShapes.includes(lastClickedShapeId)) {
+        console.log('🔵 Setting selection to last clicked shape:', lastClickedShapeId);
+        setSelectedShapes([lastClickedShapeId]);
+      } else {
+        // Fallback: clear selection if last clicked shape isn't available
+        setSelectedShapes([]);
+      }
+      
+      toast.success('Shapes ungrouped', {
+        duration: 1500,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to ungroup shapes:', error);
+      toast.error('Failed to ungroup shapes', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  // Z-Index handlers
+  const handleBringToFront = async () => {
+    // Handle both single and multi-selection
+    const targetIds = selectedShapes.length > 0 ? selectedShapes : (selectedShapeId ? [selectedShapeId] : []);
+    if (targetIds.length === 0) return;
+    
+    try {
+      // Use batch operation for multiple shapes (atomic update)
+      if (targetIds.length > 1) {
+        await batchBringToFront(targetIds);
+      } else {
+        await bringToFront(targetIds[0]);
+      }
+      
+      const message = targetIds.length > 1 
+        ? `${targetIds.length} shapes brought to front`
+        : 'Brought to front';
+      
+      toast.success(message, {
+        duration: 1000,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to bring to front:', error);
+      toast.error('Failed to bring to front', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  const handleSendToBack = async () => {
+    // Handle both single and multi-selection
+    const targetIds = selectedShapes.length > 0 ? selectedShapes : (selectedShapeId ? [selectedShapeId] : []);
+    if (targetIds.length === 0) return;
+    
+    try {
+      // Use batch operation for multiple shapes (atomic update)
+      if (targetIds.length > 1) {
+        await batchSendToBack(targetIds);
+      } else {
+        await sendToBack(targetIds[0]);
+      }
+      
+      const message = targetIds.length > 1 
+        ? `${targetIds.length} shapes sent to back`
+        : 'Sent to back';
+      
+      toast.success(message, {
+        duration: 1000,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to send to back:', error);
+      toast.error('Failed to send to back', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  const handleBringForward = async () => {
+    // Handle both single and multi-selection
+    const targetIds = selectedShapes.length > 0 ? selectedShapes : (selectedShapeId ? [selectedShapeId] : []);
+    if (targetIds.length === 0) return;
+    
+    try {
+      // Use batch operation for multiple shapes (atomic update)
+      if (targetIds.length > 1) {
+        await batchBringForward(targetIds);
+      } else {
+        await bringForward(targetIds[0]);
+      }
+      
+      const message = targetIds.length > 1 
+        ? `${targetIds.length} shapes brought forward`
+        : 'Brought forward';
+      
+      toast.success(message, {
+        duration: 1000,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to bring forward:', error);
+      toast.error('Failed to bring forward', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
+  const handleSendBackward = async () => {
+    // Handle both single and multi-selection
+    const targetIds = selectedShapes.length > 0 ? selectedShapes : (selectedShapeId ? [selectedShapeId] : []);
+    if (targetIds.length === 0) return;
+    
+    try {
+      // Use batch operation for multiple shapes (atomic update)
+      if (targetIds.length > 1) {
+        await batchSendBackward(targetIds);
+      } else {
+        await sendBackward(targetIds[0]);
+      }
+      
+      const message = targetIds.length > 1 
+        ? `${targetIds.length} shapes sent backward`
+        : 'Sent backward';
+      
+      toast.success(message, {
+        duration: 1000,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('❌ Failed to send backward:', error);
+      toast.error('Failed to send backward', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+  };
+
   return (
     <div style={styles.appShell}>
       <PaintTitleBar />
@@ -228,6 +419,12 @@ export default function AppShell({ children }: AppShellProps) {
         onChangeFontSize={handleChangeFontSize}
         onDelete={handleDelete}
         onDuplicate={handleDuplicate}
+        onGroup={handleGroup}
+        onUngroup={handleUngroup}
+        onBringToFront={handleBringToFront}
+        onSendToBack={handleSendToBack}
+        onBringForward={handleBringForward}
+        onSendBackward={handleSendBackward}
         textFormattingDisabled={textFormattingDisabled}
       />
       <div style={styles.mainArea}>
@@ -240,6 +437,8 @@ export default function AppShell({ children }: AppShellProps) {
         canvasWidth={CANVAS_WIDTH}
         canvasHeight={CANVAS_HEIGHT}
         zoom={stageScale}
+        selectedShapes={selectedShapes}
+        shapes={shapes}
       />
     </div>
   );

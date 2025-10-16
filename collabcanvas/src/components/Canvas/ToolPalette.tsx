@@ -19,6 +19,12 @@ interface ToolPaletteProps {
   onChangeFontSize?: (size: number) => void;
   onDelete?: () => void;
   onDuplicate?: () => void;
+  onGroup?: () => void;
+  onUngroup?: () => void;
+  onBringToFront?: () => void;
+  onSendToBack?: () => void;
+  onBringForward?: () => void;
+  onSendBackward?: () => void;
   textFormattingDisabled?: boolean;
 }
 
@@ -31,6 +37,12 @@ export default function ToolPalette({
   onChangeFontSize,
   onDelete,
   onDuplicate,
+  onGroup,
+  onUngroup,
+  onBringToFront,
+  onSendToBack,
+  onBringForward,
+  onSendBackward,
   textFormattingDisabled = false
 }: ToolPaletteProps) {
   const { 
@@ -38,7 +50,8 @@ export default function ToolPalette({
     setActiveTool,
     setIsDrawMode, 
     setIsBombMode, 
-    selectedColor 
+    selectedColor,
+    shapes
   } = useCanvasContext();
   
   const [isChanging, setIsChanging] = useState(false);
@@ -253,6 +266,131 @@ export default function ToolPalette({
           </span>
         </button>
       </div>
+
+      {/* Grouping Controls */}
+      {(() => {
+        const hasGroupedShapes = selectedShapes.length > 0 && shapes.filter(s => selectedShapes.includes(s.id)).some(s => s.groupId);
+        const canGroup = selectedShapes.length >= 2 && !hasGroupedShapes;
+        
+        if (!hasGroupedShapes && !canGroup) return null;
+        
+        return (
+          <div style={styles.shapeActionsSection}>
+            {/* Group Button - shown as selected (blue) when shapes are grouped */}
+            {hasGroupedShapes ? (
+              <button
+                disabled
+                style={{
+                  ...styles.actionButton,
+                  backgroundColor: '#0066cc',
+                  color: '#ffffff',
+                  boxShadow: 'inset 1px 1px 0 0 #004499, inset -1px -1px 0 0 #0088ff',
+                  cursor: 'default',
+                }}
+                title="Shapes are grouped"
+              >
+                <span style={{ fontSize: '18px' }}>
+                  🔒
+                </span>
+              </button>
+            ) : (
+              <button
+                onClick={onGroup}
+                disabled={isChanging}
+                style={{
+                  ...styles.actionButton,
+                }}
+                title={`Group ${selectedShapes.length} shapes`}
+              >
+                <span style={{ fontSize: '18px' }}>
+                  🔒
+                </span>
+              </button>
+            )}
+            
+            {/* Ungroup Button - only show when shapes are grouped */}
+            {hasGroupedShapes && (
+              <button
+                onClick={onUngroup}
+                disabled={isChanging}
+                style={{
+                  ...styles.actionButton,
+                }}
+                title="Ungroup shapes"
+              >
+                <span style={{ fontSize: '18px' }}>
+                  🔓
+                </span>
+              </button>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Z-Index Controls - show when shape(s) are selected */}
+      {(selectedShape || selectedShapes.length > 0) && (
+        <div style={styles.layerSection}>
+          <div style={styles.layerLabel}>Layer Order</div>
+          {/* Row 1: To Front and To Back */}
+          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+            <button
+              onClick={onBringToFront}
+              disabled={isChanging}
+              style={{
+                ...styles.zIndexButton,
+              }}
+              title="Bring to Front"
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                <span style={{ fontSize: '16px' }}>⬆️</span>
+                <span style={{ fontSize: '9px', fontWeight: 'bold' }}>Front</span>
+              </div>
+            </button>
+            <button
+              onClick={onSendToBack}
+              disabled={isChanging}
+              style={{
+                ...styles.zIndexButton,
+              }}
+              title="Send to Back"
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                <span style={{ fontSize: '16px' }}>⬇️</span>
+                <span style={{ fontSize: '9px', fontWeight: 'bold' }}>Back</span>
+              </div>
+            </button>
+          </div>
+          {/* Row 2: Forward and Backward */}
+          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+            <button
+              onClick={onBringForward}
+              disabled={isChanging}
+              style={{
+                ...styles.zIndexButton,
+              }}
+              title="Bring Forward (one layer up)"
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                <span style={{ fontSize: '16px' }}>⬆️</span>
+                <span style={{ fontSize: '9px', fontWeight: 'bold' }}>+1</span>
+              </div>
+            </button>
+            <button
+              onClick={onSendBackward}
+              disabled={isChanging}
+              style={{
+                ...styles.zIndexButton,
+              }}
+              title="Send Backward (one layer down)"
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                <span style={{ fontSize: '16px' }}>⬇️</span>
+                <span style={{ fontSize: '9px', fontWeight: 'bold' }}>-1</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Text Formatting Controls - always visible, disabled when no text is selected */}
       <div style={styles.textFormattingSection}>
@@ -484,6 +622,38 @@ const styles = {
     borderRadius: '3px',
     boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
     transition: 'none',
+  },
+  zIndexButton: {
+    width: '54px',
+    height: '48px',
+    backgroundColor: '#d8d8d8',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '10px',
+    padding: '4px',
+    borderRadius: '3px',
+    boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
+    transition: 'none',
+  },
+  layerSection: {
+    marginTop: '12px',
+    paddingTop: '12px',
+    borderTop: '1px solid #a0a0a0',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '6px',
+  },
+  layerLabel: {
+    fontSize: '11px',
+    fontWeight: 'bold' as const,
+    color: '#555',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.5px',
+    textAlign: 'center' as const,
+    marginBottom: '4px',
   },
   textFormattingSection: {
     marginTop: '12px',

@@ -59,6 +59,7 @@ export default function Canvas() {
     setSelectedShapeId,
     selectedShapes,
     setSelectedShapes,
+    setLastClickedShapeId,
     userSelections,
     editingTextId,
     setEditingTextId,
@@ -397,6 +398,33 @@ export default function Canvas() {
       return;
     }
 
+    // Check if shape belongs to a group
+    const clickedShape = shapes.find(s => s.id === shapeId);
+    const groupId = clickedShape?.groupId;
+    
+    // If shape is part of a group, select entire group
+    if (groupId && !event?.shiftKey) {
+      const groupShapes = shapes.filter(s => s.groupId === groupId).map(s => s.id);
+      console.log('🔵 GROUP SELECT - Selecting entire group:', {
+        groupId,
+        shapeCount: groupShapes.length,
+        shapeIds: groupShapes,
+        lastClickedShapeId: shapeId,
+      });
+      
+      // Clear single selection if any
+      if (selectedShapeId) {
+        await handleDeselectShape();
+      }
+      
+      // Track which shape was actually clicked
+      setLastClickedShapeId(shapeId);
+      
+      // Select all shapes in group
+      setSelectedShapes(groupShapes);
+      return;
+    }
+
     // Check if Shift key is held for multi-select
     const isShiftHeld = event?.shiftKey || false;
 
@@ -428,6 +456,8 @@ export default function Canvas() {
         newSelection.push(shapeId);
       }
       
+      // Track the last clicked shape
+      setLastClickedShapeId(shapeId);
       setSelectedShapes(newSelection);
       
       // Log final selection state
@@ -1602,8 +1632,11 @@ export default function Canvas() {
             strokeWidth={1}
           />
 
-          {/* Render all shapes from Firestore */}
-          {!shapesLoading && shapes.map((shape) => {
+          {/* Render all shapes from Firestore (sorted by zIndex) */}
+          {!shapesLoading && shapes
+            .slice()
+            .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
+            .map((shape) => {
             const lockStatus = getShapeLockStatus(shape, user, selectedShapeId);
             const isLockedByMe = lockStatus === 'locked-by-me';
             const isSelected = selectedShapeId === shape.id;

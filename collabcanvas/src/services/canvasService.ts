@@ -14,6 +14,7 @@ import {
 import type { Timestamp, Unsubscribe } from 'firebase/firestore';
 import { firestore } from '../firebase';
 import { MIN_SHAPE_WIDTH, MIN_SHAPE_HEIGHT } from '../utils/constants';
+import { findOverlappingShapesAbove, findOverlappingShapesBelow } from '../utils/overlapDetection';
 
 // Shape data types
 export interface ShapeData {
@@ -33,6 +34,9 @@ export interface ShapeData {
   fontWeight?: 'normal' | 'bold';
   fontStyle?: 'normal' | 'italic';
   textDecoration?: 'none' | 'underline';
+  // Grouping and layering fields
+  groupId: string | null;
+  zIndex: number;
   createdBy: string;
   createdAt: Timestamp | null;
   lockedBy: string | null;
@@ -40,11 +44,24 @@ export interface ShapeData {
   updatedAt: Timestamp | null;
 }
 
-export type ShapeCreateInput = Omit<ShapeData, 'id' | 'createdAt' | 'updatedAt' | 'lockedBy' | 'lockedAt'>;
+// Group data types
+export interface GroupData {
+  id: string;
+  name: string;
+  shapeIds: string[];
+  createdBy: string;
+  createdAt: Timestamp | null;
+}
+
+export type ShapeCreateInput = Omit<ShapeData, 'id' | 'createdAt' | 'updatedAt' | 'lockedBy' | 'lockedAt' | 'groupId' | 'zIndex'> & {
+  groupId?: string | null;
+  zIndex?: number;
+};
 export type ShapeUpdateInput = Partial<Pick<ShapeData, 'x' | 'y' | 'width' | 'height' | 'color' | 'rotation'>>;
 
 class CanvasService {
   private shapesCollectionPath = 'canvases/main/shapes';
+  private groupsCollectionPath = 'canvases/main/groups';
   private canvasDocPath = 'canvases/main';
 
   /**
@@ -70,9 +87,19 @@ class CanvasService {
       // Generate a unique ID for the shape
       const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
       
+      // Auto-increment z-index: new shapes appear on top by default
+      let zIndex = shapeInput.zIndex;
+      if (zIndex === undefined) {
+        const shapes = await this.getShapes();
+        const maxZIndex = shapes.length > 0 ? Math.max(...shapes.map(s => s.zIndex || 0)) : -1;
+        zIndex = maxZIndex + 1;
+      }
+      
       const shapeData: Omit<ShapeData, 'id'> = {
         ...shapeInput,
         rotation: shapeInput.rotation ?? 0,
+        groupId: shapeInput.groupId ?? null,
+        zIndex,
         createdAt: serverTimestamp() as Timestamp,
         lockedBy: null,
         lockedAt: null,
@@ -82,6 +109,7 @@ class CanvasService {
       const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
       await setDoc(shapeRef, shapeData);
 
+      console.log(`✅ Shape created with zIndex: ${zIndex}`);
       return shapeId;
     } catch (error) {
       console.error('❌ Error creating shape:', error);
@@ -357,6 +385,11 @@ class CanvasService {
       const width = estimatedWidth + padding * 2;
       const height = estimatedHeight + padding * 2;
       
+      // Auto-increment z-index: new shapes appear on top by default
+      const shapes = await this.getShapes();
+      const maxZIndex = shapes.length > 0 ? Math.max(...shapes.map(s => s.zIndex || 0)) : -1;
+      const zIndex = maxZIndex + 1;
+      
       const textData: Omit<ShapeData, 'id'> = {
         type: 'text',
         text,
@@ -370,6 +403,8 @@ class CanvasService {
         fontStyle: options?.fontStyle || 'normal',
         textDecoration: options?.textDecoration || 'none',
         rotation: 0,
+        groupId: null,
+        zIndex,
         createdBy,
         createdAt: serverTimestamp() as Timestamp,
         lockedBy: null,
@@ -521,6 +556,11 @@ class CanvasService {
       // Generate a unique ID for the circle
       const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
       
+      // Auto-increment z-index: new shapes appear on top by default
+      const shapes = await this.getShapes();
+      const maxZIndex = shapes.length > 0 ? Math.max(...shapes.map(s => s.zIndex || 0)) : -1;
+      const zIndex = maxZIndex + 1;
+      
       const shapeData: Omit<ShapeData, 'id'> = {
         type: 'circle',
         x: circleData.x,
@@ -530,6 +570,8 @@ class CanvasService {
         radius: circleData.radius,
         color: circleData.color,
         rotation: 0,
+        groupId: null,
+        zIndex,
         createdBy: circleData.createdBy,
         createdAt: serverTimestamp() as Timestamp,
         lockedBy: null,
@@ -566,6 +608,11 @@ class CanvasService {
       // Generate a unique ID for the triangle
       const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
       
+      // Auto-increment z-index: new shapes appear on top by default
+      const shapes = await this.getShapes();
+      const maxZIndex = shapes.length > 0 ? Math.max(...shapes.map(s => s.zIndex || 0)) : -1;
+      const zIndex = maxZIndex + 1;
+      
       const shapeData: Omit<ShapeData, 'id'> = {
         type: 'triangle',
         x: triangleData.x,
@@ -574,6 +621,8 @@ class CanvasService {
         height: triangleData.height,
         color: triangleData.color,
         rotation: 0,
+        groupId: null,
+        zIndex,
         createdBy: triangleData.createdBy,
         createdAt: serverTimestamp() as Timestamp,
         lockedBy: null,
@@ -651,6 +700,8 @@ class CanvasService {
         height: originalShape.height,
         color: originalShape.color,
         rotation: originalShape.rotation,
+        groupId: null, // Don't copy group membership
+        // zIndex will auto-increment in createShape, putting duplicate on top
         createdBy: userId,
       };
 
@@ -672,6 +723,457 @@ class CanvasService {
       return newShapeId;
     } catch (error) {
       console.error('❌ Error duplicating shape:', error);
+      throw error;
+    }
+  }
+
+  // ============================================
+  // Grouping Methods
+  // ============================================
+
+  /**
+   * Group multiple shapes together
+   */
+  async groupShapes(shapeIds: string[], userId: string, name?: string): Promise<string> {
+    try {
+      if (shapeIds.length < 2) {
+        throw new Error('At least 2 shapes are required to create a group');
+      }
+
+      // Ensure parent document exists
+      await this.ensureCanvasDocExists();
+      
+      // Generate a unique ID for the group
+      const groupId = doc(collection(firestore, this.groupsCollectionPath)).id;
+      
+      const groupData: Omit<GroupData, 'id'> = {
+        name: name || `Group ${groupId.slice(0, 6)}`,
+        shapeIds,
+        createdBy: userId,
+        createdAt: serverTimestamp() as Timestamp,
+      };
+
+      // Create group document
+      const groupRef = doc(firestore, this.groupsCollectionPath, groupId);
+      await setDoc(groupRef, groupData);
+
+      // Update all shapes with groupId via batch write
+      const batch = writeBatch(firestore);
+      
+      for (const shapeId of shapeIds) {
+        const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+        batch.update(shapeRef, {
+          groupId,
+          updatedAt: serverTimestamp(),
+        });
+      }
+      
+      await batch.commit();
+      
+      console.log(`✅ Group created: ${groupId} with ${shapeIds.length} shapes`);
+      return groupId;
+    } catch (error) {
+      console.error('❌ Error creating group:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Ungroup shapes (dissolve group)
+   */
+  async ungroupShapes(groupId: string): Promise<void> {
+    try {
+      // Get group document
+      const groupRef = doc(firestore, this.groupsCollectionPath, groupId);
+      const groupSnap = await getDoc(groupRef);
+      
+      if (!groupSnap.exists()) {
+        throw new Error('Group not found');
+      }
+
+      const groupData = groupSnap.data() as GroupData;
+      
+      // Clear groupId from all shapes via batch write
+      const batch = writeBatch(firestore);
+      
+      for (const shapeId of groupData.shapeIds) {
+        const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+        batch.update(shapeRef, {
+          groupId: null,
+          updatedAt: serverTimestamp(),
+        });
+      }
+      
+      // Delete group document
+      batch.delete(groupRef);
+      
+      await batch.commit();
+      
+      console.log(`✅ Group ungrouped: ${groupId} (${groupData.shapeIds.length} shapes)`);
+    } catch (error) {
+      console.error('❌ Error ungrouping shapes:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get group by ID
+   */
+  async getGroup(groupId: string): Promise<GroupData | null> {
+    try {
+      const groupRef = doc(firestore, this.groupsCollectionPath, groupId);
+      const groupSnap = await getDoc(groupRef);
+      
+      if (!groupSnap.exists()) {
+        return null;
+      }
+
+      return {
+        id: groupSnap.id,
+        ...groupSnap.data(),
+      } as GroupData;
+    } catch (error) {
+      console.error('❌ Error fetching group:', error);
+      return null;
+    }
+  }
+
+  // ============================================
+  // Z-Index Methods
+  // ============================================
+
+  /**
+   * Bring shape to front (set zIndex to max+1)
+   */
+  async bringToFront(shapeId: string): Promise<void> {
+    try {
+      // Get all shapes to find max zIndex
+      const shapes = await this.getShapes();
+      const maxZIndex = Math.max(...shapes.map(s => s.zIndex || 0), 0);
+      
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await updateDoc(shapeRef, {
+        zIndex: maxZIndex + 1,
+        updatedAt: serverTimestamp(),
+      });
+
+      console.log(`✅ Shape brought to front: ${shapeId} (zIndex: ${maxZIndex + 1})`);
+    } catch (error) {
+      console.error('❌ Error bringing shape to front:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Bring multiple shapes to front atomically (batch operation)
+   */
+  async batchBringToFront(shapeIds: string[]): Promise<void> {
+    try {
+      if (shapeIds.length === 0) return;
+      
+      // Get all shapes to find max zIndex
+      const shapes = await this.getShapes();
+      let maxZIndex = Math.max(...shapes.map(s => s.zIndex || 0), 0);
+      
+      const batch = writeBatch(firestore);
+      
+      // Assign incrementing z-indices starting from max+1
+      for (const shapeId of shapeIds) {
+        maxZIndex++;
+        const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+        batch.update(shapeRef, {
+          zIndex: maxZIndex,
+          updatedAt: serverTimestamp(),
+        });
+      }
+      
+      await batch.commit();
+      
+      console.log(`✅ Batch brought ${shapeIds.length} shapes to front atomically`);
+    } catch (error) {
+      console.error('❌ Error batch bringing shapes to front:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send shape to back (set zIndex to min-1)
+   */
+  async sendToBack(shapeId: string): Promise<void> {
+    try {
+      // Get all shapes to find min zIndex
+      const shapes = await this.getShapes();
+      const minZIndex = Math.min(...shapes.map(s => s.zIndex || 0), 0);
+      
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await updateDoc(shapeRef, {
+        zIndex: minZIndex - 1,
+        updatedAt: serverTimestamp(),
+      });
+
+      console.log(`✅ Shape sent to back: ${shapeId} (zIndex: ${minZIndex - 1})`);
+    } catch (error) {
+      console.error('❌ Error sending shape to back:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send multiple shapes to back atomically (batch operation)
+   */
+  async batchSendToBack(shapeIds: string[]): Promise<void> {
+    try {
+      if (shapeIds.length === 0) return;
+      
+      // Get all shapes to find min zIndex
+      const shapes = await this.getShapes();
+      let minZIndex = Math.min(...shapes.map(s => s.zIndex || 0), 0);
+      
+      const batch = writeBatch(firestore);
+      
+      // Assign decrementing z-indices starting from min-1 (in reverse order)
+      for (let i = shapeIds.length - 1; i >= 0; i--) {
+        minZIndex--;
+        const shapeRef = doc(firestore, this.shapesCollectionPath, shapeIds[i]);
+        batch.update(shapeRef, {
+          zIndex: minZIndex,
+          updatedAt: serverTimestamp(),
+        });
+      }
+      
+      await batch.commit();
+      
+      console.log(`✅ Batch sent ${shapeIds.length} shapes to back atomically`);
+    } catch (error) {
+      console.error('❌ Error batch sending shapes to back:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Bring shape forward (swap with overlapping shape immediately above)
+   * Only considers shapes that actually overlap with the target shape
+   */
+  async bringForward(shapeId: string): Promise<void> {
+    try {
+      const shapes = await this.getShapes();
+      const currentShape = shapes.find(s => s.id === shapeId);
+      
+      if (!currentShape) {
+        throw new Error('Shape not found');
+      }
+
+      const currentZIndex = currentShape.zIndex || 0;
+      
+      // Find overlapping shapes above (sorted by z-index ascending)
+      const overlappingShapesAbove = findOverlappingShapesAbove(currentShape, shapes);
+      
+      if (overlappingShapesAbove.length === 0) {
+        // No overlapping shapes above - check if there are any shapes above at all
+        const anyShapesAbove = shapes.filter(s => (s.zIndex || 0) > currentZIndex);
+        
+        if (anyShapesAbove.length === 0) {
+          console.log(`ℹ️ Shape ${shapeId} is already at the top`);
+        } else {
+          console.log(`ℹ️ No overlapping shapes above ${shapeId} - no visual change would occur`);
+        }
+        return;
+      }
+
+      // Get the overlapping shape immediately above (lowest z-index among overlapping shapes above)
+      const shapeAbove = overlappingShapesAbove[0];
+      const shapeAboveZIndex = shapeAbove.zIndex || 0;
+
+      // Swap z-indices atomically
+      const batch = writeBatch(firestore);
+      
+      const currentShapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      batch.update(currentShapeRef, {
+        zIndex: shapeAboveZIndex,
+        updatedAt: serverTimestamp(),
+      });
+      
+      const shapeAboveRef = doc(firestore, this.shapesCollectionPath, shapeAbove.id);
+      batch.update(shapeAboveRef, {
+        zIndex: currentZIndex,
+        updatedAt: serverTimestamp(),
+      });
+      
+      await batch.commit();
+      
+      console.log(`✅ Shape brought forward: ${shapeId} (${currentZIndex} → ${shapeAboveZIndex}), swapped with overlapping shape ${shapeAbove.id}`);
+    } catch (error) {
+      console.error('❌ Error bringing shape forward:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Bring multiple shapes forward atomically (batch operation)
+   * For each shape, swaps with overlapping shapes immediately above
+   */
+  async batchBringForward(shapeIds: string[]): Promise<void> {
+    try {
+      if (shapeIds.length === 0) return;
+      
+      const shapes = await this.getShapes();
+      const batch = writeBatch(firestore);
+      let swapCount = 0;
+      
+      // Process each shape
+      for (const shapeId of shapeIds) {
+        const currentShape = shapes.find(s => s.id === shapeId);
+        if (!currentShape) continue;
+        
+        const currentZIndex = currentShape.zIndex || 0;
+        const overlappingShapesAbove = findOverlappingShapesAbove(currentShape, shapes);
+        
+        if (overlappingShapesAbove.length === 0) continue;
+        
+        // Find the first overlapping shape above that's not in our selection
+        const shapeAbove = overlappingShapesAbove.find(s => !shapeIds.includes(s.id));
+        if (!shapeAbove) continue;
+        
+        const shapeAboveZIndex = shapeAbove.zIndex || 0;
+        
+        // Swap z-indices
+        const currentShapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+        batch.update(currentShapeRef, {
+          zIndex: shapeAboveZIndex,
+          updatedAt: serverTimestamp(),
+        });
+        
+        const shapeAboveRef = doc(firestore, this.shapesCollectionPath, shapeAbove.id);
+        batch.update(shapeAboveRef, {
+          zIndex: currentZIndex,
+          updatedAt: serverTimestamp(),
+        });
+        
+        swapCount++;
+      }
+      
+      if (swapCount > 0) {
+        await batch.commit();
+        console.log(`✅ Batch brought ${shapeIds.length} shapes forward atomically (${swapCount} swaps)`);
+      } else {
+        console.log(`ℹ️ No overlapping shapes to swap forward`);
+      }
+    } catch (error) {
+      console.error('❌ Error batch bringing shapes forward:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send shape backward (swap with overlapping shape immediately below)
+   * Only considers shapes that actually overlap with the target shape
+   */
+  async sendBackward(shapeId: string): Promise<void> {
+    try {
+      const shapes = await this.getShapes();
+      const currentShape = shapes.find(s => s.id === shapeId);
+      
+      if (!currentShape) {
+        throw new Error('Shape not found');
+      }
+
+      const currentZIndex = currentShape.zIndex || 0;
+      
+      // Find overlapping shapes below (sorted by z-index descending)
+      const overlappingShapesBelow = findOverlappingShapesBelow(currentShape, shapes);
+      
+      if (overlappingShapesBelow.length === 0) {
+        // No overlapping shapes below - check if there are any shapes below at all
+        const anyShapesBelow = shapes.filter(s => (s.zIndex || 0) < currentZIndex);
+        
+        if (anyShapesBelow.length === 0) {
+          console.log(`ℹ️ Shape ${shapeId} is already at the bottom`);
+        } else {
+          console.log(`ℹ️ No overlapping shapes below ${shapeId} - no visual change would occur`);
+        }
+        return;
+      }
+
+      // Get the overlapping shape immediately below (highest z-index among overlapping shapes below)
+      const shapeBelow = overlappingShapesBelow[0];
+      const shapeBelowZIndex = shapeBelow.zIndex || 0;
+
+      // Swap z-indices atomically
+      const batch = writeBatch(firestore);
+      
+      const currentShapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      batch.update(currentShapeRef, {
+        zIndex: shapeBelowZIndex,
+        updatedAt: serverTimestamp(),
+      });
+      
+      const shapeBelowRef = doc(firestore, this.shapesCollectionPath, shapeBelow.id);
+      batch.update(shapeBelowRef, {
+        zIndex: currentZIndex,
+        updatedAt: serverTimestamp(),
+      });
+      
+      await batch.commit();
+      
+      console.log(`✅ Shape sent backward: ${shapeId} (${currentZIndex} → ${shapeBelowZIndex}), swapped with overlapping shape ${shapeBelow.id}`);
+    } catch (error) {
+      console.error('❌ Error sending shape backward:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send multiple shapes backward atomically (batch operation)
+   * For each shape, swaps with overlapping shapes immediately below
+   */
+  async batchSendBackward(shapeIds: string[]): Promise<void> {
+    try {
+      if (shapeIds.length === 0) return;
+      
+      const shapes = await this.getShapes();
+      const batch = writeBatch(firestore);
+      let swapCount = 0;
+      
+      // Process each shape
+      for (const shapeId of shapeIds) {
+        const currentShape = shapes.find(s => s.id === shapeId);
+        if (!currentShape) continue;
+        
+        const currentZIndex = currentShape.zIndex || 0;
+        const overlappingShapesBelow = findOverlappingShapesBelow(currentShape, shapes);
+        
+        if (overlappingShapesBelow.length === 0) continue;
+        
+        // Find the first overlapping shape below that's not in our selection
+        const shapeBelow = overlappingShapesBelow.find(s => !shapeIds.includes(s.id));
+        if (!shapeBelow) continue;
+        
+        const shapeBelowZIndex = shapeBelow.zIndex || 0;
+        
+        // Swap z-indices
+        const currentShapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+        batch.update(currentShapeRef, {
+          zIndex: shapeBelowZIndex,
+          updatedAt: serverTimestamp(),
+        });
+        
+        const shapeBelowRef = doc(firestore, this.shapesCollectionPath, shapeBelow.id);
+        batch.update(shapeBelowRef, {
+          zIndex: currentZIndex,
+          updatedAt: serverTimestamp(),
+        });
+        
+        swapCount++;
+      }
+      
+      if (swapCount > 0) {
+        await batch.commit();
+        console.log(`✅ Batch sent ${shapeIds.length} shapes backward atomically (${swapCount} swaps)`);
+      } else {
+        console.log(`ℹ️ No overlapping shapes to swap backward`);
+      }
+    } catch (error) {
+      console.error('❌ Error batch sending shapes backward:', error);
       throw error;
     }
   }

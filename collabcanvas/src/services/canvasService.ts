@@ -23,6 +23,7 @@ export interface ShapeData {
   width: number;
   height: number;
   color: string;
+  rotation?: number;
   createdBy: string;
   createdAt: Timestamp | null;
   lockedBy: string | null;
@@ -31,7 +32,7 @@ export interface ShapeData {
 }
 
 export type ShapeCreateInput = Omit<ShapeData, 'id' | 'createdAt' | 'updatedAt' | 'lockedBy' | 'lockedAt'>;
-export type ShapeUpdateInput = Partial<Pick<ShapeData, 'x' | 'y' | 'width' | 'height' | 'color'>>;
+export type ShapeUpdateInput = Partial<Pick<ShapeData, 'x' | 'y' | 'width' | 'height' | 'color' | 'rotation'>>;
 
 class CanvasService {
   private shapesCollectionPath = 'canvases/main/shapes';
@@ -62,6 +63,7 @@ class CanvasService {
       
       const shapeData: Omit<ShapeData, 'id'> = {
         ...shapeInput,
+        rotation: shapeInput.rotation ?? 0,
         createdAt: serverTimestamp() as Timestamp,
         lockedBy: null,
         lockedAt: null,
@@ -185,6 +187,27 @@ class CanvasService {
       console.log(`✅ SUCCESS TASK [1.1]: Shape resized to ${width}×${height}`);
     } catch (error) {
       console.error('❌ Error resizing shape:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Rotate a shape with normalized rotation angle
+   */
+  async rotateShape(shapeId: string, rotation: number): Promise<void> {
+    try {
+      // Normalize rotation to 0-360 range
+      const normalizedRotation = ((rotation % 360) + 360) % 360;
+      
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await updateDoc(shapeRef, {
+        rotation: normalizedRotation,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log(`✅ SUCCESS TASK [2.2]: Shape rotated to ${normalizedRotation}°`);
+    } catch (error) {
+      console.error('❌ Error rotating shape:', error);
       throw error;
     }
   }

@@ -53,3 +53,69 @@ const strokeWidth = 2 * scale;
 
 ---
 
+## Bug Fixes / Polish
+
+### Fix Resize Ghosting on Rotated Shapes
+**Estimated time:** 1-2 hours
+**Priority:** Polish (cosmetic issue, doesn't affect functionality)
+
+**Issue:**
+When resizing a rotated shape and releasing the mouse, there's a brief visual artifact where a "ghost" preview appears at another location on the canvas momentarily. The shape always ends up at the correct final position, but the transition isn't smooth.
+
+**Important Note:**
+- ✅ This issue **does NOT occur in production** (Vercel deployment)
+- ⚠️ Only manifests on localhost during development
+- Likely caused by local dev server behavior, HMR, or development-only timing quirks
+- **No production fix needed** - this is a localhost-only development artifact
+
+**Root Cause (Localhost-specific):**
+Timing gap between:
+1. Clearing resize preview state (immediate)
+2. Firestore write completing (async)
+3. Real-time listener receiving update and re-rendering (async)
+
+This creates a few frames where the shape reverts to its old dimensions before updating to the new ones.
+
+**Potential Solutions:**
+
+**Option 1: Optimistic Local Cache**
+- Implement local state cache that updates immediately on resize end
+- Keep cache updated until Firestore confirms the change
+- Use cached values for rendering during the gap
+- Pros: Seamless UX, no visual artifacts
+- Cons: More complex state management, need cache invalidation logic
+
+**Option 2: Transition Animation**
+- Add CSS/Konva animation between old and new dimensions
+- Smooth out the visual jump with 100-200ms transition
+- Pros: Simple to implement, masks the issue elegantly
+- Cons: Slight delay in visual feedback
+
+**Option 3: Extended Preview Hold**
+- Keep preview visible for 50-100ms after mouse release
+- Only clear preview after Firestore confirms or timeout
+- Pros: Minimal code change, bridges the gap naturally
+- Cons: May feel slightly laggy, doesn't fully solve the issue
+
+**Option 4: Firestore Pending State**
+- Use Firestore's pending/committed state tracking
+- Show preview until write is confirmed committed
+- Pros: Leverages built-in Firebase features
+- Cons: Requires understanding Firestore's pending state API
+
+**Recommended Approach:**
+Start with Option 3 (extended preview hold) as a quick fix, then consider Option 1 (optimistic cache) if polish is needed for production.
+
+**Files to Modify:**
+- `collabcanvas/src/components/Canvas/Canvas.tsx` - handleResizeEnd function
+
+**Test Gate:**
+1. Create and rotate a shape to 45°
+2. Resize it using any handle
+3. Release mouse
+4. Verify no visual artifacts or "ghost" previews appear
+5. Verify shape ends up at correct final size/position
+6. Test with various network conditions (throttled, slow 3G)
+
+---
+

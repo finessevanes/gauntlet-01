@@ -33,7 +33,13 @@ interface CanvasContextType {
   rotateShape: (shapeId: string, rotation: number) => Promise<void>;
   lockShape: (shapeId: string, userId: string) => Promise<{ success: boolean; lockedByUsername?: string }>;
   unlockShape: (shapeId: string) => Promise<void>;
+  deleteShape: (shapeId: string) => Promise<void>;
+  duplicateShape: (shapeId: string, userId: string) => Promise<string>;
   deleteAllShapes: () => Promise<void>;
+  
+  // Selection state
+  selectedShapeId: string | null;
+  setSelectedShapeId: (shapeId: string | null) => void;
   
   // Loading state
   shapesLoading: boolean;
@@ -50,6 +56,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 });
   const [shapes, setShapes] = useState<ShapeData[]>([]);
   const [shapesLoading, setShapesLoading] = useState(true);
+  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
 
   // Subscribe to real-time shape updates
   useEffect(() => {
@@ -97,6 +104,14 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.unlockShape(shapeId);
   };
 
+  const deleteShape = async (shapeId: string): Promise<void> => {
+    return await canvasService.deleteShape(shapeId);
+  };
+
+  const duplicateShape = async (shapeId: string, userId: string): Promise<string> => {
+    return await canvasService.duplicateShape(shapeId, userId);
+  };
+
   const deleteAllShapes = async (): Promise<void> => {
     return await canvasService.deleteAllShapes();
   };
@@ -119,7 +134,11 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     rotateShape,
     lockShape,
     unlockShape,
+    deleteShape,
+    duplicateShape,
     deleteAllShapes,
+    selectedShapeId,
+    setSelectedShapeId,
     shapesLoading,
   };
 

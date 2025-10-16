@@ -37,6 +37,8 @@ export default function Canvas() {
     lockShape,
     unlockShape,
     deleteAllShapes,
+    selectedShapeId,
+    setSelectedShapeId,
     shapesLoading
   } = useCanvasContext();
   
@@ -54,8 +56,7 @@ export default function Canvas() {
     height: number 
   } | null>(null);
 
-  // Selection and locking state
-  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
+  // Lock timeout state
   const [lockTimeoutId, setLockTimeoutId] = useState<number | null>(null);
   
   // Resize handle hover state

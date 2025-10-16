@@ -292,6 +292,69 @@ class CanvasService {
       throw error;
     }
   }
+
+  /**
+   * Delete a single shape
+   */
+  async deleteShape(shapeId: string): Promise<void> {
+    try {
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await deleteDoc(shapeRef);
+      console.log(`🗑️ Shape ${shapeId} deleted`);
+    } catch (error) {
+      console.error('❌ Error deleting shape:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Duplicate a shape with offset positioning
+   */
+  async duplicateShape(shapeId: string, userId: string): Promise<string> {
+    try {
+      // Fetch the original shape
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const shapeDoc = await getDoc(shapeRef);
+      
+      if (!shapeDoc.exists()) {
+        throw new Error('Shape not found');
+      }
+      
+      const original = shapeDoc.data() as ShapeData;
+      
+      // Calculate new position with boundary wrapping
+      const OFFSET = 20;
+      const BOUNDARY = 4980;
+      const WRAP_TO = 50;
+      
+      const newX = original.x + OFFSET > BOUNDARY ? WRAP_TO : original.x + OFFSET;
+      const newY = original.y + OFFSET > BOUNDARY ? WRAP_TO : original.y + OFFSET;
+      
+      // Create new shape reference with auto-generated ID
+      const duplicateRef = doc(collection(firestore, this.shapesCollectionPath));
+      
+      // Create duplicate with updated fields
+      const duplicateData = {
+        ...original,
+        id: duplicateRef.id,
+        x: newX,
+        y: newY,
+        createdBy: userId,
+        createdAt: serverTimestamp(),
+        lockedBy: null,
+        lockedAt: null,
+        updatedAt: serverTimestamp()
+      };
+      
+      await setDoc(duplicateRef, duplicateData);
+      
+      console.log(`📋 Shape duplicated: ${shapeId} → ${duplicateRef.id}`);
+      return duplicateRef.id;
+    } catch (error) {
+      console.error('❌ Error duplicating shape:', error);
+      throw error;
+    }
+  }
 }
 
 // Export a singleton instance

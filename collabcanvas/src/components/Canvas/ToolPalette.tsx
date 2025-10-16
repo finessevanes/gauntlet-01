@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { useCanvasContext } from '../../contexts/CanvasContext';
+import { useAuth } from '../../hooks/useAuth';
+import toast from 'react-hot-toast';
 
 interface Tool {
   id: string;
@@ -8,7 +11,30 @@ interface Tool {
 }
 
 export default function ToolPalette() {
-  const { isDrawMode, setIsDrawMode, isBombMode, setIsBombMode, selectedColor } = useCanvasContext();
+  const { user } = useAuth();
+  const { 
+    isDrawMode, 
+    setIsDrawMode, 
+    isBombMode, 
+    setIsBombMode, 
+    selectedColor,
+    selectedShapeId,
+    setSelectedShapeId,
+    shapes,
+    deleteShape,
+    duplicateShape,
+    lockShape,
+    unlockShape
+  } = useCanvasContext();
+  
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDuplicating, setIsDuplicating] = useState(false);
+  
+  // Get the selected shape
+  const selectedShape = selectedShapeId ? shapes.find(s => s.id === selectedShapeId) : null;
+  
+  // Check if current user has the selected shape locked
+  const isLockedByMe = selectedShape && user && selectedShape.lockedBy === user.uid;
 
   const tools: Tool[] = [
     { id: 'pan', icon: '✋', name: 'Pan / Move Canvas', active: !isDrawMode && !isBombMode },
@@ -26,6 +52,52 @@ export default function ToolPalette() {
     } else if (toolId === 'bomb') {
       setIsDrawMode(false);
       setIsBombMode(true);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedShapeId || isDeleting) return;
+    
+    try {
+      setIsDeleting(true);
+      await deleteShape(selectedShapeId);
+      toast.success('Shape deleted', { duration: 1500 });
+    } catch (error) {
+      console.error('Error deleting shape:', error);
+      toast.error('Failed to delete shape');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDuplicate = async () => {
+    if (!selectedShapeId || !user || isDuplicating) return;
+    
+    const originalShapeId = selectedShapeId;
+    
+    try {
+      setIsDuplicating(true);
+      
+      // Create the duplicate
+      const newShapeId = await duplicateShape(originalShapeId, user.uid);
+      
+      // Immediately unlock the original and lock the new shape
+      // (this happens before real-time sync completes)
+      await Promise.all([
+        unlockShape(originalShapeId),
+        lockShape(newShapeId, user.uid)
+      ]);
+      
+      // Set the new shape as selected immediately
+      setSelectedShapeId(newShapeId);
+      
+      toast.success('Shape duplicated', { duration: 1500 });
+      console.log('Duplicated shape ID:', newShapeId);
+    } catch (error) {
+      console.error('Error duplicating shape:', error);
+      toast.error('Failed to duplicate shape');
+    } finally {
+      setIsDuplicating(false);
     }
   };
 
@@ -67,6 +139,35 @@ export default function ToolPalette() {
             }} />
           </div>
         </div>
+      </div>
+
+      {/* Shape Controls - Always visible, disabled when no shape locked */}
+      <div style={styles.separator} />
+      <div style={styles.controlsGrid}>
+        <button
+          onClick={handleDuplicate}
+          disabled={!isLockedByMe || isDuplicating}
+          style={{
+            ...styles.controlButton,
+            ...((!isLockedByMe || isDuplicating) ? styles.disabledButton : {}),
+          }}
+          title={isLockedByMe ? "Duplicate Shape" : "Select a shape to duplicate"}
+          aria-label="Duplicate Shape"
+        >
+          {isDuplicating ? '⏳' : '📋'}
+        </button>
+        <button
+          onClick={handleDelete}
+          disabled={!isLockedByMe || isDeleting}
+          style={{
+            ...styles.controlButton,
+            ...((!isLockedByMe || isDeleting) ? styles.disabledButton : {}),
+          }}
+          title={isLockedByMe ? "Delete Shape" : "Select a shape to delete"}
+          aria-label="Delete Shape"
+        >
+          {isDeleting ? '⏳' : '🗑️'}
+        </button>
       </div>
     </div>
   );
@@ -148,6 +249,36 @@ const styles = {
     height: '34px',
     border: '2px solid #000000',
     boxShadow: 'inset -1px -1px 0 0 rgba(0,0,0,0.3), inset 1px 1px 0 0 rgba(255,255,255,0.5), 0 2px 4px rgba(0,0,0,0.2)',
+  },
+  separator: {
+    height: '1px',
+    backgroundColor: '#808080',
+    margin: '8px 0',
+    boxShadow: '0 1px 0 0 #ffffff',
+  },
+  controlsGrid: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '6px',
+  },
+  controlButton: {
+    width: '54px',
+    height: '54px',
+    backgroundColor: '#d8d8d8',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '28px',
+    padding: 0,
+    transition: 'none',
+    boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
+    borderRadius: '3px',
+  },
+  disabledButton: {
+    opacity: 0.5,
+    cursor: 'not-allowed',
   },
 };
 

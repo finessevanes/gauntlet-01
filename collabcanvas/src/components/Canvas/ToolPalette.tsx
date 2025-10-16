@@ -110,6 +110,27 @@ export default function ToolPalette({
     }
   };
 
+  const handleFontSizeSelect = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (!onChangeFontSize || textControlsDisabled || isChanging) return;
+    const value = e.target.value;
+    
+    // If "custom" is selected, do nothing (keep current value)
+    if (value === 'custom') {
+      return;
+    }
+    
+    const size = parseInt(value, 10);
+    
+    if (isNaN(size)) return;
+    
+    setIsChanging(true);
+    try {
+      await onChangeFontSize(size);
+    } finally {
+      setTimeout(() => setIsChanging(false), 100);
+    }
+  };
+
   // Check if a text shape is selected to enable text formatting controls
   const isTextSelected = selectedShape?.type === 'text';
   const isBold = selectedShape?.fontWeight === 'bold';
@@ -278,32 +299,49 @@ export default function ToolPalette({
           </button>
         </div>
 
-        {/* Font Size Input with Suggestions */}
+        {/* Font Size Control - Combined */}
         <div style={styles.fontSizeSection}>
           <label style={{
             ...styles.fontSizeLabel,
             ...(textControlsDisabled ? { color: '#a0a0a0' } : {}),
           }}>Size</label>
-          <input
-            type="number"
-            list="font-sizes"
-            value={currentFontSize}
-            onChange={handleFontSizeChange}
-            disabled={textControlsDisabled || isChanging}
-            min={1}
-            max={500}
-            style={{
-              ...styles.fontSizeInput,
-              ...(textControlsDisabled ? styles.disabledInput : {}),
-            }}
-            title={isTextSelected ? "Font Size (1-500px)" : "Font Size (select text first)"}
-            placeholder="16"
-          />
-          <datalist id="font-sizes">
-            {ALLOWED_FONT_SIZES.map((size) => (
-              <option key={size} value={size} />
-            ))}
-          </datalist>
+          
+          {/* Combined control with input and dropdown */}
+          <div style={styles.fontSizeComboWrapper}>
+            {/* Large input field for current size and custom entry */}
+            <input
+              type="number"
+              value={currentFontSize}
+              onChange={handleFontSizeChange}
+              disabled={textControlsDisabled || isChanging}
+              min={1}
+              max={500}
+              style={{
+                ...styles.fontSizeComboInput,
+                ...(textControlsDisabled ? styles.disabledInput : {}),
+              }}
+              title={isTextSelected ? "Type custom size (1-500px)" : "Font size (select text first)"}
+              placeholder="16"
+            />
+            {/* Dropdown for preset sizes */}
+            <select
+              value={ALLOWED_FONT_SIZES.includes(currentFontSize) ? currentFontSize : 'custom'}
+              onChange={handleFontSizeSelect}
+              disabled={textControlsDisabled || isChanging}
+              style={{
+                ...styles.fontSizeComboSelect,
+                ...(textControlsDisabled ? styles.disabledInput : {}),
+              }}
+              title={isTextSelected ? "Select preset size" : "Select font size (select text first)"}
+            >
+              {ALLOWED_FONT_SIZES.map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+              {!ALLOWED_FONT_SIZES.includes(currentFontSize) && (
+                <option value="custom">{currentFontSize}</option>
+              )}
+            </select>
+          </div>
         </div>
       </div>
     </div>
@@ -315,7 +353,7 @@ const styles = {
     position: 'fixed' as const,
     left: 0,
     top: '67px', // Below title bar + menu bar
-    width: '70px',
+    width: '130px', // Wider to accommodate 2 columns
     backgroundColor: '#f0f0f0',
     borderRight: '1px solid #c0c0c0',
     borderBottom: '1px solid #c0c0c0',
@@ -327,8 +365,8 @@ const styles = {
     boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
   },
   toolGrid: {
-    display: 'flex',
-    flexDirection: 'column' as const,
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr', // Two columns
     gap: '6px',
   },
   toolButton: {
@@ -381,10 +419,12 @@ const styles = {
   },
   colorDisplay: {
     marginTop: '8px',
-    padding: '6px',
+    padding: '8px',
     backgroundColor: '#e0e0e0',
     borderRadius: '4px',
     boxShadow: 'inset 1px 1px 2px rgba(0,0,0,0.2)',
+    display: 'flex',
+    justifyContent: 'center',
   },
   colorSquares: {
     display: 'flex',
@@ -412,12 +452,12 @@ const styles = {
     marginTop: '12px',
     paddingTop: '12px',
     borderTop: '1px solid #a0a0a0',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '4px',
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr', // Two columns for actions
+    gap: '6px',
   },
   actionButton: {
-    width: '54px',
+    width: '100%',
     height: '40px',
     backgroundColor: '#d8d8d8',
     border: 'none',
@@ -440,12 +480,12 @@ const styles = {
     gap: '8px',
   },
   formatButtonGroup: {
-    display: 'flex',
-    flexDirection: 'column' as const,
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr 1fr', // Three buttons in a row
     gap: '4px',
   },
   formatButton: {
-    width: '54px',
+    width: '100%',
     height: '32px',
     backgroundColor: '#d8d8d8',
     border: 'none',
@@ -475,24 +515,54 @@ const styles = {
     gap: '4px',
   },
   fontSizeLabel: {
-    fontSize: '9px',
+    fontSize: '12px',
     fontWeight: 'bold' as const,
     color: '#555',
     textTransform: 'uppercase' as const,
     letterSpacing: '0.5px',
   },
-  fontSizeInput: {
-    width: '54px',
-    padding: '5px 4px',
-    fontSize: '11px',
+  fontSizeComboWrapper: {
+    display: 'flex',
+    flexDirection: 'row' as const,
+    gap: '0',
+    border: '2px solid #808080',
+    borderRadius: '3px',
+    overflow: 'hidden',
+    backgroundColor: '#ffffff',
+    boxShadow: 'inset 1px 1px 2px rgba(0,0,0,0.1)',
+  },
+  fontSizeComboInput: {
+    flex: '1',
+    padding: '8px 6px',
+    fontSize: '16px',
     fontWeight: 'bold' as const,
     color: '#000000',
     backgroundColor: '#ffffff',
-    border: '1px solid #808080',
-    borderRadius: '3px',
+    border: 'none',
     cursor: 'text',
-    boxShadow: 'inset 1px 1px 2px rgba(0,0,0,0.1)',
-    textAlign: 'center' as const,
+    textAlign: 'left' as const,
+    outline: 'none',
+    minWidth: '0', // Allow flex to shrink
+  },
+  fontSizeComboSelect: {
+    flex: '0 0 24px', // Fixed width for dropdown button
+    padding: '0',
+    fontSize: '0', // Hide text
+    color: 'transparent', // Make text invisible
+    backgroundColor: '#d8d8d8',
+    border: 'none',
+    borderLeft: '1px solid #808080',
+    cursor: 'pointer',
+    outline: 'none',
+    appearance: 'none' as const,
+    WebkitAppearance: 'none' as const,
+    MozAppearance: 'none' as const,
+    // Draw down-pointing triangle
+    backgroundImage: 'linear-gradient(45deg, transparent 50%, #000 50%), linear-gradient(135deg, #000 50%, transparent 50%)',
+    backgroundPosition: 'calc(50% - 2px) calc(50% - 1px), calc(50% + 2px) calc(50% - 1px)',
+    backgroundSize: '5px 5px, 5px 5px',
+    backgroundRepeat: 'no-repeat',
+    boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
   },
   disabledInput: {
     backgroundColor: '#e8e8e8',

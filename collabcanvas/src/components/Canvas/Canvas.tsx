@@ -1275,13 +1275,13 @@ export default function Canvas() {
                   </Group>
                 )}
 
-                {/* Rotation handle - appears 30px above the top of the shape when locked */}
+                {/* Rotation handle - appears 50px above the top of the shape when locked */}
                 {isSelected && isLockedByMe && !isResizing && (() => {
                   // Calculate shape center (for X positioning)
                   const centerX = currentWidth / 2;
                   
-                  // Position handle 30px above the TOP of the shape
-                  const handleDistance = 30;
+                  // Position handle 50px above the TOP of the shape (increased from 30px to avoid collision with top resize handle)
+                  const handleDistance = 50;
                   const handleX = centerX;
                   const handleY = -handleDistance;
                   
@@ -1414,7 +1414,7 @@ export default function Canvas() {
             
             // Calculate rotation handle position (same as in rotation handle rendering)
             const centerX = shape.x + shape.width / 2;
-            const handleDistance = 30;
+            const handleDistance = 50;
             const handleY = shape.y - handleDistance;
             
             // Position tooltip 15px above rotation handle

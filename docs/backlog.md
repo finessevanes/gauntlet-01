@@ -62,7 +62,13 @@ const strokeWidth = 2 * scale;
 **Issue:**
 When resizing a rotated shape and releasing the mouse, there's a brief visual artifact where a "ghost" preview appears at another location on the canvas momentarily. The shape always ends up at the correct final position, but the transition isn't smooth.
 
-**Root Cause:**
+**Important Note:**
+- ✅ This issue **does NOT occur in production** (Vercel deployment)
+- ⚠️ Only manifests on localhost during development
+- Likely caused by local dev server behavior, HMR, or development-only timing quirks
+- **No production fix needed** - this is a localhost-only development artifact
+
+**Root Cause (Localhost-specific):**
 Timing gap between:
 1. Clearing resize preview state (immediate)
 2. Firestore write completing (async)

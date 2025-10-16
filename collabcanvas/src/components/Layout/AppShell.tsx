@@ -19,6 +19,8 @@ export default function AppShell({ children }: AppShellProps) {
     shapes, 
     selectedShapeId,
     setSelectedShapeId,
+    selectedShapes,
+    setSelectedShapes,
     updateTextFormatting,
     updateTextFontSize,
     deleteShape,
@@ -109,46 +111,108 @@ export default function AppShell({ children }: AppShellProps) {
 
   // Shape action handlers
   const handleDelete = async () => {
-    if (!selectedShapeId || !user) return;
-    try {
-      await deleteShape(selectedShapeId);
-      setSelectedShapeId(null);
-      toast.success('Shape deleted', {
-        duration: 1000,
-        position: 'top-center',
-      });
-    } catch (error) {
-      console.error('❌ Failed to delete shape:', error);
-      toast.error('Failed to delete shape', {
-        duration: 2000,
-        position: 'top-center',
-      });
+    if (!user) return;
+    
+    // Check if we have multiple shapes selected (batch delete)
+    if (selectedShapes.length > 0) {
+      console.log('🗑️ BATCH DELETE (Button) - Deleting', selectedShapes.length, 'shapes');
+      try {
+        // Delete all selected shapes in parallel
+        const deletePromises = selectedShapes.map(shapeId => deleteShape(shapeId));
+        await Promise.all(deletePromises);
+        
+        console.log('✅ BATCH DELETE SUCCESS (Button) - All', selectedShapes.length, 'shapes deleted');
+        
+        // Clear selection after delete
+        setSelectedShapes([]);
+        
+        toast.success(`${selectedShapes.length} shape${selectedShapes.length > 1 ? 's' : ''} deleted`, {
+          duration: 1500,
+          position: 'top-center',
+        });
+      } catch (error) {
+        console.error('❌ BATCH DELETE ERROR (Button):', error);
+        toast.error('Failed to delete shapes', {
+          duration: 2000,
+          position: 'top-center',
+        });
+      }
+      return;
+    }
+    
+    // Single shape deletion (fallback)
+    if (selectedShapeId) {
+      try {
+        await deleteShape(selectedShapeId);
+        setSelectedShapeId(null);
+        toast.success('Shape deleted', {
+          duration: 1000,
+          position: 'top-center',
+        });
+      } catch (error) {
+        console.error('❌ Failed to delete shape:', error);
+        toast.error('Failed to delete shape', {
+          duration: 2000,
+          position: 'top-center',
+        });
+      }
     }
   };
 
   const handleDuplicate = async () => {
-    if (!selectedShapeId || !user) return;
-    try {
-      // Unlock the current shape first
-      await unlockShape(selectedShapeId);
-      
-      // Duplicate the shape and get the new shape ID
-      const newShapeId = await duplicateShape(selectedShapeId, user.uid);
-      
-      // Select and lock the new shape immediately
-      setSelectedShapeId(newShapeId);
-      await lockShape(newShapeId, user.uid);
-      
-      toast.success('Shape duplicated', {
-        duration: 1000,
-        position: 'top-center',
-      });
-    } catch (error) {
-      console.error('❌ Failed to duplicate shape:', error);
-      toast.error('Failed to duplicate shape', {
-        duration: 2000,
-        position: 'top-center',
-      });
+    if (!user) return;
+    
+    // Check if we have multiple shapes selected (batch duplicate)
+    if (selectedShapes.length > 0) {
+      console.log('📋 BATCH DUPLICATE (Button) - Duplicating', selectedShapes.length, 'shapes');
+      try {
+        // Duplicate all selected shapes in parallel
+        const duplicatePromises = selectedShapes.map(shapeId => duplicateShape(shapeId, user.uid));
+        const newShapeIds = await Promise.all(duplicatePromises);
+        
+        console.log('✅ BATCH DUPLICATE SUCCESS (Button) - All', selectedShapes.length, 'shapes duplicated');
+        
+        // Clear original selection and select only the duplicates
+        setSelectedShapes(newShapeIds);
+        
+        toast.success(`${selectedShapes.length} shape${selectedShapes.length > 1 ? 's' : ''} duplicated`, {
+          duration: 1500,
+          position: 'top-center',
+        });
+      } catch (error) {
+        console.error('❌ BATCH DUPLICATE ERROR (Button):', error);
+        toast.error('Failed to duplicate shapes', {
+          duration: 2000,
+          position: 'top-center',
+        });
+      }
+      return;
+    }
+    
+    // Single shape duplication (fallback)
+    if (selectedShapeId) {
+      try {
+        // Unlock the current shape first
+        await unlockShape(selectedShapeId);
+        
+        // Duplicate the shape and get the new shape ID
+        const newShapeId = await duplicateShape(selectedShapeId, user.uid);
+        
+        // Select and lock the new shape immediately
+        setSelectedShapeId(newShapeId);
+        await lockShape(newShapeId, user.uid);
+        
+        toast.success('Shape duplicated', {
+          duration: 1000,
+          position: 'top-center',
+        });
+      } catch (error) {
+        console.error('❌ Failed to duplicate shape:', error);
+        toast.error('Failed to duplicate shape', {
+          duration: 2000,
+          position: 'top-center',
+        });
+      }
     }
   };
 
@@ -157,6 +221,7 @@ export default function AppShell({ children }: AppShellProps) {
       <PaintTitleBar />
       <ToolPalette 
         selectedShape={selectedShape}
+        selectedShapes={selectedShapes}
         onToggleBold={handleToggleBold}
         onToggleItalic={handleToggleItalic}
         onToggleUnderline={handleToggleUnderline}

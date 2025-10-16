@@ -12,16 +12,11 @@ import {
 } from 'firebase/firestore';
 import type { Timestamp, Unsubscribe } from 'firebase/firestore';
 import { firestore } from '../firebase';
-import { MIN_SHAPE_WIDTH, MIN_SHAPE_HEIGHT } from '../utils/constants';
+import { MIN_SHAPE_WIDTH, MIN_SHAPE_HEIGHT, MIN_CIRCLE_RADIUS, MIN_TRIANGLE_WIDTH, MIN_TRIANGLE_HEIGHT } from '../utils/constants';
 
-// Shape data types
-export interface ShapeData {
+// Shape data types - Discriminated union for different shape types
+interface BaseShapeData {
   id: string;
-  type: 'rectangle';
-  x: number;
-  y: number;
-  width: number;
-  height: number;
   color: string;
   rotation?: number;
   createdBy: string;
@@ -31,8 +26,40 @@ export interface ShapeData {
   updatedAt: Timestamp | null;
 }
 
-export type ShapeCreateInput = Omit<ShapeData, 'id' | 'createdAt' | 'updatedAt' | 'lockedBy' | 'lockedAt'>;
-export type ShapeUpdateInput = Partial<Pick<ShapeData, 'x' | 'y' | 'width' | 'height' | 'color' | 'rotation'>>;
+export interface RectangleShapeData extends BaseShapeData {
+  type: 'rectangle';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface CircleShapeData extends BaseShapeData {
+  type: 'circle';
+  x: number; // Center X
+  y: number; // Center Y
+  radius: number;
+}
+
+export interface TriangleShapeData extends BaseShapeData {
+  type: 'triangle';
+  x: number; // Top vertex X
+  y: number; // Top vertex Y
+  width: number; // Base width
+  height: number; // Height from top to base
+}
+
+export type ShapeData = RectangleShapeData | CircleShapeData | TriangleShapeData;
+
+export type RectangleCreateInput = Omit<RectangleShapeData, 'id' | 'createdAt' | 'updatedAt' | 'lockedBy' | 'lockedAt'>;
+export type CircleCreateInput = Omit<CircleShapeData, 'id' | 'createdAt' | 'updatedAt' | 'lockedBy' | 'lockedAt'>;
+export type TriangleCreateInput = Omit<TriangleShapeData, 'id' | 'createdAt' | 'updatedAt' | 'lockedBy' | 'lockedAt'>;
+
+export type ShapeCreateInput = RectangleCreateInput | CircleCreateInput | TriangleCreateInput;
+
+export type ShapeUpdateInput = Partial<Pick<RectangleShapeData, 'x' | 'y' | 'width' | 'height' | 'color' | 'rotation'>> | 
+                                Partial<Pick<CircleShapeData, 'x' | 'y' | 'radius' | 'color' | 'rotation'>> |
+                                Partial<Pick<TriangleShapeData, 'x' | 'y' | 'width' | 'height' | 'color' | 'rotation'>>;
 
 class CanvasService {
   private shapesCollectionPath = 'canvases/main/shapes';
@@ -352,6 +379,112 @@ class CanvasService {
       return duplicateRef.id;
     } catch (error) {
       console.error('❌ Error duplicating shape:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new circle shape
+   */
+  async createCircle(circleData: { x: number; y: number; radius: number; color: string; createdBy: string }): Promise<string> {
+    try {
+      // Validate minimum radius
+      if (circleData.radius < MIN_CIRCLE_RADIUS) {
+        throw new Error(`Minimum circle radius is ${MIN_CIRCLE_RADIUS} pixels`);
+      }
+
+      // Ensure parent document exists
+      await this.ensureCanvasDocExists();
+      
+      // Generate a unique ID for the shape
+      const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
+      
+      const shapeData: Omit<CircleShapeData, 'id'> = {
+        type: 'circle',
+        x: circleData.x,
+        y: circleData.y,
+        radius: circleData.radius,
+        color: circleData.color,
+        rotation: 0,
+        createdBy: circleData.createdBy,
+        createdAt: serverTimestamp() as Timestamp,
+        lockedBy: null,
+        lockedAt: null,
+        updatedAt: serverTimestamp() as Timestamp,
+      };
+
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await setDoc(shapeRef, shapeData);
+
+      console.log(`⭕ Circle created: ${shapeId} (radius: ${circleData.radius})`);
+      return shapeId;
+    } catch (error) {
+      console.error('❌ Error creating circle:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Resize a circle by updating its radius
+   */
+  async resizeCircle(shapeId: string, radius: number): Promise<void> {
+    try {
+      // Validate minimum radius
+      if (radius < MIN_CIRCLE_RADIUS) {
+        throw new Error(`Minimum circle radius is ${MIN_CIRCLE_RADIUS} pixels`);
+      }
+      
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await updateDoc(shapeRef, {
+        radius: radius,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log(`✅ Circle resized to radius ${radius}`);
+    } catch (error) {
+      console.error('❌ Error resizing circle:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new triangle shape
+   */
+  async createTriangle(triangleData: { x: number; y: number; width: number; height: number; color: string; createdBy: string }): Promise<string> {
+    try {
+      // Validate minimum dimensions
+      if (triangleData.width < MIN_TRIANGLE_WIDTH || triangleData.height < MIN_TRIANGLE_HEIGHT) {
+        throw new Error(`Minimum triangle size is ${MIN_TRIANGLE_WIDTH}×${MIN_TRIANGLE_HEIGHT} pixels`);
+      }
+
+      // Ensure parent document exists
+      await this.ensureCanvasDocExists();
+      
+      // Generate a unique ID for the shape
+      const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
+      
+      const shapeData: Omit<TriangleShapeData, 'id'> = {
+        type: 'triangle',
+        x: triangleData.x,
+        y: triangleData.y,
+        width: triangleData.width,
+        height: triangleData.height,
+        color: triangleData.color,
+        rotation: 0,
+        createdBy: triangleData.createdBy,
+        createdAt: serverTimestamp() as Timestamp,
+        lockedBy: null,
+        lockedAt: null,
+        updatedAt: serverTimestamp() as Timestamp,
+      };
+
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await setDoc(shapeRef, shapeData);
+
+      console.log(`△ Triangle created: ${shapeId} (${triangleData.width}×${triangleData.height})`);
+      return shapeId;
+    } catch (error) {
+      console.error('❌ Error creating triangle:', error);
       throw error;
     }
   }

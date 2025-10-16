@@ -38,6 +38,13 @@ export const MIN_SHAPE_SIZE = 40;
 export const MIN_SHAPE_WIDTH = 40;
 export const MIN_SHAPE_HEIGHT = 40;
 
+// Circle minimum size
+export const MIN_CIRCLE_RADIUS = 5;
+
+// Triangle minimum size
+export const MIN_TRIANGLE_WIDTH = 10;
+export const MIN_TRIANGLE_HEIGHT = 10;
+
 // Available cursor colors for users
 export const CURSOR_COLORS = [
   '#ef4444', // red

@@ -6,16 +6,22 @@ import type { ShapeData, ShapeCreateInput } from '../services/canvasService';
 import { useAuth } from '../hooks/useAuth';
 import type { Unsubscribe } from 'firebase/firestore';
 
+export type ToolType = 'pan' | 'rectangle' | 'circle' | 'triangle' | 'bomb';
+
 interface CanvasContextType {
   // Color selection
   selectedColor: string;
   setSelectedColor: (color: string) => void;
   
-  // Drawing mode
+  // Tool selection
+  activeTool: ToolType;
+  setActiveTool: (tool: ToolType) => void;
+  
+  // Drawing mode (deprecated, kept for backward compatibility)
   isDrawMode: boolean;
   setIsDrawMode: (isDrawMode: boolean) => void;
   
-  // Bomb mode
+  // Bomb mode (deprecated, kept for backward compatibility)
   isBombMode: boolean;
   setIsBombMode: (isBombMode: boolean) => void;
   
@@ -28,8 +34,11 @@ interface CanvasContextType {
   // Shapes
   shapes: ShapeData[];
   createShape: (shapeInput: ShapeCreateInput) => Promise<string>;
+  createCircle: (circleData: { x: number; y: number; radius: number; color: string; createdBy: string }) => Promise<string>;
+  createTriangle: (triangleData: { x: number; y: number; width: number; height: number; color: string; createdBy: string }) => Promise<string>;
   updateShape: (shapeId: string, updates: Partial<ShapeData>) => Promise<void>;
   resizeShape: (shapeId: string, width: number, height: number) => Promise<void>;
+  resizeCircle: (shapeId: string, radius: number) => Promise<void>;
   rotateShape: (shapeId: string, rotation: number) => Promise<void>;
   lockShape: (shapeId: string, userId: string) => Promise<{ success: boolean; lockedByUsername?: string }>;
   unlockShape: (shapeId: string) => Promise<void>;
@@ -50,8 +59,9 @@ const CanvasContext = createContext<CanvasContextType | undefined>(undefined);
 export function CanvasProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_COLOR);
-  const [isDrawMode, setIsDrawMode] = useState(false); // Default: Pan mode
-  const [isBombMode, setIsBombMode] = useState(false); // Bomb tool mode
+  const [activeTool, setActiveTool] = useState<ToolType>('pan'); // Default: Pan mode
+  const [isDrawMode, setIsDrawMode] = useState(false); // Deprecated: kept for backward compatibility
+  const [isBombMode, setIsBombMode] = useState(false); // Deprecated: kept for backward compatibility
   const [stageScale, setStageScale] = useState(1);
   const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 });
   const [shapes, setShapes] = useState<ShapeData[]>([]);
@@ -84,12 +94,24 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.createShape(shapeInput);
   };
 
+  const createCircle = async (circleData: { x: number; y: number; radius: number; color: string; createdBy: string }): Promise<string> => {
+    return await canvasService.createCircle(circleData);
+  };
+
+  const createTriangle = async (triangleData: { x: number; y: number; width: number; height: number; color: string; createdBy: string }): Promise<string> => {
+    return await canvasService.createTriangle(triangleData);
+  };
+
   const updateShape = async (shapeId: string, updates: Partial<ShapeData>): Promise<void> => {
     return await canvasService.updateShape(shapeId, updates);
   };
 
   const resizeShape = async (shapeId: string, width: number, height: number): Promise<void> => {
     return await canvasService.resizeShape(shapeId, width, height);
+  };
+
+  const resizeCircle = async (shapeId: string, radius: number): Promise<void> => {
+    return await canvasService.resizeCircle(shapeId, radius);
   };
 
   const rotateShape = async (shapeId: string, rotation: number): Promise<void> => {
@@ -119,6 +141,8 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   const value = {
     selectedColor,
     setSelectedColor,
+    activeTool,
+    setActiveTool,
     isDrawMode,
     setIsDrawMode,
     isBombMode,
@@ -129,8 +153,11 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     setStagePosition,
     shapes,
     createShape,
+    createCircle,
+    createTriangle,
     updateShape,
     resizeShape,
+    resizeCircle,
     rotateShape,
     lockShape,
     unlockShape,

@@ -13,9 +13,9 @@ interface Tool {
 export default function ToolPalette() {
   const { user } = useAuth();
   const { 
-    isDrawMode, 
+    activeTool,
+    setActiveTool,
     setIsDrawMode, 
-    isBombMode, 
     setIsBombMode, 
     selectedColor,
     selectedShapeId,
@@ -37,16 +37,22 @@ export default function ToolPalette() {
   const isLockedByMe = selectedShape && user && selectedShape.lockedBy === user.uid;
 
   const tools: Tool[] = [
-    { id: 'pan', icon: '✋', name: 'Pan / Move Canvas', active: !isDrawMode && !isBombMode },
-    { id: 'rectangle', icon: '⬜', name: 'Rectangle / Draw', active: isDrawMode },
-    { id: 'bomb', icon: '💣', name: 'Bomb / Clear Canvas', active: isBombMode },
+    { id: 'pan', icon: '✋', name: 'Pan / Move Canvas', active: activeTool === 'pan' },
+    { id: 'rectangle', icon: '⬜', name: 'Rectangle / Draw', active: activeTool === 'rectangle' },
+    { id: 'circle', icon: '⭕', name: 'Circle', active: activeTool === 'circle' },
+    { id: 'triangle', icon: '△', name: 'Triangle', active: activeTool === 'triangle' },
+    { id: 'bomb', icon: '💣', name: 'Bomb / Clear Canvas', active: activeTool === 'bomb' },
   ];
 
   const handleToolClick = (toolId: string) => {
+    // Set active tool
+    setActiveTool(toolId as 'pan' | 'rectangle' | 'circle' | 'triangle' | 'bomb');
+    
+    // Update legacy state for backward compatibility
     if (toolId === 'rectangle') {
       setIsDrawMode(true);
       setIsBombMode(false);
-    } else if (toolId === 'pan') {
+    } else if (toolId === 'pan' || toolId === 'circle' || toolId === 'triangle') {
       setIsDrawMode(false);
       setIsBombMode(false);
     } else if (toolId === 'bomb') {
@@ -117,6 +123,10 @@ export default function ToolPalette() {
           >
             {tool.id === 'rectangle' ? (
               <div style={styles.rectangleIcon} />
+            ) : tool.id === 'circle' ? (
+              <div style={styles.circleIcon} />
+            ) : tool.id === 'triangle' ? (
+              <div style={styles.triangleIcon} />
             ) : (
               tool.icon
             )}
@@ -215,6 +225,23 @@ const styles = {
     height: '24px',
     backgroundColor: 'transparent',
     border: '2px dashed #000000',
+    boxSizing: 'border-box' as const,
+  },
+  circleIcon: {
+    width: '28px',
+    height: '28px',
+    backgroundColor: 'transparent',
+    border: '2px dashed #000000',
+    borderRadius: '50%',
+    boxSizing: 'border-box' as const,
+  },
+  triangleIcon: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderLeft: '14px solid transparent',
+    borderRight: '14px solid transparent',
+    borderBottom: '24px dashed #000000',
     boxSizing: 'border-box' as const,
   },
   activeTool: {

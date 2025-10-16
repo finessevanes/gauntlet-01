@@ -93,9 +93,15 @@ export default function ToolPalette({
     }
   };
 
-  const handleFontSizeChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleFontSizeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!onChangeFontSize || textControlsDisabled || isChanging) return;
     const size = parseInt(e.target.value, 10);
+    
+    // Validate: must be a number between 1 and 500
+    if (isNaN(size) || size < 1 || size > 500) {
+      return;
+    }
+    
     setIsChanging(true);
     try {
       await onChangeFontSize(size);
@@ -109,7 +115,24 @@ export default function ToolPalette({
   const isBold = selectedShape?.fontWeight === 'bold';
   const isItalic = selectedShape?.fontStyle === 'italic';
   const isUnderline = selectedShape?.textDecoration === 'underline';
-  const currentFontSize = selectedShape?.fontSize || 16;
+  
+  // Get current font size, ensuring it's a valid number
+  let currentFontSize = 16; // default
+  if (isTextSelected && selectedShape?.fontSize !== undefined) {
+    currentFontSize = selectedShape.fontSize;
+  }
+  
+  // Debug: Log the selected shape data
+  if (isTextSelected) {
+    console.log('📊 ToolPalette - Selected shape:', {
+      id: selectedShape?.id,
+      type: selectedShape?.type,
+      fontSize: selectedShape?.fontSize,
+      currentFontSize,
+      text: selectedShape?.text,
+      fullShape: selectedShape
+    });
+  }
   
   // Disable text controls when no text is selected OR when already disabled
   const textControlsDisabled = !isTextSelected || textFormattingDisabled;
@@ -255,28 +278,32 @@ export default function ToolPalette({
           </button>
         </div>
 
-        {/* Font Size Dropdown */}
+        {/* Font Size Input with Suggestions */}
         <div style={styles.fontSizeSection}>
           <label style={{
             ...styles.fontSizeLabel,
             ...(textControlsDisabled ? { color: '#a0a0a0' } : {}),
           }}>Size</label>
-          <select
+          <input
+            type="number"
+            list="font-sizes"
             value={currentFontSize}
             onChange={handleFontSizeChange}
             disabled={textControlsDisabled || isChanging}
+            min={1}
+            max={500}
             style={{
-              ...styles.fontSizeSelect,
-              ...(textControlsDisabled ? styles.disabledSelect : {}),
+              ...styles.fontSizeInput,
+              ...(textControlsDisabled ? styles.disabledInput : {}),
             }}
-            title={isTextSelected ? "Font Size" : "Font Size (select text first)"}
-          >
+            title={isTextSelected ? "Font Size (1-500px)" : "Font Size (select text first)"}
+            placeholder="16"
+          />
+          <datalist id="font-sizes">
             {ALLOWED_FONT_SIZES.map((size) => (
-              <option key={size} value={size}>
-                {size}px
-              </option>
+              <option key={size} value={size} />
             ))}
-          </select>
+          </datalist>
         </div>
       </div>
     </div>
@@ -454,18 +481,20 @@ const styles = {
     textTransform: 'uppercase' as const,
     letterSpacing: '0.5px',
   },
-  fontSizeSelect: {
+  fontSizeInput: {
     width: '54px',
     padding: '5px 4px',
     fontSize: '11px',
     fontWeight: 'bold' as const,
+    color: '#000000',
     backgroundColor: '#ffffff',
     border: '1px solid #808080',
     borderRadius: '3px',
-    cursor: 'pointer',
+    cursor: 'text',
     boxShadow: 'inset 1px 1px 2px rgba(0,0,0,0.1)',
+    textAlign: 'center' as const,
   },
-  disabledSelect: {
+  disabledInput: {
     backgroundColor: '#e8e8e8',
     color: '#a0a0a0',
     cursor: 'not-allowed',

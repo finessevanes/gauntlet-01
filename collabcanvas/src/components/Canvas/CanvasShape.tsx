@@ -17,6 +17,7 @@ interface CanvasShapeProps {
     width: number;
     height: number;
   } | null;
+  previewFontSize: number | null;
   previewRotation: number | null;
   hoveredHandle: string | null;
   hoveredRotationHandle: string | null;
@@ -42,6 +43,7 @@ export default function CanvasShape({
   isRotating,
   activeTool,
   previewDimensions,
+  previewFontSize,
   previewRotation,
   hoveredHandle,
   hoveredRotationHandle,
@@ -57,7 +59,9 @@ export default function CanvasShape({
   setHoveredHandle,
   setHoveredRotationHandle,
 }: CanvasShapeProps) {
-  const isBeingResized = isResizing && isSelected;
+  // Shape is being resized if isResizing is true OR if preview dimensions exist (during transition)
+  // For text, we don't use preview dimensions (dimensions are always calculated from fontSize)
+  const isBeingResized = shape.type !== 'text' && ((isResizing && isSelected) || (previewDimensions !== null && isSelected));
   const isBeingRotated = isRotating && isSelected;
   
   // Use preview rotation if currently rotating this shape, otherwise use stored rotation
@@ -82,8 +86,10 @@ export default function CanvasShape({
     currentY = isBeingResized && previewDimensions ? previewDimensions.y : shape.y;
     currentRadius = isBeingResized && previewDimensions ? previewDimensions.width / 2 : shape.radius;
   } else if (shape.type === 'text') {
+    // ALWAYS calculate text dimensions dynamically from fontSize and content
+    // Use previewFontSize during resize AND during transition (until Firestore updates)
     const textContent = shape.text || '';
-    const textFontSize = shape.fontSize || 16;
+    const textFontSize = (isSelected && previewFontSize) ? previewFontSize : (shape.fontSize || 16);
     const estimatedWidth = textContent.length * textFontSize * 0.6;
     const estimatedHeight = textFontSize * 1.2;
     const padding = 4;
@@ -92,6 +98,12 @@ export default function CanvasShape({
     currentY = shape.y;
     currentWidth = estimatedWidth + padding * 2;
     currentHeight = estimatedHeight + padding * 2;
+    
+    // If resizing or transitioning, use preview position if available
+    if (isSelected && previewDimensions) {
+      currentX = previewDimensions.x;
+      currentY = previewDimensions.y;
+    }
   }
 
   // Calculate Group position and offset based on shape type
@@ -190,7 +202,8 @@ export default function CanvasShape({
       )}
       {shape.type === 'text' && currentWidth !== undefined && currentHeight !== undefined && (() => {
         const textContent = shape.text || '';
-        const textFontSize = shape.fontSize || 16;
+        // Use previewFontSize during resize AND during transition (until Firestore updates)
+        const textFontSize = (isSelected && previewFontSize) ? previewFontSize : (shape.fontSize || 16);
         const padding = 4;
         
         return (
@@ -246,6 +259,7 @@ export default function CanvasShape({
                 fontWeight={shape.fontWeight || 'normal'}
                 textDecoration={shape.textDecoration || 'none'}
                 align="left"
+                verticalAlign="top"
                 opacity={isLockedByOther ? 0.5 : 1}
                 listening={false}
               />
@@ -295,8 +309,8 @@ export default function CanvasShape({
         </Group>
       )}
 
-      {/* Resize handles for rectangles and triangles (8 total: 4 corners + 4 edges) */}
-      {isSelected && isLockedByMe && !isResizing && (shape.type === 'rectangle' || shape.type === 'triangle') && currentWidth !== undefined && currentHeight !== undefined && (
+      {/* Resize handles for rectangles, triangles, and text (8 total: 4 corners + 4 edges) */}
+      {isSelected && isLockedByMe && !isResizing && !isRotating && (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text') && currentWidth !== undefined && currentHeight !== undefined && (
         <Group>
           {(() => {
             // Scale handles inversely with zoom so they appear constant size on screen
@@ -390,7 +404,7 @@ export default function CanvasShape({
       )}
 
       {/* Rotation handle - appears 50px above the top of the shape when locked */}
-      {isSelected && isLockedByMe && !isResizing && (() => {
+      {isSelected && isLockedByMe && !isResizing && !isRotating && (() => {
         // Calculate shape center and rotation handle position based on type
         let centerX: number;
         let centerY: number;

@@ -52,6 +52,7 @@ export default function Canvas() {
     deleteShape,
     duplicateShape,
     deleteAllShapes,
+    updateTextFontSize,
     selectedShapeId,
     setSelectedShapeId,
     editingTextId,
@@ -114,6 +115,7 @@ export default function Canvas() {
   const {
     isResizing,
     previewDimensions,
+    previewFontSize,
     handleResizeStart,
     handleResizeMove,
     handleResizeEnd,
@@ -126,6 +128,7 @@ export default function Canvas() {
     resizeCircle,
     updateShape,
     unlockShape,
+    updateTextFontSize,
   });
 
   // Track when text input is closed for cooldown
@@ -141,9 +144,6 @@ export default function Canvas() {
       const shapeStillExists = shapes.find(s => s.id === selectedShapeId);
       if (!shapeStillExists) {
         handleDeselectShape();
-      } else {
-        // Log success for Task 1.2 when handles are shown
-        console.log('✅ SUCCESS TASK [1.2]: 8 resize handles rendered (4 corners + 4 edges) with hover effects');
       }
     }
   }, [shapes, selectedShapeId]);
@@ -174,6 +174,17 @@ export default function Canvas() {
       cleanupStaleLocks();
     }
   }, [user, shapes, shapesLoading]);
+
+  // Log text size when a text box is selected
+  useEffect(() => {
+    if (selectedShapeId) {
+      const selectedShape = shapes.find(s => s.id === selectedShapeId);
+      if (selectedShape && selectedShape.type === 'text') {
+        const fontSize = selectedShape.fontSize || 16;
+        console.log(`📝 Text size: ${fontSize}px`);
+      }
+    }
+  }, [selectedShapeId, shapes]);
 
   // Keyboard shortcuts for delete and duplicate
   useEffect(() => {
@@ -388,7 +399,7 @@ export default function Canvas() {
     }
 
     try {
-      await createText(
+      const textId = await createText(
         text,
         textInputPosition.x,
         textInputPosition.y,
@@ -396,6 +407,11 @@ export default function Canvas() {
         user.uid
       );
       setTextInputVisible(false);
+      
+      // Select and lock the newly created text so user can see resize handles
+      setSelectedShapeId(textId);
+      await lockShape(textId, user.uid);
+      
       toast.success('Text created!', {
         duration: 1000,
         position: 'top-center',
@@ -1097,6 +1113,7 @@ export default function Canvas() {
                 isRotating={isRotating}
                 activeTool={activeTool}
                 previewDimensions={previewDimensions}
+                previewFontSize={previewFontSize}
                 previewRotation={previewRotation}
                 hoveredHandle={hoveredHandle}
                 hoveredRotationHandle={hoveredRotationHandle}

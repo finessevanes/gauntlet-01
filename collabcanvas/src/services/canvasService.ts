@@ -324,15 +324,23 @@ class CanvasService {
       // Generate a unique ID for the text shape
       const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
       
+      // Calculate initial text dimensions
+      const fontSize = options?.fontSize || 16;
+      const padding = 4;
+      const estimatedWidth = text.length * fontSize * 0.6;
+      const estimatedHeight = fontSize * 1.2;
+      const width = estimatedWidth + padding * 2;
+      const height = estimatedHeight + padding * 2;
+      
       const textData: Omit<ShapeData, 'id'> = {
         type: 'text',
         text,
         x,
         y,
-        width: 0, // Text auto-sizes
-        height: 0, // Text auto-sizes
+        width, // Calculate initial width based on text content
+        height, // Calculate initial height based on font size
         color,
-        fontSize: options?.fontSize || 16,
+        fontSize,
         fontWeight: options?.fontWeight || 'normal',
         fontStyle: options?.fontStyle || 'normal',
         textDecoration: options?.textDecoration || 'none',
@@ -361,8 +369,27 @@ class CanvasService {
   async updateText(shapeId: string, text: string): Promise<void> {
     try {
       const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      
+      // Get current shape to retrieve fontSize
+      const shapeSnap = await getDoc(shapeRef);
+      if (!shapeSnap.exists()) {
+        throw new Error('Shape not found');
+      }
+      
+      const currentShape = shapeSnap.data() as ShapeData;
+      const fontSize = currentShape.fontSize || 16;
+      
+      // Recalculate dimensions based on new text
+      const padding = 4;
+      const estimatedWidth = text.length * fontSize * 0.6;
+      const estimatedHeight = fontSize * 1.2;
+      const width = estimatedWidth + padding * 2;
+      const height = estimatedHeight + padding * 2;
+      
       await updateDoc(shapeRef, {
         text,
+        width,
+        height,
         updatedAt: serverTimestamp(),
       });
       console.log('✅ Text content updated:', shapeId);
@@ -387,8 +414,27 @@ class CanvasService {
       }
 
       const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      
+      // Get current shape to retrieve text content
+      const shapeSnap = await getDoc(shapeRef);
+      if (!shapeSnap.exists()) {
+        throw new Error('Shape not found');
+      }
+      
+      const currentShape = shapeSnap.data() as ShapeData;
+      const textContent = currentShape.text || '';
+      
+      // Recalculate dimensions based on new font size
+      const padding = 4;
+      const estimatedWidth = textContent.length * fontSize * 0.6;
+      const estimatedHeight = fontSize * 1.2;
+      const width = estimatedWidth + padding * 2;
+      const height = estimatedHeight + padding * 2;
+      
       await updateDoc(shapeRef, {
         fontSize,
+        width,
+        height,
         updatedAt: serverTimestamp(),
       });
       console.log('✅ Font size updated:', shapeId, fontSize);

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useCanvasContext } from '../../contexts/CanvasContext';
-import { useAuth } from '../../hooks/useAuth';
-import toast from 'react-hot-toast';
+import { ALLOWED_FONT_SIZES } from '../../utils/helpers';
+import type { ShapeData } from '../../services/canvasService';
 
 interface Tool {
   id: string;
@@ -10,102 +10,153 @@ interface Tool {
   active: boolean;
 }
 
-export default function ToolPalette() {
-  const { user } = useAuth();
+interface ToolPaletteProps {
+  selectedShape: ShapeData | null;
+  onToggleBold?: () => void;
+  onToggleItalic?: () => void;
+  onToggleUnderline?: () => void;
+  onChangeFontSize?: (size: number) => void;
+  onDelete?: () => void;
+  onDuplicate?: () => void;
+  textFormattingDisabled?: boolean;
+}
+
+export default function ToolPalette({ 
+  selectedShape,
+  onToggleBold,
+  onToggleItalic,
+  onToggleUnderline,
+  onChangeFontSize,
+  onDelete,
+  onDuplicate,
+  textFormattingDisabled = false
+}: ToolPaletteProps) {
   const { 
-    activeTool,
+    activeTool, 
     setActiveTool,
     setIsDrawMode, 
     setIsBombMode, 
-    selectedColor,
-    selectedShapeId,
-    setSelectedShapeId,
-    shapes,
-    deleteShape,
-    duplicateShape,
-    lockShape,
-    unlockShape
+    selectedColor 
   } = useCanvasContext();
   
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isDuplicating, setIsDuplicating] = useState(false);
-  
-  // Get the selected shape
-  const selectedShape = selectedShapeId ? shapes.find(s => s.id === selectedShapeId) : null;
-  
-  // Check if current user has the selected shape locked
-  const isLockedByMe = selectedShape && user && selectedShape.lockedBy === user.uid;
+  const [isChanging, setIsChanging] = useState(false);
 
   const tools: Tool[] = [
+    { id: 'select', icon: '➤', name: 'Select / Move Objects', active: activeTool === 'select' },
     { id: 'pan', icon: '✋', name: 'Pan / Move Canvas', active: activeTool === 'pan' },
-    { id: 'rectangle', icon: '⬜', name: 'Rectangle / Draw', active: activeTool === 'rectangle' },
+    { id: 'rectangle', icon: '⬜', name: 'Rectangle', active: activeTool === 'rectangle' },
     { id: 'circle', icon: '⭕', name: 'Circle', active: activeTool === 'circle' },
     { id: 'triangle', icon: '△', name: 'Triangle', active: activeTool === 'triangle' },
+    { id: 'text', icon: 'T', name: 'Text Tool', active: activeTool === 'text' },
     { id: 'bomb', icon: '💣', name: 'Bomb / Clear Canvas', active: activeTool === 'bomb' },
   ];
 
   const handleToolClick = (toolId: string) => {
-    // Set active tool
-    setActiveTool(toolId as 'pan' | 'rectangle' | 'circle' | 'triangle' | 'bomb');
-    
-    // Update legacy state for backward compatibility
-    if (toolId === 'rectangle') {
+    if (toolId === 'select') {
+      setActiveTool('select');
+      setIsDrawMode(false);
+      setIsBombMode(false);
+    } else if (toolId === 'rectangle') {
+      setActiveTool('rectangle');
       setIsDrawMode(true);
       setIsBombMode(false);
-    } else if (toolId === 'pan' || toolId === 'circle' || toolId === 'triangle') {
+    } else if (toolId === 'circle') {
+      setActiveTool('circle');
+      setIsDrawMode(true);
+      setIsBombMode(false);
+    } else if (toolId === 'triangle') {
+      setActiveTool('triangle');
+      setIsDrawMode(true);
+      setIsBombMode(false);
+    } else if (toolId === 'pan') {
+      setActiveTool('pan');
+      setIsDrawMode(false);
+      setIsBombMode(false);
+    } else if (toolId === 'text') {
+      setActiveTool('text');
       setIsDrawMode(false);
       setIsBombMode(false);
     } else if (toolId === 'bomb') {
+      setActiveTool('bomb');
       setIsDrawMode(false);
       setIsBombMode(true);
     }
   };
 
-  const handleDelete = async () => {
-    if (!selectedShapeId || isDeleting) return;
-    
+  const handleFormatClick = async (callback?: () => void) => {
+    if (!callback || textControlsDisabled || isChanging) return;
+    setIsChanging(true);
     try {
-      setIsDeleting(true);
-      await deleteShape(selectedShapeId);
-      toast.success('Shape deleted', { duration: 1500 });
-    } catch (error) {
-      console.error('Error deleting shape:', error);
-      toast.error('Failed to delete shape');
+      await callback();
     } finally {
-      setIsDeleting(false);
+      setTimeout(() => setIsChanging(false), 100);
     }
   };
 
-  const handleDuplicate = async () => {
-    if (!selectedShapeId || !user || isDuplicating) return;
+  const handleFontSizeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!onChangeFontSize || textControlsDisabled || isChanging) return;
+    const size = parseInt(e.target.value, 10);
     
-    const originalShapeId = selectedShapeId;
+    // Validate: must be a number between 1 and 500
+    if (isNaN(size) || size < 1 || size > 500) {
+      return;
+    }
     
+    setIsChanging(true);
     try {
-      setIsDuplicating(true);
-      
-      // Create the duplicate
-      const newShapeId = await duplicateShape(originalShapeId, user.uid);
-      
-      // Immediately unlock the original and lock the new shape
-      // (this happens before real-time sync completes)
-      await Promise.all([
-        unlockShape(originalShapeId),
-        lockShape(newShapeId, user.uid)
-      ]);
-      
-      // Set the new shape as selected immediately
-      setSelectedShapeId(newShapeId);
-      
-      toast.success('Shape duplicated', { duration: 1500 });
-      console.log('Duplicated shape ID:', newShapeId);
-    } catch (error) {
-      console.error('Error duplicating shape:', error);
-      toast.error('Failed to duplicate shape');
+      await onChangeFontSize(size);
     } finally {
-      setIsDuplicating(false);
+      setTimeout(() => setIsChanging(false), 100);
     }
   };
+
+  const handleFontSizeSelect = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (!onChangeFontSize || textControlsDisabled || isChanging) return;
+    const value = e.target.value;
+    
+    // If "custom" is selected, do nothing (keep current value)
+    if (value === 'custom') {
+      return;
+    }
+    
+    const size = parseInt(value, 10);
+    
+    if (isNaN(size)) return;
+    
+    setIsChanging(true);
+    try {
+      await onChangeFontSize(size);
+    } finally {
+      setTimeout(() => setIsChanging(false), 100);
+    }
+  };
+
+  // Check if a text shape is selected to enable text formatting controls
+  const isTextSelected = selectedShape?.type === 'text';
+  const isBold = selectedShape?.fontWeight === 'bold';
+  const isItalic = selectedShape?.fontStyle === 'italic';
+  const isUnderline = selectedShape?.textDecoration === 'underline';
+  
+  // Get current font size, ensuring it's a valid number
+  let currentFontSize = 16; // default
+  if (isTextSelected && selectedShape?.fontSize !== undefined) {
+    currentFontSize = selectedShape.fontSize;
+  }
+  
+  // Debug: Log the selected shape data
+  if (isTextSelected) {
+    console.log('📊 ToolPalette - Selected shape:', {
+      id: selectedShape?.id,
+      type: selectedShape?.type,
+      fontSize: selectedShape?.fontSize,
+      currentFontSize,
+      text: selectedShape?.text,
+      fullShape: selectedShape
+    });
+  }
+  
+  // Disable text controls when no text is selected OR when already disabled
+  const textControlsDisabled = !isTextSelected || textFormattingDisabled;
 
   return (
     <div style={styles.palette}>
@@ -117,6 +168,7 @@ export default function ToolPalette() {
             style={{
               ...styles.toolButton,
               ...(tool.active ? styles.activeTool : {}),
+              ...(tool.id === 'text' ? styles.textIcon : {}),
             }}
             title={tool.name}
             aria-label={tool.name}
@@ -151,33 +203,146 @@ export default function ToolPalette() {
         </div>
       </div>
 
-      {/* Shape Controls - Always visible, disabled when no shape locked */}
-      <div style={styles.separator} />
-      <div style={styles.controlsGrid}>
+      {/* Shape Actions Section - Delete and Duplicate */}
+      <div style={styles.shapeActionsSection}>
         <button
-          onClick={handleDuplicate}
-          disabled={!isLockedByMe || isDuplicating}
+          onClick={onDuplicate}
+          disabled={!selectedShape || isChanging}
           style={{
-            ...styles.controlButton,
-            ...((!isLockedByMe || isDuplicating) ? styles.disabledButton : {}),
+            ...styles.actionButton,
+            ...(!selectedShape ? styles.disabledButton : {}),
           }}
-          title={isLockedByMe ? "Duplicate Shape" : "Select a shape to duplicate"}
-          aria-label="Duplicate Shape"
+          title={selectedShape ? "Duplicate (Ctrl+D)" : "Duplicate (select a shape first)"}
         >
-          {isDuplicating ? '⏳' : '📋'}
+          <span style={{ 
+            fontSize: '20px',
+            color: !selectedShape ? '#a0a0a0' : '#000000'
+          }}>
+            📋
+          </span>
         </button>
+
         <button
-          onClick={handleDelete}
-          disabled={!isLockedByMe || isDeleting}
+          onClick={onDelete}
+          disabled={!selectedShape || isChanging}
           style={{
-            ...styles.controlButton,
-            ...((!isLockedByMe || isDeleting) ? styles.disabledButton : {}),
+            ...styles.actionButton,
+            ...(!selectedShape ? styles.disabledButton : {}),
           }}
-          title={isLockedByMe ? "Delete Shape" : "Select a shape to delete"}
-          aria-label="Delete Shape"
+          title={selectedShape ? "Delete (Del)" : "Delete (select a shape first)"}
         >
-          {isDeleting ? '⏳' : '🗑️'}
+          <span style={{ 
+            fontSize: '20px',
+            color: !selectedShape ? '#a0a0a0' : '#000000'
+          }}>
+            🗑️
+          </span>
         </button>
+      </div>
+
+      {/* Text Formatting Controls - always visible, disabled when no text is selected */}
+      <div style={styles.textFormattingSection}>
+        {/* Bold, Italic, Underline buttons */}
+        <div style={styles.formatButtonGroup}>
+          <button
+            onClick={() => handleFormatClick(onToggleBold)}
+            disabled={textControlsDisabled || isChanging}
+            style={{
+              ...styles.formatButton,
+              ...(isBold && isTextSelected ? styles.activeFormatButton : {}),
+              ...(textControlsDisabled ? styles.disabledButton : {}),
+            }}
+            title={isTextSelected ? "Bold" : "Bold (select text first)"}
+          >
+            <span style={{ 
+              fontWeight: 'bold',
+              color: isBold && isTextSelected ? '#ffffff' : (textControlsDisabled ? '#a0a0a0' : '#000000')
+            }}>
+              B
+            </span>
+          </button>
+
+          <button
+            onClick={() => handleFormatClick(onToggleItalic)}
+            disabled={textControlsDisabled || isChanging}
+            style={{
+              ...styles.formatButton,
+              ...(isItalic && isTextSelected ? styles.activeFormatButton : {}),
+              ...(textControlsDisabled ? styles.disabledButton : {}),
+            }}
+            title={isTextSelected ? "Italic" : "Italic (select text first)"}
+          >
+            <span style={{ 
+              fontStyle: 'italic',
+              color: isItalic && isTextSelected ? '#ffffff' : (textControlsDisabled ? '#a0a0a0' : '#000000')
+            }}>
+              I
+            </span>
+          </button>
+
+          <button
+            onClick={() => handleFormatClick(onToggleUnderline)}
+            disabled={textControlsDisabled || isChanging}
+            style={{
+              ...styles.formatButton,
+              ...(isUnderline && isTextSelected ? styles.activeFormatButton : {}),
+              ...(textControlsDisabled ? styles.disabledButton : {}),
+            }}
+            title={isTextSelected ? "Underline" : "Underline (select text first)"}
+          >
+            <span style={{ 
+              textDecoration: 'underline',
+              color: isUnderline && isTextSelected ? '#ffffff' : (textControlsDisabled ? '#a0a0a0' : '#000000')
+            }}>
+              U
+            </span>
+          </button>
+        </div>
+
+        {/* Font Size Control - Combined */}
+        <div style={styles.fontSizeSection}>
+          <label style={{
+            ...styles.fontSizeLabel,
+            ...(textControlsDisabled ? { color: '#a0a0a0' } : {}),
+          }}>Size</label>
+          
+          {/* Combined control with input and dropdown */}
+          <div style={styles.fontSizeComboWrapper}>
+            {/* Large input field for current size and custom entry */}
+            <input
+              type="number"
+              value={currentFontSize}
+              onChange={handleFontSizeChange}
+              disabled={textControlsDisabled || isChanging}
+              min={1}
+              max={500}
+              style={{
+                ...styles.fontSizeComboInput,
+                ...(textControlsDisabled ? styles.disabledInput : {}),
+              }}
+              title={isTextSelected ? "Type custom size (1-500px)" : "Font size (select text first)"}
+              placeholder="16"
+            />
+            {/* Dropdown for preset sizes */}
+            <select
+              value={ALLOWED_FONT_SIZES.includes(currentFontSize) ? currentFontSize : 'custom'}
+              onChange={handleFontSizeSelect}
+              disabled={textControlsDisabled || isChanging}
+              style={{
+                ...styles.fontSizeComboSelect,
+                ...(textControlsDisabled ? styles.disabledInput : {}),
+              }}
+              title={isTextSelected ? "Select preset size" : "Select font size (select text first)"}
+            >
+              {ALLOWED_FONT_SIZES.map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+              {!ALLOWED_FONT_SIZES.includes(currentFontSize) && (
+                <option value="custom">{currentFontSize}</option>
+              )}
+            </select>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -188,7 +353,7 @@ const styles = {
     position: 'fixed' as const,
     left: 0,
     top: '67px', // Below title bar + menu bar
-    width: '70px',
+    width: '130px', // Wider to accommodate 2 columns
     backgroundColor: '#f0f0f0',
     borderRight: '1px solid #c0c0c0',
     borderBottom: '1px solid #c0c0c0',
@@ -200,8 +365,8 @@ const styles = {
     boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
   },
   toolGrid: {
-    display: 'flex',
-    flexDirection: 'column' as const,
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr', // Two columns
     gap: '6px',
   },
   toolButton: {
@@ -228,8 +393,8 @@ const styles = {
     boxSizing: 'border-box' as const,
   },
   circleIcon: {
-    width: '28px',
-    height: '28px',
+    width: '30px',
+    height: '30px',
     backgroundColor: 'transparent',
     border: '2px dashed #000000',
     borderRadius: '50%',
@@ -238,11 +403,15 @@ const styles = {
   triangleIcon: {
     width: 0,
     height: 0,
-    backgroundColor: 'transparent',
-    borderLeft: '14px solid transparent',
-    borderRight: '14px solid transparent',
-    borderBottom: '24px dashed #000000',
+    borderLeft: '16px solid transparent',
+    borderRight: '16px solid transparent',
+    borderBottom: '28px dashed #000000',
     boxSizing: 'border-box' as const,
+  },
+  textIcon: {
+    fontFamily: 'serif',
+    fontSize: '32px',
+    fontWeight: 'bold' as const,
   },
   activeTool: {
     backgroundColor: '#c0c0c0',
@@ -250,10 +419,12 @@ const styles = {
   },
   colorDisplay: {
     marginTop: '8px',
-    padding: '6px',
+    padding: '8px',
     backgroundColor: '#e0e0e0',
     borderRadius: '4px',
     boxShadow: 'inset 1px 1px 2px rgba(0,0,0,0.2)',
+    display: 'flex',
+    justifyContent: 'center',
   },
   colorSquares: {
     display: 'flex',
@@ -277,34 +448,125 @@ const styles = {
     border: '2px solid #000000',
     boxShadow: 'inset -1px -1px 0 0 rgba(0,0,0,0.3), inset 1px 1px 0 0 rgba(255,255,255,0.5), 0 2px 4px rgba(0,0,0,0.2)',
   },
-  separator: {
-    height: '1px',
-    backgroundColor: '#808080',
-    margin: '8px 0',
-    boxShadow: '0 1px 0 0 #ffffff',
-  },
-  controlsGrid: {
-    display: 'flex',
-    flexDirection: 'column' as const,
+  shapeActionsSection: {
+    marginTop: '12px',
+    paddingTop: '12px',
+    borderTop: '1px solid #a0a0a0',
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr', // Two columns for actions
     gap: '6px',
   },
-  controlButton: {
-    width: '54px',
-    height: '54px',
+  actionButton: {
+    width: '100%',
+    height: '40px',
     backgroundColor: '#d8d8d8',
     border: 'none',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '28px',
+    fontSize: '16px',
     padding: 0,
-    transition: 'none',
-    boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
     borderRadius: '3px',
+    boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
+    transition: 'none',
+  },
+  textFormattingSection: {
+    marginTop: '12px',
+    paddingTop: '12px',
+    borderTop: '1px solid #a0a0a0',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '8px',
+  },
+  formatButtonGroup: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr 1fr', // Three buttons in a row
+    gap: '4px',
+  },
+  formatButton: {
+    width: '100%',
+    height: '32px',
+    backgroundColor: '#d8d8d8',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '16px',
+    padding: 0,
+    borderRadius: '3px',
+    boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
+    transition: 'none',
+  },
+  activeFormatButton: {
+    backgroundColor: '#0066cc',
+    boxShadow: 'inset 2px 2px 3px rgba(0,0,0,0.3), inset -1px -1px 0 rgba(255,255,255,0.2)',
+    border: '1px solid #004499',
   },
   disabledButton: {
-    opacity: 0.5,
+    backgroundColor: '#e8e8e8',
+    color: '#a0a0a0',
+    cursor: 'not-allowed',
+  },
+  fontSizeSection: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '4px',
+  },
+  fontSizeLabel: {
+    fontSize: '12px',
+    fontWeight: 'bold' as const,
+    color: '#555',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.5px',
+  },
+  fontSizeComboWrapper: {
+    display: 'flex',
+    flexDirection: 'row' as const,
+    gap: '0',
+    border: '2px solid #808080',
+    borderRadius: '3px',
+    overflow: 'hidden',
+    backgroundColor: '#ffffff',
+    boxShadow: 'inset 1px 1px 2px rgba(0,0,0,0.1)',
+  },
+  fontSizeComboInput: {
+    flex: '1',
+    padding: '8px 6px',
+    fontSize: '16px',
+    fontWeight: 'bold' as const,
+    color: '#000000',
+    backgroundColor: '#ffffff',
+    border: 'none',
+    cursor: 'text',
+    textAlign: 'left' as const,
+    outline: 'none',
+    minWidth: '0', // Allow flex to shrink
+  },
+  fontSizeComboSelect: {
+    flex: '0 0 24px', // Fixed width for dropdown button
+    padding: '0',
+    fontSize: '0', // Hide text
+    color: 'transparent', // Make text invisible
+    backgroundColor: '#d8d8d8',
+    border: 'none',
+    borderLeft: '1px solid #808080',
+    cursor: 'pointer',
+    outline: 'none',
+    appearance: 'none' as const,
+    WebkitAppearance: 'none' as const,
+    MozAppearance: 'none' as const,
+    // Draw down-pointing triangle
+    backgroundImage: 'linear-gradient(45deg, transparent 50%, #000 50%), linear-gradient(135deg, #000 50%, transparent 50%)',
+    backgroundPosition: 'calc(50% - 2px) calc(50% - 1px), calc(50% + 2px) calc(50% - 1px)',
+    backgroundSize: '5px 5px, 5px 5px',
+    backgroundRepeat: 'no-repeat',
+    boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
+  },
+  disabledInput: {
+    backgroundColor: '#e8e8e8',
+    color: '#a0a0a0',
     cursor: 'not-allowed',
   },
 };

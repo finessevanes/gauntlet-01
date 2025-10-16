@@ -481,7 +481,7 @@ export default function Canvas() {
       }
 
       // Only start drawing if a shape tool is selected
-      if (activeTool === 'pan') return;
+      if (activeTool === 'pan' || activeTool === 'select') return;
 
       setIsDrawing(true);
       setDrawStart({ x, y });
@@ -1513,7 +1513,8 @@ export default function Canvas() {
     if (activeTool === 'bomb') return 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewport=\'0 0 40 40\' style=\'font-size:32px\'><text y=\'32\'>💣</text></svg>") 16 16, crosshair'; // Bomb mode: show bomb cursor
     if (activeTool === 'rectangle' || activeTool === 'circle' || activeTool === 'triangle') return 'crosshair'; // Shape tool: ready to draw
     if (activeTool === 'text') return 'text'; // Text mode: show text cursor
-    return 'grab'; // Pan mode: ready to pan
+    if (activeTool === 'pan') return 'grab'; // Pan mode: ready to pan
+    return 'default'; // Select mode: default cursor (objects will have pointer cursor on hover)
   };
 
   // Handle wheel zoom (cursor-centered)
@@ -1674,9 +1675,9 @@ export default function Canvas() {
                 offsetX={offsetX}
                 offsetY={offsetY}
                 rotation={currentRotation}
-                draggable={!isLockedByOther && !isResizing && !isRotating}
-                onMouseDown={() => handleShapeMouseDown(shape.id)}
-                onTouchStart={() => handleShapeMouseDown(shape.id)}
+                draggable={activeTool === 'select' && !isLockedByOther && !isResizing && !isRotating}
+                onMouseDown={activeTool === 'select' ? () => handleShapeMouseDown(shape.id) : undefined}
+                onTouchStart={activeTool === 'select' ? () => handleShapeMouseDown(shape.id) : undefined}
                 onDragStart={(e) => handleShapeDragStart(e, shape.id)}
                 onDragMove={(e) => handleShapeDragMove(e, shape.id)}
                 onDragEnd={(e) => handleShapeDragEnd(e, shape.id)}
@@ -1690,6 +1691,14 @@ export default function Canvas() {
                     opacity={isLockedByOther ? 0.5 : 1}
                     stroke={isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
                     strokeWidth={isLockedByMe || isLockedByOther ? 3 : 1}
+                    onMouseEnter={() => {
+                      if (activeTool === 'select' && !isLockedByOther) {
+                        document.body.style.cursor = 'move';
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      document.body.style.cursor = '';
+                    }}
                   />
                 )}
                 {shape.type === 'circle' && currentRadius !== undefined && (
@@ -1701,6 +1710,14 @@ export default function Canvas() {
                     opacity={isLockedByOther ? 0.5 : 1}
                     stroke={isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
                     strokeWidth={isLockedByMe || isLockedByOther ? 3 : 1}
+                    onMouseEnter={() => {
+                      if (activeTool === 'select' && !isLockedByOther) {
+                        document.body.style.cursor = 'move';
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      document.body.style.cursor = '';
+                    }}
                   />
                 )}
                 {shape.type === 'triangle' && currentWidth !== undefined && currentHeight !== undefined && (() => {
@@ -1727,6 +1744,14 @@ export default function Canvas() {
                       opacity={isLockedByOther ? 0.5 : 1}
                       stroke={isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
                       strokeWidth={isLockedByMe || isLockedByOther ? 3 : 1}
+                      onMouseEnter={() => {
+                        if (activeTool === 'select' && !isLockedByOther) {
+                          document.body.style.cursor = 'move';
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        document.body.style.cursor = '';
+                      }}
                     />
                   );
                 })()}
@@ -1745,6 +1770,14 @@ export default function Canvas() {
                         height={currentHeight}
                         fill="transparent"
                         listening={true}
+                        onMouseEnter={() => {
+                          if (activeTool === 'select' && !isLockedByOther) {
+                            document.body.style.cursor = 'move';
+                          }
+                        }}
+                        onMouseLeave={() => {
+                          document.body.style.cursor = '';
+                        }}
                       />
                       
                       {/* Selection box with dotted border (Paint-style) - show when selected OR when editing */}

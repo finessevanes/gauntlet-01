@@ -42,6 +42,7 @@ export default function ToolPalette({
   const [isChanging, setIsChanging] = useState(false);
 
   const tools: Tool[] = [
+    { id: 'select', icon: '➤', name: 'Select / Move Objects', active: activeTool === 'select' },
     { id: 'pan', icon: '✋', name: 'Pan / Move Canvas', active: activeTool === 'pan' },
     { id: 'rectangle', icon: '⬜', name: 'Rectangle', active: activeTool === 'rectangle' },
     { id: 'circle', icon: '⭕', name: 'Circle', active: activeTool === 'circle' },
@@ -51,7 +52,11 @@ export default function ToolPalette({
   ];
 
   const handleToolClick = (toolId: string) => {
-    if (toolId === 'rectangle') {
+    if (toolId === 'select') {
+      setActiveTool('select');
+      setIsDrawMode(false);
+      setIsBombMode(false);
+    } else if (toolId === 'rectangle') {
       setActiveTool('rectangle');
       setIsDrawMode(true);
       setIsBombMode(false);

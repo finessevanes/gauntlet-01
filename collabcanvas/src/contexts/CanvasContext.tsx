@@ -6,7 +6,7 @@ import type { ShapeData, ShapeCreateInput } from '../services/canvasService';
 import { useAuth } from '../hooks/useAuth';
 import type { Unsubscribe } from 'firebase/firestore';
 
-export type ToolType = 'pan' | 'rectangle' | 'circle' | 'triangle' | 'text' | 'bomb';
+export type ToolType = 'select' | 'pan' | 'rectangle' | 'circle' | 'triangle' | 'text' | 'bomb';
 
 interface CanvasContextType {
   // Color selection
@@ -69,7 +69,7 @@ const CanvasContext = createContext<CanvasContextType | undefined>(undefined);
 export function CanvasProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_COLOR);
-  const [activeTool, setActiveTool] = useState<ToolType>('pan');
+  const [activeTool, setActiveTool] = useState<ToolType>('select');
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
   const [isDrawMode, setIsDrawMode] = useState(false); // Deprecated: kept for backward compatibility
   const [isBombMode, setIsBombMode] = useState(false); // Deprecated: kept for backward compatibility

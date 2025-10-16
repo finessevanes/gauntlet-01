@@ -84,9 +84,6 @@ export default function Canvas() {
     height: number;
   } | null>(null);
 
-  // Lock timeout state
-  const [lockTimeoutId, setLockTimeoutId] = useState<number | null>(null);
-  
   // Resize handle hover state
   const [hoveredHandle, setHoveredHandle] = useState<string | null>(null);
   
@@ -113,14 +110,6 @@ export default function Canvas() {
   // Cursor tracking
   const { cursors, handleMouseMove: handleCursorMove, handleMouseLeave } = useCursors(stageRef);
 
-  // Helper: Clear any existing lock timeout
-  const clearLockTimeout = () => {
-    if (lockTimeoutId) {
-      clearTimeout(lockTimeoutId);
-      setLockTimeoutId(null);
-    }
-  };
-
   // Resize logic hook
   const {
     isResizing,
@@ -137,7 +126,6 @@ export default function Canvas() {
     resizeCircle,
     updateShape,
     unlockShape,
-    clearLockTimeout,
   });
 
   // Track when text input is closed for cooldown
@@ -146,16 +134,6 @@ export default function Canvas() {
       textInputClosedTimeRef.current = Date.now();
     }
   }, [textInputVisible, editingTextId]);
-
-  // Auto-timeout unlock after 5s of inactivity
-  useEffect(() => {
-    return () => {
-      // Cleanup timeout on unmount
-      if (lockTimeoutId) {
-        clearTimeout(lockTimeoutId);
-      }
-    };
-  }, [lockTimeoutId]);
 
   // Deselect and unlock when selected shape is deleted/changed externally
   useEffect(() => {
@@ -237,7 +215,6 @@ export default function Canvas() {
           
           // Select and lock the new shape immediately
           setSelectedShapeId(newShapeId);
-          startLockTimeout(newShapeId);
           await lockShape(newShapeId, user.uid);
           
           toast.success('Shape duplicated', {
@@ -261,16 +238,6 @@ export default function Canvas() {
     };
   }, [selectedShapeId, user, textInputVisible, editingTextId, deleteShape, duplicateShape]);
 
-  // Helper: Start auto-unlock timeout (5s)
-  const startLockTimeout = (shapeId: string) => {
-    clearLockTimeout();
-    const timeoutId = setTimeout(async () => {
-      await unlockShape(shapeId);
-      setSelectedShapeId(null);
-    }, 5000);
-    setLockTimeoutId(timeoutId);
-  };
-
   // Helper: Deselect shape and unlock
   const handleDeselectShape = async () => {
     if (selectedShapeId) {
@@ -281,7 +248,6 @@ export default function Canvas() {
       }
       
       setSelectedShapeId(null);
-      clearLockTimeout();
     }
   };
 
@@ -289,10 +255,8 @@ export default function Canvas() {
   const handleShapeMouseDown = async (shapeId: string) => {
     if (!user) return;
 
-    // If clicking on already selected shape, refresh timeout
+    // If clicking on already selected shape, do nothing
     if (selectedShapeId === shapeId) {
-      clearLockTimeout();
-      startLockTimeout(shapeId);
       return;
     }
 
@@ -303,7 +267,6 @@ export default function Canvas() {
 
     // OPTIMISTIC: Set as selected immediately (makes shape draggable right away)
     setSelectedShapeId(shapeId);
-    startLockTimeout(shapeId);
     
     // Attempt to lock in background
     const result = await lockShape(shapeId, user.uid);
@@ -312,7 +275,6 @@ export default function Canvas() {
       // Lock failed - another user has it
       // Revert optimistic selection
       setSelectedShapeId(null);
-      clearLockTimeout();
       
       const username = result.lockedByUsername || 'another user';
       toast.error(`Shape locked by ${username}`, {
@@ -362,9 +324,6 @@ export default function Canvas() {
         return;
       }
     }
-    
-    // Clear any existing lock timeout since we're entering edit mode
-    clearLockTimeout();
     
     // Enter edit mode
     setEditingTextId(shapeId);
@@ -757,14 +716,10 @@ export default function Canvas() {
   // Shape drag handlers
   const handleShapeDragStart = (e: Konva.KonvaEventObject<DragEvent>, _shapeId: string) => {
     e.cancelBubble = true; // Prevent stage from also receiving drag events
-    // Refresh lock timeout when dragging starts
-    clearLockTimeout();
   };
 
   const handleShapeDragMove = (e: Konva.KonvaEventObject<DragEvent>, shapeId: string) => {
     e.cancelBubble = true; // Prevent stage from also receiving drag events
-    // Refresh lock timeout during drag
-    clearLockTimeout();
     
     // Find the shape to get its dimensions
     const shape = shapes.find(s => s.id === shapeId);
@@ -876,7 +831,6 @@ export default function Canvas() {
     // Unlock the shape after drag
     await unlockShape(shapeId);
     setSelectedShapeId(null);
-    clearLockTimeout();
   };
 
   // ============================================
@@ -920,9 +874,6 @@ export default function Canvas() {
       rotation: shape.rotation || 0,
     });
     setPreviewRotation(shape.rotation || 0);
-
-    // Refresh lock timeout
-    clearLockTimeout();
     
     console.log('✅ Rotation started:', {
       initialAngle: (initialAngle * 180 / Math.PI).toFixed(2) + '°',
@@ -1010,11 +961,6 @@ export default function Canvas() {
       setIsRotating(false);
       setRotationStart(null);
       setPreviewRotation(null);
-      
-      // Refresh lock timeout after rotation
-      if (selectedShapeId) {
-        startLockTimeout(selectedShapeId);
-      }
     }
   };
 

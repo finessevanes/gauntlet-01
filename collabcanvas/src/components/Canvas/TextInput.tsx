@@ -84,10 +84,15 @@ export default function TextInput({
   }, [initialText]);
 
   useEffect(() => {
-    // Handle clicks outside - delay to avoid catching the click that opened this input
-    let cleanupFn: (() => void) | null = null;
+    // Handle clicks outside - ignore clicks within first 50ms to avoid catching the opening double-click
+    const mountTime = Date.now();
 
     const handleClickOutside = (event: MouseEvent) => {
+      // Ignore clicks that happen too soon after mounting (within 50ms)
+      if (Date.now() - mountTime < 50) {
+        return;
+      }
+      
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         if (text.trim()) {
           onSave(text.trim());
@@ -97,18 +102,11 @@ export default function TextInput({
       }
     };
 
-    const timeoutId = setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutside);
-      cleanupFn = () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
-    }, 100); // 100ms delay to avoid catching the opening click
+    // Register immediately instead of waiting 100ms
+    document.addEventListener('mousedown', handleClickOutside);
 
     return () => {
-      clearTimeout(timeoutId);
-      if (cleanupFn) {
-        cleanupFn();
-      }
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [text, onSave, onCancel]);
 

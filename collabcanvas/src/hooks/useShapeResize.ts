@@ -17,7 +17,6 @@ interface UseShapeResizeParams {
   resizeCircle: (id: string, radius: number) => Promise<void>;
   updateShape: (id: string, updates: Partial<ShapeData>) => Promise<void>;
   unlockShape: (id: string) => Promise<void>;
-  clearLockTimeout: () => void;
 }
 
 interface UseShapeResizeReturn {
@@ -43,7 +42,6 @@ export function useShapeResize({
   resizeCircle,
   updateShape,
   unlockShape,
-  clearLockTimeout,
 }: UseShapeResizeParams): UseShapeResizeReturn {
   // Resize state management
   const [isResizing, setIsResizing] = useState(false);
@@ -115,9 +113,6 @@ export function useShapeResize({
         height: shape.height,
       });
     }
-
-    // Refresh lock timeout
-    clearLockTimeout();
   };
 
   const handleResizeMove = (_e: Konva.KonvaEventObject<MouseEvent>) => {

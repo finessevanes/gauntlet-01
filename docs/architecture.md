@@ -232,6 +232,7 @@ All Firebase interactions go through service classes:
 - **Local UI state:** Component-level state for transient UI (modals, inputs)
 - **Multi-select state:** Array of selected shape IDs in CanvasContext
 - **Clipboard state:** Copy/paste buffer in CanvasContext
+- **activeTool state:** `'pan' | 'rectangle' | 'circle' | 'triangle' | 'bomb'` tracks current drawing mode
 
 ### 6. Component Organization
 - **Feature-based:** Components grouped by feature (Auth, Canvas, Collaboration, AI)
@@ -282,6 +283,8 @@ Return success message to user
 ## Data Flow Examples
 
 ### Example 1: Manual Shape Creation
+
+**Rectangle/Triangle:** Drag bounding box (top-left to bottom-right)
 ```
 User drags on canvas
   ↓
@@ -299,6 +302,13 @@ CanvasContext updates shapes array
   ↓
 Canvas re-renders with new shape
 ```
+
+**Circle:** Drag from center outward, radius = √((x₂-x₁)² + (y₂-y₁)²)
+
+**Triangle Vertices:** Calculated from bounding box:
+- Top: `(x + width/2, y)` 
+- Bottom-left: `(x, y + height)`
+- Bottom-right: `(x + width, y + height)`
 
 ### Example 2: AI Shape Creation
 ```

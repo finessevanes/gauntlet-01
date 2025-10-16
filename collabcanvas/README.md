@@ -278,7 +278,8 @@ After deployment, verify the following:
 
 **Canvas Features:**
 - [ ] Pan and zoom work smoothly
-- [ ] Create rectangles with click-and-drag
+- [ ] Create rectangles, circles, triangles with click-and-drag
+- [ ] Resize and rotate shapes
 - [ ] Shapes sync across users (<100ms)
 - [ ] Shapes persist after refresh
 
@@ -317,16 +318,23 @@ To reset all emulator data between tests:
 
 Or use the Emulator UI to clear specific collections.
 
-## 🎯 MVP Features (PR #0 - #7)
+## 🎯 Features
 
-- ✅ **PR #0**: Tooling & Firebase Emulators Setup
-- ✅ **PR #1**: Authentication (Email/Password, User Profiles)
-- ✅ **PR #2**: Canvas Core (Pan/Zoom, Color Toolbar)
-- ✅ **PR #3**: Cursor Sync + Presence (RTDB)
-- ✅ **PR #4**: Shape Creation & Sync (Click-and-Drag Rectangles) + Mode Toggle (Pan vs Draw)
-- ✅ **PR #5**: Shape Locking + Drag Movement
-- ✅ **PR #6**: Security Rules, Tests, Polish
-- ✅ **PR #7**: Deployment (Vercel + Production Testing)
+### Core Canvas
+- ✅ **Pan/Zoom**: 5000x5000 canvas with smooth pan and zoom
+- ✅ **Shape Tools**: Rectangle, Circle, Triangle drawing modes
+- ✅ **Shape Operations**: Drag, resize, rotate, delete, duplicate
+- ✅ **Color Palette**: Multiple colors for shape creation
+- ✅ **Real-time Sync**: All shapes sync across users (<100ms)
+
+### Collaboration
+- ✅ **Live Cursors**: See collaborators' cursors in real-time (20-30 FPS)
+- ✅ **Presence**: See who's online with user badges
+- ✅ **Shape Locking**: First-user-locks mechanism prevents conflicts
+
+### Authentication
+- ✅ **Email/Password**: Secure signup and login
+- ✅ **Session Persistence**: Stay logged in across refreshes
 
 ## 🐛 Troubleshooting
 

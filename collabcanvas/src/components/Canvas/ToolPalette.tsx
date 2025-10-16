@@ -65,7 +65,7 @@ export default function ToolPalette({
   };
 
   const handleFormatClick = async (callback?: () => void) => {
-    if (!callback || textFormattingDisabled || isChanging) return;
+    if (!callback || textControlsDisabled || isChanging) return;
     setIsChanging(true);
     try {
       await callback();
@@ -75,7 +75,7 @@ export default function ToolPalette({
   };
 
   const handleFontSizeChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    if (!onChangeFontSize || textFormattingDisabled || isChanging) return;
+    if (!onChangeFontSize || textControlsDisabled || isChanging) return;
     const size = parseInt(e.target.value, 10);
     setIsChanging(true);
     try {
@@ -85,12 +85,15 @@ export default function ToolPalette({
     }
   };
 
-  // Check if we should show text formatting controls
-  const showTextControls = selectedShape?.type === 'text';
+  // Check if a text shape is selected to enable text formatting controls
+  const isTextSelected = selectedShape?.type === 'text';
   const isBold = selectedShape?.fontWeight === 'bold';
   const isItalic = selectedShape?.fontStyle === 'italic';
   const isUnderline = selectedShape?.textDecoration === 'underline';
   const currentFontSize = selectedShape?.fontSize || 16;
+  
+  // Disable text controls when no text is selected OR when already disabled
+  const textControlsDisabled = !isTextSelected || textFormattingDisabled;
 
   return (
     <div style={styles.palette}>
@@ -133,88 +136,89 @@ export default function ToolPalette({
         </div>
       </div>
 
-      {/* Text Formatting Controls - shown when a text shape is selected */}
-      {showTextControls && (
-        <div style={styles.textFormattingSection}>
-          {/* Bold, Italic, Underline buttons */}
-          <div style={styles.formatButtonGroup}>
-            <button
-              onClick={() => handleFormatClick(onToggleBold)}
-              disabled={textFormattingDisabled || isChanging}
-              style={{
-                ...styles.formatButton,
-                ...(isBold ? styles.activeFormatButton : {}),
-                ...(textFormattingDisabled ? styles.disabledButton : {}),
-              }}
-              title="Bold"
-            >
-              <span style={{ 
-                fontWeight: 'bold',
-                color: isBold ? '#ffffff' : (textFormattingDisabled ? '#a0a0a0' : '#000000')
-              }}>
-                B
-              </span>
-            </button>
+      {/* Text Formatting Controls - always visible, disabled when no text is selected */}
+      <div style={styles.textFormattingSection}>
+        {/* Bold, Italic, Underline buttons */}
+        <div style={styles.formatButtonGroup}>
+          <button
+            onClick={() => handleFormatClick(onToggleBold)}
+            disabled={textControlsDisabled || isChanging}
+            style={{
+              ...styles.formatButton,
+              ...(isBold && isTextSelected ? styles.activeFormatButton : {}),
+              ...(textControlsDisabled ? styles.disabledButton : {}),
+            }}
+            title={isTextSelected ? "Bold" : "Bold (select text first)"}
+          >
+            <span style={{ 
+              fontWeight: 'bold',
+              color: isBold && isTextSelected ? '#ffffff' : (textControlsDisabled ? '#a0a0a0' : '#000000')
+            }}>
+              B
+            </span>
+          </button>
 
-            <button
-              onClick={() => handleFormatClick(onToggleItalic)}
-              disabled={textFormattingDisabled || isChanging}
-              style={{
-                ...styles.formatButton,
-                ...(isItalic ? styles.activeFormatButton : {}),
-                ...(textFormattingDisabled ? styles.disabledButton : {}),
-              }}
-              title="Italic"
-            >
-              <span style={{ 
-                fontStyle: 'italic',
-                color: isItalic ? '#ffffff' : (textFormattingDisabled ? '#a0a0a0' : '#000000')
-              }}>
-                I
-              </span>
-            </button>
+          <button
+            onClick={() => handleFormatClick(onToggleItalic)}
+            disabled={textControlsDisabled || isChanging}
+            style={{
+              ...styles.formatButton,
+              ...(isItalic && isTextSelected ? styles.activeFormatButton : {}),
+              ...(textControlsDisabled ? styles.disabledButton : {}),
+            }}
+            title={isTextSelected ? "Italic" : "Italic (select text first)"}
+          >
+            <span style={{ 
+              fontStyle: 'italic',
+              color: isItalic && isTextSelected ? '#ffffff' : (textControlsDisabled ? '#a0a0a0' : '#000000')
+            }}>
+              I
+            </span>
+          </button>
 
-            <button
-              onClick={() => handleFormatClick(onToggleUnderline)}
-              disabled={textFormattingDisabled || isChanging}
-              style={{
-                ...styles.formatButton,
-                ...(isUnderline ? styles.activeFormatButton : {}),
-                ...(textFormattingDisabled ? styles.disabledButton : {}),
-              }}
-              title="Underline"
-            >
-              <span style={{ 
-                textDecoration: 'underline',
-                color: isUnderline ? '#ffffff' : (textFormattingDisabled ? '#a0a0a0' : '#000000')
-              }}>
-                U
-              </span>
-            </button>
-          </div>
-
-          {/* Font Size Dropdown */}
-          <div style={styles.fontSizeSection}>
-            <label style={styles.fontSizeLabel}>Size</label>
-            <select
-              value={currentFontSize}
-              onChange={handleFontSizeChange}
-              disabled={textFormattingDisabled || isChanging}
-              style={{
-                ...styles.fontSizeSelect,
-                ...(textFormattingDisabled ? styles.disabledSelect : {}),
-              }}
-              title="Font Size"
-            >
-              {ALLOWED_FONT_SIZES.map((size) => (
-                <option key={size} value={size}>
-                  {size}px
-                </option>
-              ))}
-            </select>
-          </div>
+          <button
+            onClick={() => handleFormatClick(onToggleUnderline)}
+            disabled={textControlsDisabled || isChanging}
+            style={{
+              ...styles.formatButton,
+              ...(isUnderline && isTextSelected ? styles.activeFormatButton : {}),
+              ...(textControlsDisabled ? styles.disabledButton : {}),
+            }}
+            title={isTextSelected ? "Underline" : "Underline (select text first)"}
+          >
+            <span style={{ 
+              textDecoration: 'underline',
+              color: isUnderline && isTextSelected ? '#ffffff' : (textControlsDisabled ? '#a0a0a0' : '#000000')
+            }}>
+              U
+            </span>
+          </button>
         </div>
-      )}
+
+        {/* Font Size Dropdown */}
+        <div style={styles.fontSizeSection}>
+          <label style={{
+            ...styles.fontSizeLabel,
+            ...(textControlsDisabled ? { color: '#a0a0a0' } : {}),
+          }}>Size</label>
+          <select
+            value={currentFontSize}
+            onChange={handleFontSizeChange}
+            disabled={textControlsDisabled || isChanging}
+            style={{
+              ...styles.fontSizeSelect,
+              ...(textControlsDisabled ? styles.disabledSelect : {}),
+            }}
+            title={isTextSelected ? "Font Size" : "Font Size (select text first)"}
+          >
+            {ALLOWED_FONT_SIZES.map((size) => (
+              <option key={size} value={size}>
+                {size}px
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
     </div>
   );
 }

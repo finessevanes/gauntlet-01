@@ -28,6 +28,7 @@ export default function TextInput({
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Calculate screen position from canvas position
+  // Position directly at click point without offset
   const screenX = x * stageScale + stagePosition.x;
   const screenY = y * stageScale + stagePosition.y;
 
@@ -40,16 +41,34 @@ export default function TextInput({
   };
 
   useEffect(() => {
-    // Auto-focus on mount with small delay to ensure DOM is ready
+    // Auto-focus and select text on mount
     const focusTimeout = setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
-        inputRef.current.select();
+        // Use setSelectionRange for more reliable text selection
+        const length = inputRef.current.value.length;
+        inputRef.current.setSelectionRange(0, length);
       }
-    }, 10); // Small delay to ensure DOM is ready
+    }, 0);
 
     return () => clearTimeout(focusTimeout);
   }, []);
+
+  // Additional effect to ensure text stays selected when editing existing text
+  useEffect(() => {
+    if (initialText && inputRef.current) {
+      // Only select if there's initial text (editing mode)
+      const selectTimeout = setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          const length = inputRef.current.value.length;
+          inputRef.current.setSelectionRange(0, length);
+        }
+      }, 50); // Slightly longer delay for editing mode
+
+      return () => clearTimeout(selectTimeout);
+    }
+  }, [initialText]);
 
   useEffect(() => {
     // Handle clicks outside - delay to avoid catching the click that opened this input
@@ -112,19 +131,22 @@ export default function TextInput({
         ref={inputRef}
         type="text"
         value={text}
+        placeholder="Text"
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}
         style={{
           fontSize: `${fontSize * stageScale}px`,
           color,
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-          border: '2px solid #3b82f6',
-          outline: 'none',
-          padding: '2px 4px',
+          backgroundColor: 'transparent',
+          border: 'none',
+          outline: '1px solid #000000', // Thin black outline to show it's editable
+          outlineOffset: '-1px',
+          padding: '1px 3px',
+          margin: '0',
           fontFamily: 'Arial, sans-serif',
-          minWidth: '100px',
-          maxWidth: '500px',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+          width: `${(text.length || 4) * fontSize * stageScale * 0.55}px`,
+          maxWidth: '800px',
+          lineHeight: '1.2',
         }}
       />
     </div>

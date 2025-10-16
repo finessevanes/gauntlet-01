@@ -375,10 +375,13 @@ class CanvasService {
    */
   async updateTextFontSize(shapeId: string, fontSize: number): Promise<void> {
     try {
-      // Validate font size
-      const ALLOWED_SIZES = [12, 14, 16, 18, 20, 24, 32, 48];
-      if (!ALLOWED_SIZES.includes(fontSize)) {
-        throw new Error(`Font size must be one of: ${ALLOWED_SIZES.join(', ')}`);
+      // Validate font size range (allow any size from 8px to 200px)
+      // This allows both dropdown selections and dynamic resize scaling
+      const MIN_FONT_SIZE = 8;
+      const MAX_FONT_SIZE = 200;
+      
+      if (fontSize < MIN_FONT_SIZE || fontSize > MAX_FONT_SIZE) {
+        throw new Error(`Font size must be between ${MIN_FONT_SIZE}px and ${MAX_FONT_SIZE}px`);
       }
 
       const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);

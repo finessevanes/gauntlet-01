@@ -22,7 +22,7 @@ This feature adds text layer support with rich formatting to the CollabCanvas ap
   - [x] Update text content field
   - [x] Update `updatedAt` timestamp
 - [x] Add `updateTextFontSize()` method
-  - [x] Validate font size (must be one of: 12, 14, 16, 18, 20, 24, 32, 48)
+  - [x] Validate font size (range: 8-200px, allows both dropdown and dynamic resize)
   - [x] Update fontSize field
   - [x] Update `updatedAt` timestamp
 - [x] Add `updateTextFormatting()` method
@@ -161,7 +161,16 @@ This feature adds text layer support with rich formatting to the CollabCanvas ap
   - [x] Handle text shape transformation
     - [x] Support drag to move (when locked)
     - [x] Support rotation (when locked)
+    - [x] Support resize with corner handles (scales fontSize proportionally)
     - [x] Update Firestore on transform end
+  - [x] Add rotation handle for text shapes
+    - [x] Render rotation handle 50px above text when locked
+    - [x] Show connecting line to text center
+    - [x] Apply same rotation logic as rectangles
+  - [x] Add resize handles for text shapes
+    - [x] Render 4 corner handles (proportional scaling)
+    - [x] Scale fontSize based on resize ratio
+    - [x] Clamp font size to 8-200px range
 
 ### Controls Panel Integration
 - [x] Update shape controls panel to show `TextControls`
@@ -200,6 +209,9 @@ This feature adds text layer support with rich formatting to the CollabCanvas ap
   - [x] Transparent background
   - [x] No border (or minimal border for visibility)
 - [x] Auto-focus on mount
+- [x] Auto-select/highlight text on mount (especially when editing existing text)
+  - [x] Use `setSelectionRange()` for reliable text selection
+  - [x] Add dedicated effect for editing mode with initial text
 - [x] Handle Enter key: call `onSave(text)`
 - [x] Handle Escape key: call `onCancel()`
 - [x] Handle click outside: call `onSave(text)` (treat as blur)
@@ -212,6 +224,9 @@ This feature adds text layer support with rich formatting to the CollabCanvas ap
 - [x] Show overlay when creating new text (text tool + canvas click)
 - [x] Show overlay when editing existing text (double-click)
 - [x] Position overlay relative to canvas zoom and pan
+- [x] Position overlay exactly at text location (including padding offset)
+- [x] Hide Konva Text element during editing for seamless in-place editing
+- [x] Keep selection box visible during editing for visual continuity
 - [x] Handle overlay save: create or update text shape
 - [x] Handle overlay cancel: remove overlay, no changes
 
@@ -290,15 +305,15 @@ This feature adds text layer support with rich formatting to the CollabCanvas ap
 ### Integration Tests (Manual)
 
 #### Scenario 1: Create Text
-- [ ] Click Text tool in toolbar
-- [ ] Verify tool is active (blue background)
-- [ ] Click on canvas at position (100, 100)
-- [ ] Verify text input appears at click position
-- [ ] Type "Hello World"
-- [ ] Press Enter
-- [ ] Verify text appears on canvas
-- [ ] Open another browser tab (User B)
-- [ ] Verify User B sees "Hello World" at (100, 100) in <100ms
+- [x] Click Text tool in toolbar
+- [x] Verify tool is active (blue background)
+- [x] Click on canvas at position (100, 100)
+- [x] Verify text input appears at click position
+- [x] Type "Hello World"
+- [x] Press Enter
+- [x] Verify text appears on canvas
+- [x] Open another browser tab (User B)
+- [x] Verify User B sees "Hello World" at (100, 100) in <100ms
 
 #### Scenario 2: Edit Text
 - [ ] User A creates text "Hello"
@@ -543,7 +558,8 @@ The feature is complete when all of the following are true:
 - [x] ✅ Font size changes sync to all users in real-time
 - [x] ✅ Text respects lock system (edit only when locked by user)
 - [x] ✅ Text can be moved via drag (when locked)
-- [x] ✅ Text can be rotated (rotation support exists)
+- [x] ✅ Text can be rotated using rotation handle (when locked)
+- [x] ✅ Text can be resized using corner handles (scales fontSize proportionally)
 - [x] ✅ Text can be deleted (via existing shape deletion)
 - [x] ✅ Text can be duplicated (via existing shape duplication)
 - [x] ✅ Text layers work with existing canvas system
@@ -721,6 +737,24 @@ Always provide defaults for optional formatting:
   fontStyle: textData.fontStyle || "normal",
   textDecoration: textData.textDecoration || "none"
 }
+```
+
+### Text Selection Pattern (Editing Mode)
+When editing existing text, ensure text is highlighted for immediate editing:
+```typescript
+// Use setSelectionRange for reliable cross-browser text selection
+useEffect(() => {
+  if (initialText && inputRef.current) {
+    const selectTimeout = setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        const length = inputRef.current.value.length;
+        inputRef.current.setSelectionRange(0, length);
+      }
+    }, 50);
+    return () => clearTimeout(selectTimeout);
+  }
+}, [initialText]);
 ```
 
 ---

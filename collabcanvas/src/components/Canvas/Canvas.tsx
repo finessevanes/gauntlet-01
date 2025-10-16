@@ -38,6 +38,7 @@ export default function Canvas() {
     createShape,
     createText,
     updateText,
+    updateTextFontSize,
     updateShape,
     resizeShape,
     rotateShape,
@@ -556,22 +557,35 @@ export default function Canvas() {
     const shape = shapes.find(s => s.id === shapeId);
     if (!shape) return;
     
+    // Calculate actual dimensions for text shapes
+    let shapeWidth = shape.width;
+    let shapeHeight = shape.height;
+    if (shape.type === 'text') {
+      const tempText = shape.text || '';
+      const textFontSize = shape.fontSize || 16;
+      const estimatedWidth = tempText.length * textFontSize * 0.6;
+      const estimatedHeight = textFontSize * 1.2;
+      const padding = 4;
+      shapeWidth = estimatedWidth + padding * 2;
+      shapeHeight = estimatedHeight + padding * 2;
+    }
+    
     const node = e.target;
     // Group is positioned at center due to rotation offset, so these are center coordinates
     const centerX = node.x();
     const centerY = node.y();
     
     // Convert center position to top-left position
-    const topLeftX = centerX - shape.width / 2;
-    const topLeftY = centerY - shape.height / 2;
+    const topLeftX = centerX - shapeWidth / 2;
+    const topLeftY = centerY - shapeHeight / 2;
     
     // Constrain shape position to canvas boundaries (using top-left coords)
-    const constrainedTopLeftX = Math.max(0, Math.min(CANVAS_WIDTH - shape.width, topLeftX));
-    const constrainedTopLeftY = Math.max(0, Math.min(CANVAS_HEIGHT - shape.height, topLeftY));
+    const constrainedTopLeftX = Math.max(0, Math.min(CANVAS_WIDTH - shapeWidth, topLeftX));
+    const constrainedTopLeftY = Math.max(0, Math.min(CANVAS_HEIGHT - shapeHeight, topLeftY));
     
     // Convert back to center position for the Group
-    const constrainedCenterX = constrainedTopLeftX + shape.width / 2;
-    const constrainedCenterY = constrainedTopLeftY + shape.height / 2;
+    const constrainedCenterX = constrainedTopLeftX + shapeWidth / 2;
+    const constrainedCenterY = constrainedTopLeftY + shapeHeight / 2;
     
     // Update position if constrained
     if (centerX !== constrainedCenterX) {
@@ -589,22 +603,35 @@ export default function Canvas() {
     const shape = shapes.find(s => s.id === shapeId);
     if (!shape) return;
     
+    // Calculate actual dimensions for text shapes
+    let shapeWidth = shape.width;
+    let shapeHeight = shape.height;
+    if (shape.type === 'text') {
+      const tempText = shape.text || '';
+      const textFontSize = shape.fontSize || 16;
+      const estimatedWidth = tempText.length * textFontSize * 0.6;
+      const estimatedHeight = textFontSize * 1.2;
+      const padding = 4;
+      shapeWidth = estimatedWidth + padding * 2;
+      shapeHeight = estimatedHeight + padding * 2;
+    }
+    
     const node = e.target;
     // Group is positioned at center due to rotation offset, so these are center coordinates
     const centerX = node.x();
     const centerY = node.y();
     
     // Convert center position to top-left position (this is what we store in Firestore)
-    let newX = centerX - shape.width / 2;
-    let newY = centerY - shape.height / 2;
+    let newX = centerX - shapeWidth / 2;
+    let newY = centerY - shapeHeight / 2;
 
     // Constrain final position to canvas boundaries (safety net, using top-left coords)
-    newX = Math.max(0, Math.min(CANVAS_WIDTH - shape.width, newX));
-    newY = Math.max(0, Math.min(CANVAS_HEIGHT - shape.height, newY));
+    newX = Math.max(0, Math.min(CANVAS_WIDTH - shapeWidth, newX));
+    newY = Math.max(0, Math.min(CANVAS_HEIGHT - shapeHeight, newY));
     
     // Convert back to center position and update node if it was outside bounds
-    const finalCenterX = newX + shape.width / 2;
-    const finalCenterY = newY + shape.height / 2;
+    const finalCenterX = newX + shapeWidth / 2;
+    const finalCenterY = newY + shapeHeight / 2;
     node.x(finalCenterX);
     node.y(finalCenterY);
 
@@ -1028,6 +1055,10 @@ export default function Canvas() {
     const newY = previewDimensions.y;
     const positionChanged = newX !== resizeStart.shapeX || newY !== resizeStart.shapeY;
     
+    // Check if this is a text shape
+    const shape = shapes.find(s => s.id === shapeIdToUpdate);
+    const isTextShape = shape?.type === 'text';
+    
     // Clear UI state immediately - this removes the preview overlay
     setIsResizing(false);
     setActiveHandle(null);
@@ -1037,18 +1068,38 @@ export default function Canvas() {
     // Perform Firestore updates in background
     // The shape will smoothly update via real-time listener
     try {
-      // Send both updates as quickly as possible to minimize visual delay
-      const resizePromise = resizeShape(shapeIdToUpdate, newWidth, newHeight);
-      const positionPromise = positionChanged 
-        ? updateShape(shapeIdToUpdate, { x: newX, y: newY })
-        : Promise.resolve();
-      
-      // Wait for both to complete
-      await Promise.all([resizePromise, positionPromise]);
-      
-      toast.success('Shape resized', { duration: 1000 });
-      
-      console.log('✅ SUCCESS TASK [1.6]: Shape resize persisted to Firestore with real-time sync');
+      if (isTextShape && shape) {
+        // For text shapes: scale the font size proportionally
+        const originalFontSize = shape.fontSize || 16;
+        const scaleRatio = newWidth / resizeStart.width; // Use width as the scale reference
+        const newFontSize = Math.round(originalFontSize * scaleRatio);
+        
+        // Clamp font size to reasonable range (8px to 200px)
+        const clampedFontSize = Math.max(8, Math.min(200, newFontSize));
+        
+        // Update font size and position if changed
+        const fontSizePromise = updateTextFontSize(shapeIdToUpdate, clampedFontSize);
+        const positionPromise = positionChanged 
+          ? updateShape(shapeIdToUpdate, { x: newX, y: newY })
+          : Promise.resolve();
+        
+        await Promise.all([fontSizePromise, positionPromise]);
+        
+        toast.success('Text resized', { duration: 1000 });
+      } else {
+        // For regular shapes: update width and height
+        const resizePromise = resizeShape(shapeIdToUpdate, newWidth, newHeight);
+        const positionPromise = positionChanged 
+          ? updateShape(shapeIdToUpdate, { x: newX, y: newY })
+          : Promise.resolve();
+        
+        // Wait for both to complete
+        await Promise.all([resizePromise, positionPromise]);
+        
+        toast.success('Shape resized', { duration: 1000 });
+        
+        console.log('✅ SUCCESS TASK [1.6]: Shape resize persisted to Firestore with real-time sync');
+      }
     } catch (error) {
       console.error('❌ Failed to resize shape:', error);
       toast.error('Failed to resize shape');
@@ -1076,9 +1127,22 @@ export default function Canvas() {
     const canvasX = (pointerPosition.x - stage.x()) / stage.scaleX();
     const canvasY = (pointerPosition.y - stage.y()) / stage.scaleY();
 
+    // Calculate actual dimensions for text shapes
+    let shapeWidth = shape.width;
+    let shapeHeight = shape.height;
+    if (shape.type === 'text') {
+      const tempText = shape.text || '';
+      const textFontSize = shape.fontSize || 16;
+      const estimatedWidth = tempText.length * textFontSize * 0.6;
+      const estimatedHeight = textFontSize * 1.2;
+      const padding = 4;
+      shapeWidth = estimatedWidth + padding * 2;
+      shapeHeight = estimatedHeight + padding * 2;
+    }
+
     // Calculate shape center in canvas coordinates
-    const centerX = shape.x + shape.width / 2;
-    const centerY = shape.y + shape.height / 2;
+    const centerX = shape.x + shapeWidth / 2;
+    const centerY = shape.y + shapeHeight / 2;
 
     // Calculate initial angle from center to mouse position
     const initialAngle = Math.atan2(canvasY - centerY, canvasX - centerX);
@@ -1117,9 +1181,22 @@ export default function Canvas() {
     const shape = shapes.find(s => s.id === selectedShapeId);
     if (!shape) return;
 
+    // Calculate actual dimensions for text shapes
+    let shapeWidth = shape.width;
+    let shapeHeight = shape.height;
+    if (shape.type === 'text') {
+      const tempText = shape.text || '';
+      const textFontSize = shape.fontSize || 16;
+      const estimatedWidth = tempText.length * textFontSize * 0.6;
+      const estimatedHeight = textFontSize * 1.2;
+      const padding = 4;
+      shapeWidth = estimatedWidth + padding * 2;
+      shapeHeight = estimatedHeight + padding * 2;
+    }
+
     // Calculate shape center
-    const centerX = shape.x + shape.width / 2;
-    const centerY = shape.y + shape.height / 2;
+    const centerX = shape.x + shapeWidth / 2;
+    const centerY = shape.y + shapeHeight / 2;
 
     // Calculate current angle from center to mouse position
     const currentAngle = Math.atan2(canvasY - centerY, canvasX - centerX);
@@ -1330,7 +1407,15 @@ export default function Canvas() {
             if (shape.type === 'text') {
               // Create a text node to measure dimensions
               const tempText = shape.text || '';
-              const textFontSize = shape.fontSize || 16;
+              const baseFontSize = shape.fontSize || 16;
+              
+              // Calculate preview font size if currently resizing this text
+              let textFontSize = baseFontSize;
+              if (isBeingResized && resizeStart) {
+                const scaleRatio = currentWidth / resizeStart.width;
+                textFontSize = Math.round(baseFontSize * scaleRatio);
+                textFontSize = Math.max(8, Math.min(200, textFontSize)); // Clamp
+              }
               
               // Estimate text dimensions (rough approximation)
               // More accurate would be to use a canvas measureText, but this works for the selection box
@@ -1338,11 +1423,19 @@ export default function Canvas() {
               const estimatedHeight = textFontSize * 1.2; // Line height
               const padding = 4; // Padding around text
               
+              // Total dimensions including padding
+              const totalWidth = estimatedWidth + padding * 2;
+              const totalHeight = estimatedHeight + padding * 2;
+              
               return (
                 <Group
                   key={shape.id}
-                  x={shape.x}
-                  y={shape.y}
+                  // Use center positioning like rectangles for proper rotation
+                  x={shape.x + totalWidth / 2}
+                  y={shape.y + totalHeight / 2}
+                  // Rotate around center, not top-left corner
+                  offsetX={totalWidth / 2}
+                  offsetY={totalHeight / 2}
                   rotation={currentRotation}
                   draggable={!isLockedByOther && !isResizing && !isRotating}
                   onMouseEnter={() => setHoveredTextId(shape.id)}
@@ -1365,21 +1458,22 @@ export default function Canvas() {
                 >
                   {/* Invisible hitbox to make the entire text area draggable */}
                   <Rect
-                    x={-padding}
-                    y={-padding}
-                    width={estimatedWidth + padding * 2}
-                    height={estimatedHeight + padding * 2}
+                    x={0}
+                    y={0}
+                    width={totalWidth}
+                    height={totalHeight}
                     fill="transparent"
                     listening={true} // Capture mouse events for larger draggable area
                   />
                   
                   {/* Selection box with dotted border (Paint-style) */}
-                  {isSelected && (
+                  {/* Show selection box when selected OR when editing */}
+                  {(isSelected || editingTextId === shape.id) && (
                     <Rect
-                      x={-padding}
-                      y={-padding}
-                      width={estimatedWidth + padding * 2}
-                      height={estimatedHeight + padding * 2}
+                      x={0}
+                      y={0}
+                      width={totalWidth}
+                      height={totalHeight}
                       stroke={isLockedByMe ? '#000000' : '#ff0000'}
                       strokeWidth={1}
                       dash={[4, 4]} // Dotted line pattern
@@ -1388,18 +1482,168 @@ export default function Canvas() {
                     />
                   )}
                   
-                  {/* The actual text */}
-                  <Text
-                    x={0}
-                    y={0}
-                    text={tempText}
-                    fontSize={textFontSize}
-                    fill={shape.color}
-                    fontStyle={getFontStyle(shape)}
-                    textDecoration={shape.textDecoration || 'none'}
-                    opacity={isLockedByOther ? 0.5 : 1}
-                    listening={false} // Let the hitbox rectangle handle events
-                  />
+                  {/* The actual text - positioned with padding */}
+                  {/* Hide text when editing to avoid showing duplicate */}
+                  {editingTextId !== shape.id && (
+                    <Text
+                      x={padding}
+                      y={padding}
+                      width={estimatedWidth}
+                      text={tempText}
+                      fontSize={textFontSize}
+                      fill={shape.color}
+                      fontStyle={getFontStyle(shape)}
+                      textDecoration={shape.textDecoration || 'none'}
+                      align="center"
+                      opacity={isLockedByOther ? 0.5 : 1}
+                      listening={false} // Let the hitbox rectangle handle events
+                    />
+                  )}
+
+                  {/* Lock icon for text locked by others */}
+                  {isLockedByOther && (
+                    <Group x={totalWidth / 2 - 15} y={totalHeight / 2 - 15}>
+                      {/* Lock icon background */}
+                      <Rect
+                        width={30}
+                        height={30}
+                        fill="rgba(239, 68, 68, 0.9)"
+                        cornerRadius={4}
+                      />
+                      {/* Lock icon text (🔒) */}
+                      <Text
+                        text="🔒"
+                        fontSize={20}
+                        x={5}
+                        y={3}
+                        listening={false}
+                      />
+                    </Group>
+                  )}
+
+                  {/* Resize handles for text (4 corners for proportional scaling) */}
+                  {isSelected && isLockedByMe && !isResizing && !isRotating && (
+                    <Group>
+                      {(() => {
+                        // Scale handles inversely with zoom so they appear constant size on screen
+                        const baseSize = 16; // Base size in pixels
+                        const hoverSize = 20; // Hover size in pixels
+                        const scaledBaseSize = baseSize / stageScale;
+                        const scaledHoverSize = hoverSize / stageScale;
+                        const halfBase = scaledBaseSize / 2;
+                        
+                        // Corner positions - same pattern as rectangles
+                        // Top-left, top-right, bottom-left, bottom-right
+                        return [
+                          { x: -halfBase, y: -halfBase, cursor: 'nwse-resize', name: 'tl' },
+                          { x: totalWidth - halfBase, y: -halfBase, cursor: 'nesw-resize', name: 'tr' },
+                          { x: -halfBase, y: totalHeight - halfBase, cursor: 'nesw-resize', name: 'bl' },
+                          { x: totalWidth - halfBase, y: totalHeight - halfBase, cursor: 'nwse-resize', name: 'br' },
+                        ].map((handle) => {
+                          const handleKey = `${shape.id}-${handle.name}`;
+                          const isHovered = hoveredHandle === handleKey;
+                          const handleSize = isHovered ? scaledHoverSize : scaledBaseSize;
+                          const offset = isHovered ? (scaledHoverSize - scaledBaseSize) / 2 : 0;
+                          
+                          return (
+                            <Rect
+                              key={handleKey}
+                              x={handle.x - offset}
+                              y={handle.y - offset}
+                              width={handleSize}
+                              height={handleSize}
+                              fill={isHovered ? '#3b82f6' : '#ffffff'}
+                              stroke="#999999"
+                              strokeWidth={1 / stageScale}
+                              onMouseEnter={() => setHoveredHandle(handleKey)}
+                              onMouseLeave={() => setHoveredHandle(null)}
+                              onMouseDown={(e) => {
+                                // Create a temporary shape object with width/height for text
+                                const textShapeForResize = {
+                                  ...shape,
+                                  width: totalWidth,
+                                  height: totalHeight,
+                                };
+                                handleResizeStart(e, handle.name, textShapeForResize);
+                              }}
+                            />
+                          );
+                        });
+                      })()}
+                    </Group>
+                  )}
+
+                  {/* Rotation handle for text - appears 50px above the top when locked */}
+                  {isSelected && isLockedByMe && !isResizing && !isRotating && (() => {
+                    // In standard coordinate system (same as rectangles):
+                    // Top-left is at (0, 0)
+                    // Center is at (totalWidth / 2, totalHeight / 2)
+                    // Top edge is at y = 0
+                    // Position handle 50px above the top edge
+                    const handleDistance = 50;
+                    const handleX = totalWidth / 2; // Centered horizontally
+                    const handleY = -handleDistance;
+                    
+                    // Shape center for connecting line
+                    const centerX = totalWidth / 2;
+                    const centerY = totalHeight / 2;
+                    
+                    // Scale handle size inversely with zoom
+                    const handleSize = 12 / stageScale; // 12px diameter
+                    const handleRadius = handleSize / 2;
+                    
+                    const rotationHandleKey = `${shape.id}-rotation`;
+                    const isHovered = hoveredRotationHandle === rotationHandleKey;
+                    
+                    return (
+                      <Group>
+                        {/* Connecting line from handle to text center (dashed gray line) */}
+                        <Line
+                          points={[handleX, handleY + handleRadius, centerX, centerY]}
+                          stroke="#999999"
+                          strokeWidth={1 / stageScale}
+                          dash={[4 / stageScale, 4 / stageScale]}
+                          opacity={0.7}
+                          listening={false}
+                        />
+                        
+                        {/* Rotation handle circle */}
+                        <Circle
+                          x={handleX}
+                          y={handleY}
+                          radius={handleRadius}
+                          fill={isHovered ? '#3b82f6' : '#ffffff'}
+                          stroke="#999999"
+                          strokeWidth={2 / stageScale}
+                          onMouseEnter={() => setHoveredRotationHandle(rotationHandleKey)}
+                          onMouseLeave={() => setHoveredRotationHandle(null)}
+                          onMouseDown={(e) => {
+                            // Create a temporary shape object with width/height for text
+                            const textShapeForRotation = {
+                              ...shape,
+                              width: totalWidth,
+                              height: totalHeight,
+                            };
+                            handleRotationStart(e, textShapeForRotation);
+                          }}
+                        />
+                        
+                        {/* Rotation icon (↻) inside the circle */}
+                        <Text
+                          x={handleX - handleRadius}
+                          y={handleY - handleRadius}
+                          width={handleSize}
+                          height={handleSize}
+                          text="↻"
+                          fontSize={handleSize * 0.8}
+                          fill={isHovered ? '#ffffff' : '#666666'}
+                          align="center"
+                          verticalAlign="middle"
+                          listening={false}
+                        />
+                      </Group>
+                    );
+                  })()}
                 </Group>
               );
             }
@@ -1640,18 +1884,47 @@ export default function Canvas() {
           })()}
 
           {/* Angle tooltip while rotating */}
-          {isRotating && previewRotation !== null && selectedShapeId && (() => {
+          {isRotating && previewRotation !== null && selectedShapeId && rotationStart && (() => {
             const shape = shapes.find(s => s.id === selectedShapeId);
             if (!shape) return null;
             
-            // Calculate rotation handle position (same as in rotation handle rendering)
-            const centerX = shape.x + shape.width / 2;
-            const handleDistance = 50;
-            const handleY = shape.y - handleDistance;
+            // Calculate actual dimensions for text shapes
+            let shapeWidth = shape.width;
+            let shapeHeight = shape.height;
+            if (shape.type === 'text') {
+              const tempText = shape.text || '';
+              const textFontSize = shape.fontSize || 16;
+              const estimatedWidth = tempText.length * textFontSize * 0.6;
+              const estimatedHeight = textFontSize * 1.2;
+              const padding = 4;
+              shapeWidth = estimatedWidth + padding * 2;
+              shapeHeight = estimatedHeight + padding * 2;
+            }
             
-            // Position tooltip 15px above rotation handle
-            const tooltipX = centerX;
-            const tooltipY = handleY - (15 / stageScale);
+            // Calculate shape center in global coordinates (where rotation started)
+            const centerX = shape.x + shapeWidth / 2;
+            const centerY = shape.y + shapeHeight / 2;
+            
+            // The rotation handle is positioned in local coordinates (before rotation):
+            // - Horizontally centered (local x = 0 relative to center)
+            // - 50px above the top edge (local y = -shapeHeight/2 - 50)
+            const handleDistance = 50;
+            const localHandleX = 0; // Centered
+            const localHandleY = -shapeHeight / 2 - handleDistance; // Above top edge
+            
+            // Transform local handle position to global coordinates using INITIAL rotation
+            // (the rotation when we started rotating, stored in rotationStart.rotation)
+            const initialRotation = rotationStart.rotation || 0;
+            const rotationRad = (initialRotation * Math.PI) / 180;
+            const cos = Math.cos(rotationRad);
+            const sin = Math.sin(rotationRad);
+            
+            const globalHandleX = centerX + (localHandleX * cos - localHandleY * sin);
+            const globalHandleY = centerY + (localHandleX * sin + localHandleY * cos);
+            
+            // Position tooltip 15px above the rotation handle (at its initial position)
+            const tooltipX = globalHandleX;
+            const tooltipY = globalHandleY - (15 / stageScale);
             
             // Normalize angle to 0-360 and round to nearest degree
             const normalizedAngle = ((previewRotation % 360) + 360) % 360;
@@ -1743,6 +2016,7 @@ export default function Canvas() {
         // Creating new text
         return (
           <TextInput
+            initialText="Text"
             x={textInputPosition.x}
             y={textInputPosition.y}
             fontSize={16}

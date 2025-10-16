@@ -160,6 +160,33 @@ export default function Canvas() {
     }
   }, [shapes, selectedShapeId]);
 
+  // Clean up stale locks on mount (from previous sessions or crashes)
+  useEffect(() => {
+    if (!user) return;
+    
+    const cleanupStaleLocks = async () => {
+      for (const shape of shapes) {
+        // Check if shape is locked by current user but not selected
+        if (shape.lockedBy === user.uid && shape.lockedAt) {
+          const lockAge = Date.now() - shape.lockedAt.toMillis();
+          // If lock is older than 10 seconds, it's definitely stale
+          if (lockAge > 10000) {
+            try {
+              await unlockShape(shape.id);
+            } catch (error) {
+              console.error('Failed to cleanup stale lock:', error);
+            }
+          }
+        }
+      }
+    };
+    
+    // Run cleanup after shapes are loaded
+    if (!shapesLoading && shapes.length > 0) {
+      cleanupStaleLocks();
+    }
+  }, [user, shapes, shapesLoading]);
+
   // Keyboard shortcuts for delete and duplicate
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
@@ -180,7 +207,7 @@ export default function Canvas() {
             position: 'top-center',
           });
         } catch (error) {
-          console.error('❌ Failed to delete shape:', error);
+          console.error('Failed to delete shape:', error);
           toast.error('Failed to delete shape', {
             duration: 2000,
             position: 'top-center',
@@ -208,7 +235,7 @@ export default function Canvas() {
             position: 'top-center',
           });
         } catch (error) {
-          console.error('❌ Failed to duplicate shape:', error);
+          console.error('Failed to duplicate shape:', error);
           toast.error('Failed to duplicate shape', {
             duration: 2000,
             position: 'top-center',
@@ -245,14 +272,19 @@ export default function Canvas() {
   // Helper: Deselect shape and unlock
   const handleDeselectShape = async () => {
     if (selectedShapeId) {
-      await unlockShape(selectedShapeId);
+      try {
+        await unlockShape(selectedShapeId);
+      } catch (error) {
+        console.error('Failed to unlock shape:', error);
+      }
+      
       setSelectedShapeId(null);
       clearLockTimeout();
     }
   };
 
   // Helper: Handle shape mousedown (optimistic selection + background lock)
-  const handleShapeMouseDown = (shapeId: string) => {
+  const handleShapeMouseDown = async (shapeId: string) => {
     if (!user) return;
 
     // If clicking on already selected shape, refresh timeout
@@ -262,40 +294,41 @@ export default function Canvas() {
       return;
     }
 
-    // Deselect current shape first
+    // Deselect current shape first (AWAIT to prevent race conditions)
     if (selectedShapeId) {
-      handleDeselectShape();
+      await handleDeselectShape();
     }
 
     // OPTIMISTIC: Set as selected immediately (makes shape draggable right away)
     setSelectedShapeId(shapeId);
     startLockTimeout(shapeId);
     
-    // Attempt to lock in background (non-blocking)
-    // This is just for multi-user conflict detection, not required for drag to work
-    lockShape(shapeId, user.uid).then(result => {
-      if (!result.success) {
-        // Lock failed - another user has it
-        // Revert optimistic selection
-        setSelectedShapeId(null);
-        clearLockTimeout();
-        
-        const username = result.lockedByUsername || 'another user';
-        toast.error(`Shape locked by ${username}`, {
-          duration: 2000,
-          position: 'top-center',
-        });
-      }
-    });
+    // Attempt to lock in background
+    const result = await lockShape(shapeId, user.uid);
+    
+    if (!result.success) {
+      // Lock failed - another user has it
+      // Revert optimistic selection
+      setSelectedShapeId(null);
+      clearLockTimeout();
+      
+      const username = result.lockedByUsername || 'another user';
+      toast.error(`Shape locked by ${username}`, {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
   };
 
   // Helper: Get lock status for a shape
   const getShapeLockStatus = (shape: ShapeData): 'locked-by-me' | 'locked-by-other' | 'unlocked' => {
     if (!user) return 'unlocked';
     
-    if (shape.lockedBy === user.uid) {
+    // IMPORTANT: Only show as "locked-by-me" if it's actually SELECTED
+    // This prevents the green outline from appearing independently
+    if (shape.lockedBy === user.uid && selectedShapeId === shape.id) {
       return 'locked-by-me';
-    } else if (shape.lockedBy && shape.lockedAt) {
+    } else if (shape.lockedBy && shape.lockedAt && shape.lockedBy !== user.uid) {
       // Check if lock is still valid (< 5s)
       const lockAge = Date.now() - shape.lockedAt.toMillis();
       if (lockAge < 5000) {
@@ -1721,17 +1754,6 @@ export default function Canvas() {
                   />
                 )}
                 {shape.type === 'triangle' && currentWidth !== undefined && currentHeight !== undefined && (() => {
-                  // Debug logging
-                  if (Math.random() < 0.1) {
-                    console.log('🔺 Rendering triangle:', {
-                      id: shape.id,
-                      stored: { x: currentX, y: currentY, width: currentWidth, height: currentHeight },
-                      groupPos: { x: groupX, y: groupY },
-                      offset: { x: offsetX, y: offsetY },
-                      localPoints: [currentWidth / 2, 0, 0, currentHeight, currentWidth, currentHeight],
-                    });
-                  }
-                  
                   return (
                     <Line
                       points={[

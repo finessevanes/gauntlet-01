@@ -1357,6 +1357,7 @@ class CanvasService {
 
   /**
    * Distribute shapes evenly along horizontal or vertical axis
+   * Uses center-based distribution for visually even spacing
    */
   async distributeShapes(
     shapeIds: string[],
@@ -1380,68 +1381,151 @@ class CanvasService {
         throw new Error('Not enough valid shapes found for distribution');
       }
 
+      // Helper function to get shape center considering circle positioning
+      const getShapeCenter = (shape: ShapeData) => {
+        if (shape.type === 'circle' && shape.radius) {
+          // For circles: x,y is already the center
+          return {
+            centerX: shape.x,
+            centerY: shape.y,
+          };
+        } else {
+          // For rectangles/triangles/text: x,y is top-left corner
+          return {
+            centerX: shape.x + shape.width / 2,
+            centerY: shape.y + shape.height / 2,
+          };
+        }
+      };
+
       const batch = writeBatch(firestore);
 
       if (direction === 'horizontal') {
-        // Sort shapes by x position (left to right)
-        shapes.sort((a, b) => a.x - b.x);
+        // Sort shapes by center x position (left to right)
+        shapes.sort((a, b) => getShapeCenter(a).centerX - getShapeCenter(b).centerX);
 
-        // Calculate the total space and spacing
-        const leftmostX = shapes[0].x;
-        const rightmostX = shapes[shapes.length - 1].x + shapes[shapes.length - 1].width;
-        const totalWidth = shapes.reduce((sum, s) => sum + s.width, 0);
-        const availableSpace = rightmostX - leftmostX - totalWidth;
-        const spacing = availableSpace / (shapes.length - 1);
+        console.log('🎯 Horizontal distribution (center-based):', {
+          shapeCount: shapes.length,
+          shapes: shapes.map(s => {
+            const center = getShapeCenter(s);
+            return {
+              id: s.id.slice(0, 6),
+              type: s.type,
+              x: s.x,
+              width: s.width,
+              centerX: center.centerX,
+            };
+          })
+        });
 
-        // Position each shape with even spacing
-        let currentX = leftmostX;
+        // Get leftmost and rightmost center positions
+        const leftmostCenter = getShapeCenter(shapes[0]).centerX;
+        const rightmostCenter = getShapeCenter(shapes[shapes.length - 1]).centerX;
+        
+        // Calculate even spacing between centers
+        const totalDistance = rightmostCenter - leftmostCenter;
+        const centerSpacing = totalDistance / (shapes.length - 1);
+
+        console.log('📏 Distribution calculation:', {
+          leftmostCenter,
+          rightmostCenter,
+          totalDistance,
+          centerSpacing,
+        });
+
+        // Position each shape so their centers are evenly spaced
         shapes.forEach((shape, index) => {
           if (index === 0 || index === shapes.length - 1) {
             // Keep first and last shapes in place
-            currentX += shape.width + spacing;
             return;
           }
 
+          // Calculate the target center X position
+          const targetCenterX = leftmostCenter + (index * centerSpacing);
+
+          // Calculate the new x position based on shape type
+          let newX: number;
+          if (shape.type === 'circle' && shape.radius) {
+            // For circles: x is already the center
+            newX = targetCenterX;
+          } else {
+            // For rectangles/triangles/text: x is top-left, so x = centerX - width/2
+            newX = targetCenterX - shape.width / 2;
+          }
+
+          console.log(`  Shape ${index} (${shape.id.slice(0, 6)}): centerX ${getShapeCenter(shape).centerX} → ${targetCenterX}, x ${shape.x} → ${newX}`);
+
           const shapeRef = doc(firestore, this.shapesCollectionPath, shape.id);
           batch.update(shapeRef, {
-            x: currentX,
+            x: newX,
             updatedAt: serverTimestamp(),
           });
-
-          currentX += shape.width + spacing;
         });
       } else {
-        // Sort shapes by y position (top to bottom)
-        shapes.sort((a, b) => a.y - b.y);
+        // Sort shapes by center y position (top to bottom)
+        shapes.sort((a, b) => getShapeCenter(a).centerY - getShapeCenter(b).centerY);
 
-        // Calculate the total space and spacing
-        const topmostY = shapes[0].y;
-        const bottommostY = shapes[shapes.length - 1].y + shapes[shapes.length - 1].height;
-        const totalHeight = shapes.reduce((sum, s) => sum + s.height, 0);
-        const availableSpace = bottommostY - topmostY - totalHeight;
-        const spacing = availableSpace / (shapes.length - 1);
+        console.log('🎯 Vertical distribution (center-based):', {
+          shapeCount: shapes.length,
+          shapes: shapes.map(s => {
+            const center = getShapeCenter(s);
+            return {
+              id: s.id.slice(0, 6),
+              type: s.type,
+              y: s.y,
+              height: s.height,
+              centerY: center.centerY,
+            };
+          })
+        });
 
-        // Position each shape with even spacing
-        let currentY = topmostY;
+        // Get topmost and bottommost center positions
+        const topmostCenter = getShapeCenter(shapes[0]).centerY;
+        const bottommostCenter = getShapeCenter(shapes[shapes.length - 1]).centerY;
+        
+        // Calculate even spacing between centers
+        const totalDistance = bottommostCenter - topmostCenter;
+        const centerSpacing = totalDistance / (shapes.length - 1);
+
+        console.log('📏 Distribution calculation:', {
+          topmostCenter,
+          bottommostCenter,
+          totalDistance,
+          centerSpacing,
+        });
+
+        // Position each shape so their centers are evenly spaced
         shapes.forEach((shape, index) => {
           if (index === 0 || index === shapes.length - 1) {
             // Keep first and last shapes in place
-            currentY += shape.height + spacing;
             return;
           }
 
+          // Calculate the target center Y position
+          const targetCenterY = topmostCenter + (index * centerSpacing);
+
+          // Calculate the new y position based on shape type
+          let newY: number;
+          if (shape.type === 'circle' && shape.radius) {
+            // For circles: y is already the center
+            newY = targetCenterY;
+          } else {
+            // For rectangles/triangles/text: y is top edge, so y = centerY - height/2
+            newY = targetCenterY - shape.height / 2;
+          }
+
+          console.log(`  Shape ${index} (${shape.id.slice(0, 6)}): centerY ${getShapeCenter(shape).centerY} → ${targetCenterY}, y ${shape.y} → ${newY}`);
+
           const shapeRef = doc(firestore, this.shapesCollectionPath, shape.id);
           batch.update(shapeRef, {
-            y: currentY,
+            y: newY,
             updatedAt: serverTimestamp(),
           });
-
-          currentY += shape.height + spacing;
         });
       }
 
       await batch.commit();
-      console.log(`✅ Distributed ${shapes.length} shapes: ${direction}`);
+      console.log(`✅ Distributed ${shapes.length} shapes (center-based): ${direction}`);
     } catch (error) {
       console.error('❌ Error distributing shapes:', error);
       throw error;

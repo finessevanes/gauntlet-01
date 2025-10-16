@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react';
 import { useCanvasContext } from '../../contexts/CanvasContext';
 
 interface AlignmentToolbarProps {
@@ -12,16 +13,12 @@ export default function AlignmentToolbar({
   onDistribute
 }: AlignmentToolbarProps) {
   const { alignShapes, distributeShapes } = useCanvasContext();
-
-  console.log('🎨 AlignmentToolbar render:', { selectedShapesCount: selectedShapes.length, selectedShapes });
-
-  // Show toolbar only when 2+ shapes are selected
-  if (selectedShapes.length < 2) {
-    console.log('🎨 AlignmentToolbar: Not showing (need 2+ shapes)');
-    return null;
-  }
-
-  console.log('🎨 AlignmentToolbar: SHOWING toolbar for', selectedShapes.length, 'shapes');
+  
+  // Dragging state - MUST be at the top before any conditional returns
+  const [position, setPosition] = useState({ x: 0, y: 80 }); // Start at top center
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef({ startX: 0, startY: 0, initialX: 0, initialY: 0 });
+  const toolbarRef = useRef<HTMLDivElement>(null);
 
   const handleAlign = async (alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
     try {
@@ -52,10 +49,101 @@ export default function AlignmentToolbar({
     }
   };
 
+  // Handle drag start
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!toolbarRef.current) return;
+    
+    setIsDragging(true);
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: position.x,
+      initialY: position.y,
+    };
+    
+    // Prevent text selection while dragging
+    e.preventDefault();
+  };
+
+  // Handle drag move
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging || !toolbarRef.current) return;
+    
+    const deltaX = e.clientX - dragRef.current.startX;
+    const deltaY = e.clientY - dragRef.current.startY;
+    
+    let newX = dragRef.current.initialX + deltaX;
+    let newY = dragRef.current.initialY + deltaY;
+    
+    // Get toolbar dimensions
+    const toolbarWidth = toolbarRef.current.offsetWidth;
+    const toolbarHeight = toolbarRef.current.offsetHeight;
+    
+    // Define boundaries
+    const minY = 67; // Below the top bar (title bar + menu bar)
+    const maxY = window.innerHeight - toolbarHeight - 20; // 20px margin from bottom
+    const minX = -(window.innerWidth / 2) + toolbarWidth / 2 + 20; // 20px margin from left
+    const maxX = (window.innerWidth / 2) - toolbarWidth / 2 - 20; // 20px margin from right
+    
+    // Apply boundaries
+    newY = Math.max(minY, Math.min(maxY, newY));
+    newX = Math.max(minX, Math.min(maxX, newX));
+    
+    setPosition({
+      x: newX,
+      y: newY,
+    });
+  };
+
+  // Handle drag end
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Add/remove global mouse event listeners for dragging
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, position]);
+
+  console.log('🎨 AlignmentToolbar render:', { selectedShapesCount: selectedShapes.length, selectedShapes });
+
+  // Show toolbar only when 2+ shapes are selected
+  // This conditional return MUST come AFTER all hooks
+  if (selectedShapes.length < 2) {
+    console.log('🎨 AlignmentToolbar: Not showing (need 2+ shapes)');
+    return null;
+  }
+
+  console.log('🎨 AlignmentToolbar: SHOWING toolbar for', selectedShapes.length, 'shapes');
+
   const isDistributeEnabled = selectedShapes.length >= 3;
 
   return (
-    <div style={styles.toolbar}>
+    <div 
+      ref={toolbarRef}
+      style={{
+        ...styles.toolbar,
+        left: `calc(50% + ${position.x}px)`,
+        top: `${position.y}px`,
+        cursor: isDragging ? 'grabbing' : 'default',
+      }}
+    >
+      {/* Title Bar - Draggable */}
+      <div 
+        style={styles.titleBar}
+        onMouseDown={handleMouseDown}
+      >
+        <span style={styles.titleText}>Alignment Tools</span>
+      </div>
+
       <div style={styles.container}>
         {/* Row 1: Horizontal and Vertical Alignments */}
         <div style={styles.mainRow}>
@@ -221,22 +309,39 @@ export default function AlignmentToolbar({
 const styles = {
   toolbar: {
     position: 'fixed' as const,
-    top: '80px',
-    left: '50%',
     transform: 'translateX(-50%)',
     backgroundColor: '#f0f0f0',
-    border: '1px solid #c0c0c0',
-    padding: '8px',
+    border: '2px solid #c0c0c0',
     minWidth: '580px',
     zIndex: 9999,
     pointerEvents: 'auto' as const,
-    boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
-    borderRadius: '3px',
+    boxShadow: '2px 2px 4px rgba(0,0,0,0.3)',
+    borderRadius: '0',
+  },
+  titleBar: {
+    backgroundColor: '#000080',
+    color: '#ffffff',
+    padding: '4px 8px',
+    fontSize: '12px',
+    fontWeight: 'bold' as const,
+    cursor: 'grab',
+    userSelect: 'none' as const,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '2px',
+  },
+  titleText: {
+    fontSize: '12px',
+    fontWeight: 'bold' as const,
+    letterSpacing: '0.5px',
   },
   container: {
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '8px',
+    padding: '8px',
+    backgroundColor: '#f0f0f0',
   },
   mainRow: {
     display: 'flex',

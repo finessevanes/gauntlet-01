@@ -85,6 +85,10 @@ interface CanvasContextType {
   batchBringForward: (shapeIds: string[]) => Promise<void>;
   batchSendBackward: (shapeIds: string[]) => Promise<void>;
   
+  // Alignment operations
+  alignShapes: (shapeIds: string[], alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => Promise<void>;
+  distributeShapes: (shapeIds: string[], direction: 'horizontal' | 'vertical') => Promise<void>;
+  
   // Loading state
   shapesLoading: boolean;
 }
@@ -306,6 +310,21 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.batchSendBackward(shapeIds);
   };
 
+  // Alignment operations
+  const alignShapes = async (
+    shapeIds: string[],
+    alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom'
+  ): Promise<void> => {
+    return await canvasService.alignShapes(shapeIds, alignment);
+  };
+
+  const distributeShapes = async (
+    shapeIds: string[],
+    direction: 'horizontal' | 'vertical'
+  ): Promise<void> => {
+    return await canvasService.distributeShapes(shapeIds, direction);
+  };
+
   const value = {
     selectedColor,
     setSelectedColor,
@@ -357,6 +376,8 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     batchSendToBack,
     batchBringForward,
     batchSendBackward,
+    alignShapes,
+    distributeShapes,
     shapesLoading,
   };
 

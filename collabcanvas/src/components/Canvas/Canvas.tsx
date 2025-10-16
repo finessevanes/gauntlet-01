@@ -9,6 +9,7 @@ import TextInput from './TextInput';
 import CanvasShape from './CanvasShape';
 import CanvasPreview from './CanvasPreview';
 import CanvasTooltips from './CanvasTooltips';
+import AlignmentToolbar from './AlignmentToolbar';
 import { getShapeLockStatus, getCursorStyle } from './canvasHelpers';
 import { selectionService } from '../../services/selectionService';
 import toast from 'react-hot-toast';
@@ -1595,6 +1596,7 @@ export default function Canvas() {
   };
 
   return (
+    <>
     <div 
       ref={containerRef}
       style={{
@@ -1802,6 +1804,10 @@ export default function Canvas() {
       })()}
 
     </div>
+
+    {/* Alignment Toolbar - shown when 2+ shapes selected - OUTSIDE overflow:hidden container */}
+    <AlignmentToolbar selectedShapes={selectedShapes} />
+    </>
   );
 }
 

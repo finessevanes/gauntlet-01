@@ -12,6 +12,7 @@ interface Tool {
 
 interface ToolPaletteProps {
   selectedShape: ShapeData | null;
+  selectedShapes?: string[];
   onToggleBold?: () => void;
   onToggleItalic?: () => void;
   onToggleUnderline?: () => void;
@@ -23,6 +24,7 @@ interface ToolPaletteProps {
 
 export default function ToolPalette({ 
   selectedShape,
+  selectedShapes = [],
   onToggleBold,
   onToggleItalic,
   onToggleUnderline,
@@ -207,16 +209,22 @@ export default function ToolPalette({
       <div style={styles.shapeActionsSection}>
         <button
           onClick={onDuplicate}
-          disabled={!selectedShape || isChanging}
+          disabled={(!selectedShape && selectedShapes.length === 0) || isChanging}
           style={{
             ...styles.actionButton,
-            ...(!selectedShape ? styles.disabledButton : {}),
+            ...(!selectedShape && selectedShapes.length === 0 ? styles.disabledButton : {}),
           }}
-          title={selectedShape ? "Duplicate (Ctrl+D)" : "Duplicate (select a shape first)"}
+          title={
+            selectedShapes.length > 1 
+              ? `Duplicate ${selectedShapes.length} shapes (Ctrl+D)` 
+              : selectedShape 
+              ? "Duplicate (Ctrl+D)" 
+              : "Duplicate (select a shape first)"
+          }
         >
           <span style={{ 
             fontSize: '20px',
-            color: !selectedShape ? '#a0a0a0' : '#000000'
+            color: (!selectedShape && selectedShapes.length === 0) ? '#a0a0a0' : '#000000'
           }}>
             📋
           </span>
@@ -224,16 +232,22 @@ export default function ToolPalette({
 
         <button
           onClick={onDelete}
-          disabled={!selectedShape || isChanging}
+          disabled={(!selectedShape && selectedShapes.length === 0) || isChanging}
           style={{
             ...styles.actionButton,
-            ...(!selectedShape ? styles.disabledButton : {}),
+            ...(!selectedShape && selectedShapes.length === 0 ? styles.disabledButton : {}),
           }}
-          title={selectedShape ? "Delete (Del)" : "Delete (select a shape first)"}
+          title={
+            selectedShapes.length > 1 
+              ? `Delete ${selectedShapes.length} shapes (Del)` 
+              : selectedShape 
+              ? "Delete (Del)" 
+              : "Delete (select a shape first)"
+          }
         >
           <span style={{ 
             fontSize: '20px',
-            color: !selectedShape ? '#a0a0a0' : '#000000'
+            color: (!selectedShape && selectedShapes.length === 0) ? '#a0a0a0' : '#000000'
           }}>
             🗑️
           </span>

@@ -6,6 +6,7 @@ import { getFontStyle } from '../../utils/helpers';
 interface CanvasShapeProps {
   shape: ShapeData;
   isSelected: boolean;
+  isMultiSelected: boolean;
   isLockedByMe: boolean;
   isLockedByOther: boolean;
   isResizing: boolean;
@@ -23,7 +24,7 @@ interface CanvasShapeProps {
   hoveredRotationHandle: string | null;
   stageScale: number;
   editingTextId: string | null;
-  onShapeMouseDown: (id: string) => void;
+  onShapeMouseDown: (id: string, event?: MouseEvent | React.MouseEvent) => void;
   onTextDoubleClick: (id: string) => void;
   onResizeStart: (e: Konva.KonvaEventObject<MouseEvent>, handle: string, shape: ShapeData) => void;
   onRotationStart: (e: Konva.KonvaEventObject<MouseEvent>, shape: ShapeData) => void;
@@ -37,6 +38,7 @@ interface CanvasShapeProps {
 export default function CanvasShape({
   shape,
   isSelected,
+  isMultiSelected,
   isLockedByMe,
   isLockedByOther,
   isResizing,
@@ -127,14 +129,16 @@ export default function CanvasShape({
 
   return (
     <Group 
-      key={shape.id} 
+      key={shape.id}
+      id={shape.id}
+      name="shape"
       x={groupX} 
       y={groupY}
       offsetX={offsetX}
       offsetY={offsetY}
       rotation={currentRotation}
-      draggable={activeTool === 'select' && !isLockedByOther && !isResizing && !isRotating}
-      onMouseDown={activeTool === 'select' ? () => onShapeMouseDown(shape.id) : undefined}
+      draggable={activeTool === 'select' && !isLockedByOther && !isResizing && !isRotating && (isSelected || isMultiSelected)}
+      onMouseDown={activeTool === 'select' ? (e) => onShapeMouseDown(shape.id, e.evt) : undefined}
       onTouchStart={activeTool === 'select' ? () => onShapeMouseDown(shape.id) : undefined}
       onDragStart={(e) => onDragStart(e, shape.id)}
       onDragMove={(e) => onDragMove(e, shape.id)}
@@ -147,8 +151,11 @@ export default function CanvasShape({
           height={currentHeight}
           fill={shape.color}
           opacity={isLockedByOther ? 0.5 : 1}
-          stroke={isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
-          strokeWidth={isLockedByMe || isLockedByOther ? 3 : 1}
+          stroke={isMultiSelected ? '#60a5fa' : isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
+          strokeWidth={isMultiSelected ? 4 : isLockedByMe || isLockedByOther ? 3 : 1}
+          shadowColor={isMultiSelected ? '#60a5fa' : undefined}
+          shadowBlur={isMultiSelected ? 10 : 0}
+          shadowOpacity={isMultiSelected ? 0.6 : 0}
           onMouseEnter={() => {
             if (activeTool === 'select' && !isLockedByOther) {
               document.body.style.cursor = 'move';
@@ -166,8 +173,11 @@ export default function CanvasShape({
           radius={currentRadius}
           fill={shape.color}
           opacity={isLockedByOther ? 0.5 : 1}
-          stroke={isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
-          strokeWidth={isLockedByMe || isLockedByOther ? 3 : 1}
+          stroke={isMultiSelected ? '#60a5fa' : isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
+          strokeWidth={isMultiSelected ? 4 : isLockedByMe || isLockedByOther ? 3 : 1}
+          shadowColor={isMultiSelected ? '#60a5fa' : undefined}
+          shadowBlur={isMultiSelected ? 10 : 0}
+          shadowOpacity={isMultiSelected ? 0.6 : 0}
           onMouseEnter={() => {
             if (activeTool === 'select' && !isLockedByOther) {
               document.body.style.cursor = 'move';
@@ -188,8 +198,11 @@ export default function CanvasShape({
           closed={true}
           fill={shape.color}
           opacity={isLockedByOther ? 0.5 : 1}
-          stroke={isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
-          strokeWidth={isLockedByMe || isLockedByOther ? 3 : 1}
+          stroke={isMultiSelected ? '#60a5fa' : isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
+          strokeWidth={isMultiSelected ? 4 : isLockedByMe || isLockedByOther ? 3 : 1}
+          shadowColor={isMultiSelected ? '#60a5fa' : undefined}
+          shadowBlur={isMultiSelected ? 10 : 0}
+          shadowOpacity={isMultiSelected ? 0.6 : 0}
           onMouseEnter={() => {
             if (activeTool === 'select' && !isLockedByOther) {
               document.body.style.cursor = 'move';
@@ -242,6 +255,23 @@ export default function CanvasShape({
                 stroke={isLockedByMe ? '#000000' : '#ff0000'}
                 strokeWidth={1}
                 dash={[4, 4]}
+                fill="transparent"
+                listening={false}
+              />
+            )}
+            
+            {/* Blue border for multi-selected text */}
+            {isMultiSelected && editingTextId !== shape.id && (
+              <Rect
+                x={0}
+                y={0}
+                width={currentWidth}
+                height={currentHeight}
+                stroke="#60a5fa"
+                strokeWidth={4}
+                shadowColor="#60a5fa"
+                shadowBlur={10}
+                shadowOpacity={0.6}
                 fill="transparent"
                 listening={false}
               />

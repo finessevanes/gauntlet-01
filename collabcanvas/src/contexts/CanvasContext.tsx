@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import { DEFAULT_COLOR } from '../utils/constants';
 import { canvasService } from '../services/canvasService';
 import type { ShapeData, ShapeCreateInput } from '../services/canvasService';
+import { selectionService } from '../services/selectionService';
+import type { UserSelection } from '../services/selectionService';
 import { useAuth } from '../hooks/useAuth';
 import type { Unsubscribe } from 'firebase/firestore';
 
@@ -20,6 +22,12 @@ interface CanvasContextType {
   // Shape selection
   selectedShapeId: string | null;
   setSelectedShapeId: (id: string | null) => void;
+  selectedShapes: string[];
+  setSelectedShapes: (shapes: string[]) => void;
+  
+  // Other users' selections (for locking visibility)
+  userSelections: Record<string, UserSelection>;
+  setUserSelections: (selections: Record<string, UserSelection>) => void;
   
   // Drawing mode (deprecated - kept for backward compatibility)
   isDrawMode: boolean;
@@ -71,6 +79,8 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_COLOR);
   const [activeTool, setActiveTool] = useState<ToolType>('select');
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
+  const [selectedShapes, setSelectedShapes] = useState<string[]>([]);
+  const [userSelections, setUserSelections] = useState<Record<string, UserSelection>>({});
   const [isDrawMode, setIsDrawMode] = useState(false); // Deprecated: kept for backward compatibility
   const [isBombMode, setIsBombMode] = useState(false); // Deprecated: kept for backward compatibility
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
@@ -99,6 +109,64 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
       unsubscribe();
     };
   }, [user]);
+
+  // Subscribe to other users' selections for locking visibility
+  useEffect(() => {
+    if (!user) {
+      setUserSelections({});
+      return;
+    }
+
+    console.log('🔄 Subscribing to other users\' selections');
+    
+    const unsubscribe: Unsubscribe = selectionService.subscribeToCanvasSelections(
+      user.uid,
+      (selections) => {
+        setUserSelections(selections);
+      }
+    );
+
+    // Cleanup subscription on unmount or user change
+    return () => {
+      console.log('🔄 Unsubscribing from other users\' selections');
+      unsubscribe();
+    };
+  }, [user]);
+
+  // Sync current user's selection to Firestore
+  useEffect(() => {
+    if (!user) return;
+
+    const syncSelection = async () => {
+      try {
+        if (selectedShapes.length > 0) {
+          console.log('📤 Syncing selection to Firestore:', {
+            userId: user.uid,
+            username: user.displayName || user.email || 'Anonymous',
+            shapeCount: selectedShapes.length,
+            shapeIds: selectedShapes,
+          });
+          
+          // Update selection in Firestore
+          await selectionService.updateUserSelection(
+            user.uid,
+            user.displayName || user.email || 'Anonymous',
+            selectedShapes
+          );
+        } else {
+          console.log('📤 Clearing selection from Firestore:', user.uid);
+          
+          // Clear selection from Firestore
+          await selectionService.clearUserSelection(user.uid);
+        }
+      } catch (error) {
+        console.error('❌ Failed to sync selection to Firestore:', error);
+        console.error('   Error details:', error);
+      }
+    };
+
+    syncSelection();
+  }, [user, selectedShapes]);
 
   // Shape operations
   const createShape = async (shapeInput: ShapeCreateInput): Promise<string> => {
@@ -180,6 +248,10 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     setActiveTool,
     selectedShapeId,
     setSelectedShapeId,
+    selectedShapes,
+    setSelectedShapes,
+    userSelections,
+    setUserSelections,
     isDrawMode,
     setIsDrawMode,
     isBombMode,

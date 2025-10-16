@@ -10,6 +10,7 @@ import CanvasShape from './CanvasShape';
 import CanvasPreview from './CanvasPreview';
 import CanvasTooltips from './CanvasTooltips';
 import { getShapeLockStatus, getCursorStyle } from './canvasHelpers';
+import { selectionService } from '../../services/selectionService';
 import toast from 'react-hot-toast';
 import { 
   CANVAS_WIDTH, 
@@ -55,6 +56,9 @@ export default function Canvas() {
     updateTextFontSize,
     selectedShapeId,
     setSelectedShapeId,
+    selectedShapes,
+    setSelectedShapes,
+    userSelections,
     editingTextId,
     setEditingTextId,
     shapesLoading
@@ -84,6 +88,14 @@ export default function Canvas() {
     width: number;
     height: number;
   } | null>(null);
+
+  // Marquee selection state
+  const [marqueeStart, setMarqueeStart] = useState<{ x: number; y: number } | null>(null);
+  const [marqueeEnd, setMarqueeEnd] = useState<{ x: number; y: number } | null>(null);
+  const [isMarqueeActive, setIsMarqueeActive] = useState(false);
+
+  // Multi-shape move state
+  const [multiDragInitialPositions, setMultiDragInitialPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
 
   // Resize handle hover state
   const [hoveredHandle, setHoveredHandle] = useState<string | null>(null);
@@ -186,58 +198,160 @@ export default function Canvas() {
     }
   }, [selectedShapeId, shapes]);
 
-  // Keyboard shortcuts for delete and duplicate
+  // Keyboard shortcuts for delete, duplicate, and clear selection
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
-      // Don't trigger shortcuts when typing in text input
-      if (textInputVisible || editingTextId) return;
-      
-      // Don't trigger if no shape is selected
-      if (!selectedShapeId || !user) return;
-
-      // Delete key - delete selected shape
+      // Debug: Log all keydown events to diagnose issues
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        console.log('🔑 DELETE KEY PRESSED', {
+          selectedShapes: selectedShapes.length,
+          selectedShapeId,
+          textInputVisible,
+          editingTextId,
+          isMarqueeActive,
+        });
+      }
+      
+      // Don't trigger shortcuts when typing in text input
+      if (textInputVisible || editingTextId) {
+        console.log('⏭️ Skipping keyboard shortcut - text input active');
+        return;
+      }
+      
+      // Don't trigger shortcuts during marquee selection
+      if (isMarqueeActive) {
+        console.log('⏭️ Skipping keyboard shortcut - marquee active');
+        return;
+      }
+      
+      // Escape key - clear selection
+      if (e.key === 'Escape') {
         e.preventDefault();
-        try {
-          await deleteShape(selectedShapeId);
-          setSelectedShapeId(null);
-          toast.success('Shape deleted', {
-            duration: 1000,
-            position: 'top-center',
-          });
-        } catch (error) {
-          console.error('Failed to delete shape:', error);
-          toast.error('Failed to delete shape', {
-            duration: 2000,
-            position: 'top-center',
-          });
+        if (selectedShapes.length > 0) {
+          setSelectedShapes([]);
         }
+        if (selectedShapeId) {
+          await handleDeselectShape();
+        }
+        return;
       }
 
-      // Ctrl+D or Cmd+D - duplicate selected shape
+      // Don't trigger delete/duplicate if no user
+      if (!user) return;
+
+      // Delete key - batch delete or single delete
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        
+        // Check if we have multiple shapes selected
+        if (selectedShapes.length > 0) {
+          console.log('🗑️ BATCH DELETE - Deleting', selectedShapes.length, 'shapes');
+          console.log('   Shape IDs:', selectedShapes);
+          
+          try {
+            // Delete all selected shapes in parallel
+            const deletePromises = selectedShapes.map(shapeId => deleteShape(shapeId));
+            await Promise.all(deletePromises);
+            
+            console.log('✅ BATCH DELETE SUCCESS - All', selectedShapes.length, 'shapes deleted');
+            
+            // Clear selection after delete
+            setSelectedShapes([]);
+            
+            toast.success(`${selectedShapes.length} shape${selectedShapes.length > 1 ? 's' : ''} deleted`, {
+              duration: 1500,
+              position: 'top-center',
+            });
+          } catch (error) {
+            console.error('❌ BATCH DELETE ERROR - Failed to delete shapes:', error);
+            toast.error('Failed to delete shapes', {
+              duration: 2000,
+              position: 'top-center',
+            });
+          }
+          return;
+        }
+        
+        // Single shape deletion (fallback for old behavior)
+        if (selectedShapeId) {
+          try {
+            await deleteShape(selectedShapeId);
+            setSelectedShapeId(null);
+            toast.success('Shape deleted', {
+              duration: 1000,
+              position: 'top-center',
+            });
+          } catch (error) {
+            console.error('Failed to delete shape:', error);
+            toast.error('Failed to delete shape', {
+              duration: 2000,
+              position: 'top-center',
+            });
+          }
+        } else {
+          console.log('⚠️ DELETE KEY PRESSED - No shapes selected');
+        }
+        return;
+      }
+
+      // Ctrl+D or Cmd+D - duplicate selected shapes (batch or single)
       if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
         e.preventDefault();
-        try {
-          // Unlock the current shape first
-          await unlockShape(selectedShapeId);
+        
+        // Check if we have multiple shapes selected (batch duplicate)
+        if (selectedShapes.length > 0) {
+          console.log('📋 BATCH DUPLICATE - Duplicating', selectedShapes.length, 'shapes');
+          console.log('   Shape IDs:', selectedShapes);
           
-          // Duplicate the shape and get the new shape ID
-          const newShapeId = await duplicateShape(selectedShapeId, user.uid);
-          
-          // Select and lock the new shape immediately
-          setSelectedShapeId(newShapeId);
-          await lockShape(newShapeId, user.uid);
-          
-          toast.success('Shape duplicated', {
-            duration: 1000,
-            position: 'top-center',
-          });
-        } catch (error) {
-          console.error('Failed to duplicate shape:', error);
-          toast.error('Failed to duplicate shape', {
-            duration: 2000,
-            position: 'top-center',
-          });
+          try {
+            // Duplicate all selected shapes in parallel
+            const duplicatePromises = selectedShapes.map(shapeId => duplicateShape(shapeId, user.uid));
+            const newShapeIds = await Promise.all(duplicatePromises);
+            
+            console.log('✅ BATCH DUPLICATE SUCCESS - All', selectedShapes.length, 'shapes duplicated');
+            console.log('   New shape IDs:', newShapeIds);
+            
+            // Clear original selection and select only the duplicates
+            setSelectedShapes(newShapeIds);
+            
+            toast.success(`${selectedShapes.length} shape${selectedShapes.length > 1 ? 's' : ''} duplicated`, {
+              duration: 1500,
+              position: 'top-center',
+            });
+          } catch (error) {
+            console.error('❌ BATCH DUPLICATE ERROR - Failed to duplicate shapes:', error);
+            toast.error('Failed to duplicate shapes', {
+              duration: 2000,
+              position: 'top-center',
+            });
+          }
+          return;
+        }
+        
+        // Single shape duplication (fallback)
+        if (selectedShapeId) {
+          try {
+            // Unlock the current shape first
+            await unlockShape(selectedShapeId);
+            
+            // Duplicate the shape and get the new shape ID
+            const newShapeId = await duplicateShape(selectedShapeId, user.uid);
+            
+            // Select and lock the new shape immediately
+            setSelectedShapeId(newShapeId);
+            await lockShape(newShapeId, user.uid);
+            
+            toast.success('Shape duplicated', {
+              duration: 1000,
+              position: 'top-center',
+            });
+          } catch (error) {
+            console.error('Failed to duplicate shape:', error);
+            toast.error('Failed to duplicate shape', {
+              duration: 2000,
+              position: 'top-center',
+            });
+          }
         }
       }
     };
@@ -247,7 +361,7 @@ export default function Canvas() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectedShapeId, user, textInputVisible, editingTextId, deleteShape, duplicateShape]);
+  }, [selectedShapeId, selectedShapes, user, textInputVisible, editingTextId, isMarqueeActive, deleteShape, duplicateShape]);
 
   // Helper: Deselect shape and unlock
   const handleDeselectShape = async () => {
@@ -263,12 +377,88 @@ export default function Canvas() {
   };
 
   // Helper: Handle shape mousedown (optimistic selection + background lock)
-  const handleShapeMouseDown = async (shapeId: string) => {
+  const handleShapeMouseDown = async (shapeId: string, event?: MouseEvent | React.MouseEvent) => {
     if (!user) return;
 
+    // Check if shape is selected by another user (selection locking)
+    const selectionLockStatus = selectionService.isShapeLockedByOthers(shapeId, user.uid, userSelections);
+    
+    if (selectionLockStatus.locked) {
+      // Shape is selected by another user - prevent interaction
+      toast.error(`Shape selected by ${selectionLockStatus.username}`, {
+        duration: 2000,
+        position: 'top-center',
+      });
+      console.log('🔒 Shape selected by another user, preventing interaction:', {
+        shapeId,
+        lockedBy: selectionLockStatus.username,
+      });
+      return;
+    }
+
+    // Check if Shift key is held for multi-select
+    const isShiftHeld = event?.shiftKey || false;
+
+    if (isShiftHeld) {
+      // Multi-select mode: add/remove from selection
+      let newSelection = [...selectedShapes];
+      
+      // If there's a currently selected shape (selectedShapeId), add it to multi-selection first
+      if (selectedShapeId && !newSelection.includes(selectedShapeId)) {
+        console.log('🔵 Adding currently selected shape to multi-selection:', selectedShapeId);
+        newSelection.push(selectedShapeId);
+        // Unlock and clear single selection
+        try {
+          await unlockShape(selectedShapeId);
+        } catch (error) {
+          console.error('❌ Failed to unlock shape during multi-select:', error);
+        }
+        setSelectedShapeId(null);
+      }
+      
+      // Toggle the clicked shape
+      if (newSelection.includes(shapeId)) {
+        // Remove from selection
+        console.log('🔵 Removing shape from multi-selection:', shapeId);
+        newSelection = newSelection.filter(id => id !== shapeId);
+      } else {
+        // Add to selection
+        console.log('🔵 Adding shape to multi-selection:', shapeId);
+        newSelection.push(shapeId);
+      }
+      
+      setSelectedShapes(newSelection);
+      
+      // Log final selection state
+      if (newSelection.length > 1) {
+        console.log('✅ MULTI-SELECT ACTIVE - Selected shapes:', newSelection);
+        console.log(`   📊 Total: ${newSelection.length} shapes selected`);
+      } else if (newSelection.length === 1) {
+        console.log('🔵 Single shape in multi-selection:', newSelection[0]);
+      } else {
+        console.log('⚪ Multi-selection cleared');
+      }
+      
+      return;
+    }
+
+    // Single select mode (no Shift)
     // If clicking on already selected shape, do nothing
     if (selectedShapeId === shapeId) {
       return;
+    }
+
+    // If clicking on a shape that's part of a multi-selection, keep the multi-selection
+    // (This allows dragging multi-selected shapes)
+    if (selectedShapes.includes(shapeId) && selectedShapes.length > 1) {
+      console.log('🔵 Clicked on multi-selected shape, keeping multi-selection for drag');
+      return;
+    }
+
+    // Clear multi-selection when single-selecting a different shape
+    if (selectedShapes.length > 0) {
+      console.log('🔵 Clearing multi-selection for single select');
+      setSelectedShapes([]);
     }
 
     // Deselect current shape first (AWAIT to prevent race conditions)
@@ -487,11 +677,6 @@ export default function Canvas() {
       e.target.name() === 'grid';
 
     if (clickedOnBackground) {
-      // Deselect any selected shape when clicking on background
-      if (selectedShapeId) {
-        handleDeselectShape();
-      }
-
       const pointerPosition = stage.getPointerPosition();
       if (!pointerPosition) return;
 
@@ -523,8 +708,38 @@ export default function Canvas() {
         return;
       }
 
+      // Handle select tool - start marquee selection or clear selection
+      if (activeTool === 'select') {
+        // Check if Shift is held
+        const isShiftHeld = e.evt.shiftKey;
+        
+        // If not holding Shift, clear existing selection
+        if (!isShiftHeld) {
+          setSelectedShapes([]);
+          if (selectedShapeId) {
+            handleDeselectShape();
+          }
+        }
+        
+        // Start marquee selection
+        setIsMarqueeActive(true);
+        setMarqueeStart({ x, y });
+        setMarqueeEnd({ x, y });
+        return;
+      }
+
+      // Deselect any selected shape when clicking on background
+      if (selectedShapeId) {
+        handleDeselectShape();
+      }
+      
+      // Clear multi-selection when clicking on background
+      if (selectedShapes.length > 0) {
+        setSelectedShapes([]);
+      }
+
       // Only start drawing if a shape tool is selected
-      if (activeTool === 'pan' || activeTool === 'select') return;
+      if (activeTool === 'pan') return;
 
       setIsDrawing(true);
       setDrawStart({ x, y });
@@ -550,6 +765,23 @@ export default function Canvas() {
     // Handle resize if in progress
     if (isResizing) {
       handleResizeMove(e);
+      return;
+    }
+
+    // Handle marquee selection
+    if (isMarqueeActive && marqueeStart) {
+      const pointerPosition = stage.getPointerPosition();
+      if (!pointerPosition) return;
+
+      // Convert screen coordinates to canvas coordinates
+      let currentX = (pointerPosition.x - stage.x()) / stage.scaleX();
+      let currentY = (pointerPosition.y - stage.y()) / stage.scaleY();
+
+      // Clamp to canvas bounds
+      currentX = Math.max(0, Math.min(CANVAS_WIDTH, currentX));
+      currentY = Math.max(0, Math.min(CANVAS_HEIGHT, currentY));
+
+      setMarqueeEnd({ x: currentX, y: currentY });
       return;
     }
 
@@ -607,6 +839,79 @@ export default function Canvas() {
     // Handle resize end if in progress
     if (isResizing) {
       await handleResizeEnd();
+      return;
+    }
+
+    // Handle marquee selection end
+    if (isMarqueeActive && marqueeStart && marqueeEnd) {
+      const isShiftHeld = window.event && (window.event as MouseEvent).shiftKey;
+      
+      // Calculate normalized marquee bounds (handle negative drags)
+      const marqueeX = Math.min(marqueeStart.x, marqueeEnd.x);
+      const marqueeY = Math.min(marqueeStart.y, marqueeEnd.y);
+      const marqueeWidth = Math.abs(marqueeEnd.x - marqueeStart.x);
+      const marqueeHeight = Math.abs(marqueeEnd.y - marqueeStart.y);
+      
+      // Find all shapes intersecting with marquee
+      const intersectedShapes = shapes.filter(shape => {
+        // Calculate shape bounds based on type
+        let shapeLeft: number, shapeTop: number, shapeRight: number, shapeBottom: number;
+        
+        if (shape.type === 'circle' && shape.radius !== undefined) {
+          // Circle: use center +/- radius
+          shapeLeft = shape.x - shape.radius;
+          shapeTop = shape.y - shape.radius;
+          shapeRight = shape.x + shape.radius;
+          shapeBottom = shape.y + shape.radius;
+        } else if (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text') {
+          // Rectangle/Triangle/Text: use top-left corner + dimensions
+          shapeLeft = shape.x;
+          shapeTop = shape.y;
+          shapeRight = shape.x + shape.width;
+          shapeBottom = shape.y + shape.height;
+        } else {
+          return false; // Unknown shape type
+        }
+        
+        // Check bounding box intersection
+        const isIntersecting = !(
+          marqueeX + marqueeWidth < shapeLeft ||
+          marqueeX > shapeRight ||
+          marqueeY + marqueeHeight < shapeTop ||
+          marqueeY > shapeBottom
+        );
+        
+        return isIntersecting;
+      });
+      
+      // Update selection based on Shift key
+      const intersectedIds = intersectedShapes.map(s => s.id);
+      
+      if (intersectedIds.length === 0) {
+        console.log('⚪ Marquee selection: No shapes intersected');
+      } else {
+        console.log('🔵 Marquee selection intersected shapes:', intersectedIds);
+      }
+      
+      if (isShiftHeld) {
+        // Add to existing selection (merge)
+        const mergedSelection = [...new Set([...selectedShapes, ...intersectedIds])];
+        setSelectedShapes(mergedSelection);
+        console.log('✅ MARQUEE + SHIFT - Merged selection:', mergedSelection);
+        console.log(`   📊 Total: ${mergedSelection.length} shapes selected`);
+      } else {
+        // Replace selection
+        setSelectedShapes(intersectedIds);
+        if (intersectedIds.length > 1) {
+          console.log('✅ MULTI-SELECT (Marquee) - Selected shapes:', intersectedIds);
+          console.log(`   📊 Total: ${intersectedIds.length} shapes selected`);
+        }
+      }
+      
+      // Clear marquee state
+      setIsMarqueeActive(false);
+      setMarqueeStart(null);
+      setMarqueeEnd(null);
       return;
     }
 
@@ -730,8 +1035,35 @@ export default function Canvas() {
   };
 
   // Shape drag handlers
-  const handleShapeDragStart = (e: Konva.KonvaEventObject<DragEvent>, _shapeId: string) => {
+  const handleShapeDragStart = (e: Konva.KonvaEventObject<DragEvent>, shapeId: string) => {
     e.cancelBubble = true; // Prevent stage from also receiving drag events
+    
+    // If this shape is part of a multi-selection, store initial positions of all selected shapes
+    if (selectedShapes.includes(shapeId) && selectedShapes.length > 1) {
+      console.log('🟢 MULTI-DRAG START - Dragging', selectedShapes.length, 'shapes together');
+      console.log('   Dragged shape ID:', shapeId);
+      console.log('   All selected shapes:', selectedShapes);
+      
+      const initialPositions = new Map<string, { x: number; y: number }>();
+      
+      for (const id of selectedShapes) {
+        const shape = shapes.find(s => s.id === id);
+        if (shape) {
+          initialPositions.set(id, { x: shape.x, y: shape.y });
+        } else {
+          console.error('❌ ERROR: Shape not found in multi-drag:', id);
+        }
+      }
+      
+      if (initialPositions.size !== selectedShapes.length) {
+        console.error('❌ ERROR: Could not grab all selected shapes!');
+        console.error('   Expected:', selectedShapes.length, 'Got:', initialPositions.size);
+      } else {
+        console.log('✅ All', initialPositions.size, 'shapes grabbed successfully');
+      }
+      
+      setMultiDragInitialPositions(initialPositions);
+    }
   };
 
   const handleShapeDragMove = (e: Konva.KonvaEventObject<DragEvent>, shapeId: string) => {
@@ -767,6 +1099,11 @@ export default function Canvas() {
       centerY = Math.max(shape.radius, Math.min(CANVAS_HEIGHT - shape.radius, centerY));
       node.x(centerX);
       node.y(centerY);
+      
+      // Handle multi-shape move during drag
+      if (selectedShapes.includes(shapeId) && selectedShapes.length > 1 && multiDragInitialPositions.size > 0) {
+        handleMultiShapeDragMove(shapeId, centerX, centerY);
+      }
       return;
     } else {
       return;
@@ -783,6 +1120,96 @@ export default function Canvas() {
     // Update position if constrained
     node.x(centerX);
     node.y(centerY);
+    
+    // Handle multi-shape move during drag
+    if (selectedShapes.includes(shapeId) && selectedShapes.length > 1 && multiDragInitialPositions.size > 0) {
+      handleMultiShapeDragMove(shapeId, centerX, centerY);
+    }
+  };
+
+  // Helper function to move all other selected shapes during drag
+  const handleMultiShapeDragMove = (draggedShapeId: string, draggedCenterX: number, draggedCenterY: number) => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const initialPos = multiDragInitialPositions.get(draggedShapeId);
+    if (!initialPos) return;
+
+    const draggedShape = shapes.find(s => s.id === draggedShapeId);
+    if (!draggedShape) return;
+
+    // Calculate current top-left position of dragged shape
+    let draggedX: number, draggedY: number;
+    if (draggedShape.type === 'circle') {
+      draggedX = draggedCenterX;
+      draggedY = draggedCenterY;
+    } else if (draggedShape.type === 'text') {
+      const textContent = draggedShape.text || '';
+      const textFontSize = draggedShape.fontSize || 16;
+      const estimatedWidth = textContent.length * textFontSize * 0.6;
+      const estimatedHeight = textFontSize * 1.2;
+      const padding = 4;
+      const width = estimatedWidth + padding * 2;
+      const height = estimatedHeight + padding * 2;
+      draggedX = draggedCenterX - width / 2;
+      draggedY = draggedCenterY - height / 2;
+    } else {
+      draggedX = draggedCenterX - draggedShape.width / 2;
+      draggedY = draggedCenterY - draggedShape.height / 2;
+    }
+
+    // Calculate delta
+    const deltaX = draggedX - initialPos.x;
+    const deltaY = draggedY - initialPos.y;
+
+    // Get the layer
+    const layers = stage.getLayers();
+    if (layers.length === 0) return;
+    const layer = layers[0];
+
+    // Move all other selected shapes
+    selectedShapes.forEach((id) => {
+      if (id === draggedShapeId) return; // Skip the shape being dragged
+
+      const targetInitialPos = multiDragInitialPositions.get(id);
+      const targetShape = shapes.find(s => s.id === id);
+      if (!targetInitialPos || !targetShape) return;
+
+      // Calculate new position
+      const newX = targetInitialPos.x + deltaX;
+      const newY = targetInitialPos.y + deltaY;
+
+      // Find the Konva node for this shape
+      const targetNode = layer.findOne(`#${id}`);
+      if (!targetNode) return;
+
+      // Calculate center position based on shape type
+      let newCenterX: number, newCenterY: number;
+      if (targetShape.type === 'circle') {
+        newCenterX = newX;
+        newCenterY = newY;
+      } else if (targetShape.type === 'text') {
+        const textContent = targetShape.text || '';
+        const textFontSize = targetShape.fontSize || 16;
+        const estimatedWidth = textContent.length * textFontSize * 0.6;
+        const estimatedHeight = textFontSize * 1.2;
+        const padding = 4;
+        const width = estimatedWidth + padding * 2;
+        const height = estimatedHeight + padding * 2;
+        newCenterX = newX + width / 2;
+        newCenterY = newY + height / 2;
+      } else {
+        newCenterX = newX + targetShape.width / 2;
+        newCenterY = newY + targetShape.height / 2;
+      }
+
+      // Update the Konva node position
+      targetNode.x(newCenterX);
+      targetNode.y(newCenterY);
+    });
+
+    // Redraw the layer
+    layer.batchDraw();
   };
 
   const handleShapeDragEnd = async (e: Konva.KonvaEventObject<DragEvent>, shapeId: string) => {
@@ -837,16 +1264,94 @@ export default function Canvas() {
       return; // Unknown type
     }
 
-    // Update shape position in Firestore
-    try {
-      await updateShape(shapeId, { x: newX, y: newY });
-    } catch (error) {
-      console.error('❌ Failed to update shape position:', error);
+    // Handle multi-shape movement
+    if (selectedShapes.includes(shapeId) && selectedShapes.length > 1 && multiDragInitialPositions.size > 0) {
+      const initialPos = multiDragInitialPositions.get(shapeId);
+      if (!initialPos) {
+        console.error('❌ ERROR: Initial position not found for dragged shape:', shapeId);
+        return;
+      }
+      
+      // Calculate drag delta
+      const deltaX = newX - initialPos.x;
+      const deltaY = newY - initialPos.y;
+      
+      console.log('🟢 MULTI-DRAG END - Moving', selectedShapes.length, 'shapes');
+      console.log('   Delta: dx=' + deltaX.toFixed(2) + ', dy=' + deltaY.toFixed(2));
+      
+      // Update all selected shapes with the same delta
+      const updatePromises = selectedShapes.map(async (id) => {
+        const targetShape = shapes.find(s => s.id === id);
+        const targetInitialPos = multiDragInitialPositions.get(id);
+        
+        if (!targetShape) {
+          console.error('❌ ERROR: Target shape not found:', id);
+          return;
+        }
+        
+        if (!targetInitialPos) {
+          console.error('❌ ERROR: Initial position not found for shape:', id);
+          return;
+        }
+        
+        const targetNewX = targetInitialPos.x + deltaX;
+        const targetNewY = targetInitialPos.y + deltaY;
+        
+        // Clamp to canvas bounds based on shape type
+        let clampedX = targetNewX;
+        let clampedY = targetNewY;
+        
+        if (targetShape.type === 'circle' && targetShape.radius !== undefined) {
+          clampedX = Math.max(targetShape.radius, Math.min(CANVAS_WIDTH - targetShape.radius, targetNewX));
+          clampedY = Math.max(targetShape.radius, Math.min(CANVAS_HEIGHT - targetShape.radius, targetNewY));
+        } else if (targetShape.type === 'rectangle' || targetShape.type === 'triangle') {
+          clampedX = Math.max(0, Math.min(CANVAS_WIDTH - targetShape.width, targetNewX));
+          clampedY = Math.max(0, Math.min(CANVAS_HEIGHT - targetShape.height, targetNewY));
+        } else if (targetShape.type === 'text') {
+          const textContent = targetShape.text || '';
+          const textFontSize = targetShape.fontSize || 16;
+          const estimatedWidth = textContent.length * textFontSize * 0.6;
+          const estimatedHeight = textFontSize * 1.2;
+          const padding = 4;
+          const width = estimatedWidth + padding * 2;
+          const height = estimatedHeight + padding * 2;
+          
+          clampedX = Math.max(0, Math.min(CANVAS_WIDTH - width, targetNewX));
+          clampedY = Math.max(0, Math.min(CANVAS_HEIGHT - height, targetNewY));
+        }
+        
+        // Update shape position in Firestore
+        try {
+          await updateShape(id, { x: clampedX, y: clampedY });
+        } catch (error) {
+          console.error(`❌ Failed to update shape position for ${id}:`, error);
+        }
+      });
+      
+      // Wait for all updates to complete
+      try {
+        await Promise.all(updatePromises);
+        console.log('✅ All', selectedShapes.length, 'shapes updated in Firestore');
+      } catch (error) {
+        console.error('❌ ERROR: Failed to update some shapes:', error);
+      }
+      
+      // Clear multi-drag state
+      setMultiDragInitialPositions(new Map());
+    } else {
+      // Single shape movement
+      try {
+        await updateShape(shapeId, { x: newX, y: newY });
+      } catch (error) {
+        console.error('❌ Failed to update shape position:', error);
+      }
     }
 
-    // Unlock the shape after drag
-    await unlockShape(shapeId);
-    setSelectedShapeId(null);
+    // Unlock the shape after drag (if it's the single-selected shape)
+    if (selectedShapeId === shapeId) {
+      await unlockShape(shapeId);
+      setSelectedShapeId(null);
+    }
   };
 
   // ============================================
@@ -1099,14 +1604,36 @@ export default function Canvas() {
           {!shapesLoading && shapes.map((shape) => {
             const lockStatus = getShapeLockStatus(shape, user, selectedShapeId);
             const isLockedByMe = lockStatus === 'locked-by-me';
-            const isLockedByOther = lockStatus === 'locked-by-other';
             const isSelected = selectedShapeId === shape.id;
+            const isMultiSelected = selectedShapes.includes(shape.id);
+            
+            // Check if shape is selected by another user (selection locking)
+            const selectionLockStatus = user 
+              ? selectionService.isShapeLockedByOthers(shape.id, user.uid, userSelections)
+              : { locked: false };
+            
+            const isSelectedByOther = selectionLockStatus.locked;
+            
+            // Log when a shape is selected by another user (only log occasionally to avoid spam)
+            if (isSelectedByOther && Math.random() < 0.1) {
+              console.log('🔒 Shape selected by another user:', {
+                shapeId: shape.id,
+                lockedBy: selectionLockStatus.username,
+                userSelections,
+              });
+            }
+            
+            // A shape is locked by others if it's either:
+            // 1. Locked via the old locking mechanism (lockedBy field)
+            // 2. Selected by another user (new selection locking)
+            const isLockedByOther = lockStatus === 'locked-by-other' || isSelectedByOther;
 
             return (
               <CanvasShape
                 key={shape.id}
                 shape={shape}
                 isSelected={isSelected}
+                isMultiSelected={isMultiSelected}
                 isLockedByMe={isLockedByMe}
                 isLockedByOther={isLockedByOther}
                 isResizing={isResizing}
@@ -1141,6 +1668,21 @@ export default function Canvas() {
             selectedColor={selectedColor}
           />
 
+          {/* Marquee selection rectangle */}
+          {isMarqueeActive && marqueeStart && marqueeEnd && (
+            <Rect
+              x={Math.min(marqueeStart.x, marqueeEnd.x)}
+              y={Math.min(marqueeStart.y, marqueeEnd.y)}
+              width={Math.abs(marqueeEnd.x - marqueeStart.x)}
+              height={Math.abs(marqueeEnd.y - marqueeStart.y)}
+              stroke="blue"
+              strokeWidth={2}
+              dash={[10, 5]}
+              fill="blue"
+              opacity={0.2}
+              listening={false}
+            />
+          )}
 
           {/* Tooltips for resizing and rotating */}
           <CanvasTooltips

@@ -233,12 +233,12 @@
 - [x] Double-click existing text → enter edit mode
 - [x] Type text → see changes in real-time
 - [x] Press Enter → save to Firestore
-- [] Press Escape → cancel without saving
-- [] Zoom to 50% → overlay still aligned
-- [] Zoom to 200% → overlay still aligned
-- [] Pan canvas → overlay follows text
-- [] Lock text → cannot edit
-- [] Multi-user → see other user's changes
+- [x] Press Escape → cancel without saving
+- [x] Zoom to 50% → overlay still aligned
+- [x] Zoom to 200% → overlay still aligned
+- [x] Pan canvas → overlay follows text
+- [x] Lock text → cannot edit
+- [x] Multi-user → see other user's changes
 
 ### Edge Cases
 - [] Test rapid double-clicks

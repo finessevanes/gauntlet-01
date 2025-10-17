@@ -229,10 +229,10 @@
 ## Testing Checklist
 
 ### Manual Testing Scenarios
-- [] Create text shape → auto-enter edit mode
-- [] Double-click existing text → enter edit mode
-- [] Type text → see changes in real-time
-- [] Press Enter → save to Firestore
+- [x] Create text shape → auto-enter edit mode
+- [x] Double-click existing text → enter edit mode
+- [x] Type text → see changes in real-time
+- [x] Press Enter → save to Firestore
 - [] Press Escape → cancel without saving
 - [] Zoom to 50% → overlay still aligned
 - [] Zoom to 200% → overlay still aligned

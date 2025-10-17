@@ -88,21 +88,28 @@ export const calculateTextDimensions = (
   fontSize: number,
   fontWeight: string = 'normal'
 ): { width: number; height: number } => {
-  // Use a consistent, accurate multiplier for all text content
-  // No special cases - "TEXT" is just regular text that can be edited
-  const baseCharWidth = fontSize * 0.7; // Consistent multiplier for all text
+  // Use canvas-based measurement for more accurate text width
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  let textWidth = 0;
   
-  // Bold text is wider
-  const boldMultiplier = fontWeight === 'bold' ? 1.15 : 1.0;
-  
-  // Calculate width with better scaling
-  const estimatedWidth = text.length * baseCharWidth * boldMultiplier;
+  if (context) {
+    // Set font properties to match the text
+    const fontStyle = fontWeight === 'bold' ? 'bold' : 'normal';
+    context.font = `${fontStyle} ${fontSize}px Arial, sans-serif`;
+    textWidth = context.measureText(text).width;
+  } else {
+    // Fallback to character-based estimation with more accurate multiplier
+    const baseCharWidth = fontSize * 0.55; // More precise character width
+    const boldMultiplier = fontWeight === 'bold' ? 1.05 : 1.0;
+    textWidth = text.length * baseCharWidth * boldMultiplier;
+  }
   
   // Height calculation - use font size for more accurate text height
   const lineHeight = fontSize; // Use font size as text height for better centering
   
-  // Add minimum width for very short text, but don't make it too large
-  const minWidth = Math.max(estimatedWidth, fontSize * 0.8);
+  // Use actual measured width, with minimal padding
+  const minWidth = Math.max(textWidth, fontSize * 0.3);
   
   return {
     width: minWidth,

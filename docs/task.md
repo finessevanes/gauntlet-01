@@ -1286,7 +1286,7 @@ Add toast notifications for shortcuts:
 
 ## PR #10: Collaborative Comments
 
-**Branch:** `feature/pr-10-collsb-comments`  
+**Branch:** `feature/pr-10-collab-comments`  
 **Goal:** Collaborative comment system on shapes
 
 > 🚦 **Before starting:** Ask AI to create `docs/PR-10-ACTION-PLAN.md` and wait for your approval

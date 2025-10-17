@@ -88,7 +88,7 @@ export class AIService {
   private validatePosition(x: number, y: number, shapeName: string): void {
     if (x < 0 || x > CANVAS_WIDTH || y < 0 || y > CANVAS_HEIGHT) {
       throw new Error(
-        `⚠️ Position out of bounds: (${x}, ${y}). Canvas bounds are 0-${CANVAS_WIDTH} × 0-${CANVAS_HEIGHT} pixels.`
+        `⚠️ ${shapeName} position out of bounds: (${x}, ${y}). Canvas bounds are 0-${CANVAS_WIDTH} × 0-${CANVAS_HEIGHT} pixels.`
       );
     }
   }
@@ -197,7 +197,7 @@ export class AIService {
   private getToolDefinitions() {
     return [
       {
-        type: "function",
+        type: "function" as const,
         function: {
           name: "createRectangle",
           description: "Creates a rectangle on the canvas at specified position with given dimensions and color.",
@@ -215,7 +215,7 @@ export class AIService {
         }
       },
       {
-        type: "function",
+        type: "function" as const,
         function: {
           name: "createCircle",
           description: "Creates a circle on the canvas at specified center position with given radius and color.",
@@ -232,7 +232,7 @@ export class AIService {
         }
       },
       {
-        type: "function",
+        type: "function" as const,
         function: {
           name: "createTriangle",
           description: "Creates a triangle on the canvas at specified position with given dimensions and color.",
@@ -250,7 +250,7 @@ export class AIService {
         }
       },
       {
-        type: "function",
+        type: "function" as const,
         function: {
           name: "createText",
           description: "Creates a text layer at specified position with optional fontSize, color, and formatting.",

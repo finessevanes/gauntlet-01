@@ -71,3 +71,41 @@ export const canEditShape = (shape: any, currentUserId: string): boolean => {
   // Can edit if not locked or locked by current user
   return !shape.lockedBy || shape.lockedBy === currentUserId;
 };
+
+/**
+ * Calculate accurate text dimensions for any font size
+ * 
+ * This function provides better text dimension estimation that works
+ * for all font sizes from 12px to 200px+.
+ * 
+ * @param text - The text content
+ * @param fontSize - The font size in pixels
+ * @param fontWeight - The font weight (normal, bold)
+ * @returns Object with width and height in pixels
+ */
+export const calculateTextDimensions = (
+  text: string,
+  fontSize: number,
+  fontWeight: string = 'normal'
+): { width: number; height: number } => {
+  // Use a consistent, accurate multiplier for all text content
+  // No special cases - "TEXT" is just regular text that can be edited
+  const baseCharWidth = fontSize * 0.7; // Consistent multiplier for all text
+  
+  // Bold text is wider
+  const boldMultiplier = fontWeight === 'bold' ? 1.15 : 1.0;
+  
+  // Calculate width with better scaling
+  const estimatedWidth = text.length * baseCharWidth * boldMultiplier;
+  
+  // Height calculation - use actual line height
+  const lineHeight = fontSize * 1.2; // Standard line height
+  
+  // Add minimum width for very short text, but don't make it too large
+  const minWidth = Math.max(estimatedWidth, fontSize * 0.8);
+  
+  return {
+    width: minWidth,
+    height: lineHeight
+  };
+};

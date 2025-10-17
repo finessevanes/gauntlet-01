@@ -1,5 +1,6 @@
 import type { ShapeData } from '../../services/canvasService';
 import type { User } from 'firebase/auth';
+import { calculateTextDimensions } from '../../utils/textEditingHelpers';
 
 /**
  * Get the lock status of a shape for the current user
@@ -66,12 +67,15 @@ export function calculateShapeDimensions(shape: ShapeData): {
   if (shape.type === 'text') {
     const textContent = shape.text || '';
     const textFontSize = shape.fontSize || 16;
-    const estimatedWidth = textContent.length * textFontSize * 0.6;
-    const estimatedHeight = textFontSize * 1.2;
+    const fontWeight = shape.fontWeight || 'normal';
+    
+    // Use improved text dimension calculation
+    const textDimensions = calculateTextDimensions(textContent, textFontSize, fontWeight);
     const padding = 4;
+    
     return {
-      width: estimatedWidth + padding * 2,
-      height: estimatedHeight + padding * 2,
+      width: textDimensions.width + padding * 2,
+      height: textDimensions.height + padding * 2,
     };
   } else if (shape.type === 'rectangle' || shape.type === 'triangle') {
     return {

@@ -13,6 +13,7 @@ import { CommentPanel } from './CommentPanel';
 import TextEditorOverlay from './TextEditorOverlay';
 import { getShapeLockStatus, getCursorStyle } from './canvasHelpers';
 import { selectionService } from '../../services/selectionService';
+import { calculateTextDimensions } from '../../utils/textEditingHelpers';
 import toast from 'react-hot-toast';
 import { 
   CANVAS_WIDTH, 
@@ -128,6 +129,50 @@ export default function Canvas() {
   
   // Rotation handle hover state
   const [hoveredRotationHandle, setHoveredRotationHandle] = useState<string | null>(null);
+  
+  // Text editing state - track current text content for dynamic border
+  const [editingTextContent, setEditingTextContent] = useState<string>('');
+  const [editingTextDimensions, setEditingTextDimensions] = useState<{ width: number; height: number } | null>(null);
+  
+  // Handle text content changes during editing
+  const handleEditingTextChange = (text: string) => {
+    setEditingTextContent(text);
+  };
+  
+  // Handle dimension changes from HTML input
+  const handleEditingDimensionsChange = (dimensions: { width: number; height: number }) => {
+    setEditingTextDimensions(dimensions);
+  };
+  
+  // Reset editing text content when entering edit mode
+  const handleEnterEdit = (shapeId: string) => {
+    const shape = shapes.find(s => s.id === shapeId);
+    if (shape && shape.type === 'text') {
+      setEditingTextContent(shape.text || '');
+      setEditingTextDimensions(null); // Reset dimensions
+    }
+    enterEdit(shapeId);
+  };
+  
+  // Reset editing text content when canceling edit mode
+  const handleCancelEdit = () => {
+    setEditingTextContent('');
+    setEditingTextDimensions(null);
+    cancelEdit();
+  };
+  
+  // Handle saving text and reset editing content
+  const handleSaveText = async (text: string) => {
+    if (!editingTextId) return;
+    try {
+      await saveText(editingTextId, text);
+      setEditingTextContent(''); // Reset editing content after saving
+      setEditingTextDimensions(null); // Reset dimensions after saving
+    } catch (error) {
+      console.error('Error saving text:', error);
+      throw error;
+    }
+  };
   
   // Rotation state management
   const [isRotating, setIsRotating] = useState(false);
@@ -1149,7 +1194,7 @@ export default function Canvas() {
           });
           
           // Auto-enter edit mode for newly created text
-          enterEdit(newTextId);
+          handleEnterEdit(newTextId);
           
           toast.success('Text created', {
             duration: 1000,
@@ -1700,11 +1745,13 @@ export default function Canvas() {
       // For text, calculate dimensions dynamically then convert center to top-left
       const textContent = shape.text || '';
       const textFontSize = shape.fontSize || 16;
-      const estimatedWidth = textContent.length * textFontSize * 0.6;
-      const estimatedHeight = textFontSize * 1.2;
+      const fontWeight = shape.fontWeight || 'normal';
+      
+      // Use improved text dimension calculation
+      const textDimensions = calculateTextDimensions(textContent, textFontSize, fontWeight);
       const padding = 4;
-      const width = estimatedWidth + padding * 2;
-      const height = estimatedHeight + padding * 2;
+      const width = textDimensions.width + padding * 2;
+      const height = textDimensions.height + padding * 2;
       
       newX = centerX - width / 2;
       newY = centerY - height / 2;
@@ -2292,8 +2339,10 @@ export default function Canvas() {
                 setHoveredHandle={setHoveredHandle}
                 setHoveredRotationHandle={setHoveredRotationHandle}
                 onCommentIndicatorClick={handleCommentIndicatorClick}
-                onTextDoubleClick={enterEdit}
+                onTextDoubleClick={handleEnterEdit}
                 editingTextId={editingTextId}
+                editingTextContent={editingTextContent}
+                editingTextDimensions={editingTextDimensions}
               />
             );
           })}
@@ -2400,8 +2449,10 @@ export default function Canvas() {
             position={{ x: screenX, y: screenY }}
             fontSize={shape.fontSize || 16}
             color={shape.color}
-            onSave={(text) => saveText(editingTextId, text)}
-            onCancel={cancelEdit}
+            onSave={handleSaveText}
+            onCancel={handleCancelEdit}
+            onTextChange={handleEditingTextChange}
+            onDimensionsChange={handleEditingDimensionsChange}
           />
         );
       })()}

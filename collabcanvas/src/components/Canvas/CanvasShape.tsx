@@ -1,6 +1,7 @@
 import { Group, Rect, Circle, Line, Text } from 'react-konva';
 import type Konva from 'konva';
 import type { ShapeData } from '../../services/canvasService';
+import { calculateTextDimensions } from '../../utils/textEditingHelpers';
 
 interface CanvasShapeProps {
   shape: ShapeData;
@@ -35,6 +36,8 @@ interface CanvasShapeProps {
   onCommentIndicatorClick: (shapeId: string) => void;
   onTextDoubleClick?: (shapeId: string) => void;
   editingTextId?: string | null;
+  editingTextContent?: string;
+  editingTextDimensions?: { width: number; height: number } | null;
 }
 
 export default function CanvasShape({
@@ -65,6 +68,8 @@ export default function CanvasShape({
   onCommentIndicatorClick,
   onTextDoubleClick,
   editingTextId,
+  editingTextContent,
+  editingTextDimensions,
 }: CanvasShapeProps) {
   // Shape is being resized if isResizing is true OR if preview dimensions exist (during transition)
   // For text, we don't use preview dimensions (dimensions are always calculated from fontSize)
@@ -93,18 +98,32 @@ export default function CanvasShape({
     currentY = isBeingResized && previewDimensions ? previewDimensions.y : shape.y;
     currentRadius = isBeingResized && previewDimensions ? previewDimensions.width / 2 : shape.radius;
   } else if (shape.type === 'text') {
-    // ALWAYS calculate text dimensions dynamically from fontSize and content
-    // Use previewFontSize during resize AND during transition (until Firestore updates)
-    const textContent = shape.text || '';
-    const textFontSize = (isSelected && previewFontSize) ? previewFontSize : (shape.fontSize || 16);
-    const estimatedWidth = textContent.length * textFontSize * 0.6;
-    const estimatedHeight = textFontSize * 1.2;
-    const padding = 4;
-    
-    currentX = shape.x;
-    currentY = shape.y;
-    currentWidth = estimatedWidth + padding * 2;
-    currentHeight = estimatedHeight + padding * 2;
+    // Use actual HTML dimensions when available (most accurate)
+    // Fall back to calculated dimensions when not in edit mode
+    if (editingTextId === shape.id && editingTextDimensions) {
+      // Use actual dimensions from HTML input
+      const padding = 4;
+      currentX = shape.x;
+      currentY = shape.y;
+      currentWidth = editingTextDimensions.width + padding * 2;
+      currentHeight = editingTextDimensions.height + padding * 2;
+    } else {
+      // Calculate dimensions dynamically from fontSize and content
+      const textContent = (editingTextId === shape.id && editingTextContent !== undefined) 
+        ? editingTextContent 
+        : (shape.text || '');
+      const textFontSize = (isSelected && previewFontSize) ? previewFontSize : (shape.fontSize || 16);
+      const fontWeight = shape.fontWeight || 'normal';
+      
+      // Use improved text dimension calculation
+      const textDimensions = calculateTextDimensions(textContent, textFontSize, fontWeight);
+      const padding = 4;
+      
+      currentX = shape.x;
+      currentY = shape.y;
+      currentWidth = textDimensions.width + padding * 2;
+      currentHeight = textDimensions.height + padding * 2;
+    }
     
     // If resizing or transitioning, use preview position if available
     if (isSelected && previewDimensions) {
@@ -219,7 +238,10 @@ export default function CanvasShape({
         />
       )}
       {shape.type === 'text' && currentWidth !== undefined && currentHeight !== undefined && (() => {
-        const textContent = shape.text || '';
+        // Use editingTextContent when in edit mode for dynamic border updates
+        const textContent = (editingTextId === shape.id && editingTextContent !== undefined) 
+          ? editingTextContent 
+          : (shape.text || '');
         // Use previewFontSize during resize AND during transition (until Firestore updates)
         const textFontSize = (isSelected && previewFontSize) ? previewFontSize : (shape.fontSize || 16);
         const padding = 4;
@@ -296,7 +318,7 @@ export default function CanvasShape({
             {editingTextId !== shape.id && (
               <Text
                 x={padding}
-                y={padding}
+                y={currentHeight / 2}
                 text={textContent}
                 fontSize={textFontSize}
                 fill={shape.color}
@@ -304,7 +326,7 @@ export default function CanvasShape({
                 fontWeight={shape.fontWeight || 'normal'}
                 textDecoration={shape.textDecoration || 'none'}
                 align="left"
-                verticalAlign="top"
+                verticalAlign="middle"
                 opacity={isLockedByOther ? 0.5 : 1}
                 listening={false}
               />

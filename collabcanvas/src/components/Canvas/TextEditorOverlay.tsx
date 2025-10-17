@@ -8,6 +8,8 @@ interface TextEditorOverlayProps {
   color: string;
   onSave: (text: string) => void;
   onCancel: () => void;
+  onTextChange?: (text: string) => void;
+  onDimensionsChange?: (dimensions: { width: number; height: number }) => void;
 }
 
 /**
@@ -30,6 +32,8 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
   color,
   onSave,
   onCancel,
+  onTextChange,
+  onDimensionsChange,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState(initialText);
@@ -41,6 +45,33 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
       inputRef.current.select();
     }
   }, []);
+
+  // Measure and report dimensions when text changes
+  useEffect(() => {
+    if (inputRef.current && onDimensionsChange) {
+      // Use a more accurate method to measure text content
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.font = `${fontSize}px Arial, sans-serif`;
+        const metrics = context.measureText(text);
+        const textWidth = metrics.width;
+        const textHeight = fontSize * 1.2; // Line height
+        
+        onDimensionsChange({
+          width: textWidth,
+          height: textHeight
+        });
+      } else {
+        // Fallback to getBoundingClientRect
+        const rect = inputRef.current.getBoundingClientRect();
+        onDimensionsChange({
+          width: rect.width,
+          height: rect.height
+        });
+      }
+    }
+  }, [text, fontSize, onDimensionsChange]);
 
   // Handle keyboard events
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -57,7 +88,12 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
 
   // Handle text changes
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setText(e.target.value);
+    const newText = e.target.value;
+    setText(newText);
+    // Notify parent component of text changes for dynamic border updates
+    if (onTextChange) {
+      onTextChange(newText);
+    }
   };
 
   // Handle blur (click outside) - save changes
@@ -65,10 +101,13 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
     onSave(text);
   };
 
-  // Calculate the final position accounting for stage transform
+  // Calculate the final position accounting for stage transform and padding
+  // The position passed in is the top-left of the text shape border
+  // We need to account for padding and vertical centering
+  const padding = 4; // Same padding as used in CanvasShape.tsx
   const finalPosition = {
-    x: position.x,
-    y: position.y,
+    x: position.x + padding,
+    y: position.y + padding, // Start from top of border + padding
   };
 
   // Style the input to match the text appearance
@@ -87,11 +126,18 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
     fontWeight: 'normal',
     fontStyle: 'normal',
     textDecoration: 'none',
-    minWidth: '20px',
-    maxWidth: '500px',
+    width: 'auto',
+    minWidth: '1px',
+    maxWidth: 'none',
     zIndex: 1000,
     // Ensure the input doesn't interfere with canvas interactions
     pointerEvents: 'auto',
+    // Match the line height used in Konva text (1.2 * fontSize)
+    lineHeight: `${fontSize * 1.2}px`,
+    // Ensure proper vertical alignment
+    verticalAlign: 'middle',
+    // Remove any default browser styling that might affect positioning
+    boxSizing: 'border-box',
   };
 
   return (

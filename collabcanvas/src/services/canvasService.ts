@@ -17,6 +17,7 @@ import type { Timestamp, Unsubscribe } from 'firebase/firestore';
 import { firestore } from '../firebase';
 import { MIN_SHAPE_WIDTH, MIN_SHAPE_HEIGHT } from '../utils/constants';
 import { findOverlappingShapesAbove, findOverlappingShapesBelow } from '../utils/overlapDetection';
+import { calculateTextDimensions } from '../utils/textEditingHelpers';
 
 // Shape data types
 export interface ShapeData {
@@ -521,23 +522,28 @@ class CanvasService {
       const maxZIndex = shapes.length > 0 ? Math.max(...shapes.map(s => s.zIndex || 0)) : -1;
       const zIndex = maxZIndex + 1;
       
-      // Default dimensions for text box
-      const defaultWidth = 100;
-      const defaultHeight = 30;
+      // Calculate proper dimensions for the "TEXT" placeholder
+      const placeholderText = 'TEXT';
+      const placeholderFontSize = 24;
+      const placeholderFontWeight = 'normal';
+      const textDimensions = calculateTextDimensions(placeholderText, placeholderFontSize, placeholderFontWeight);
+      const padding = 4;
+      const calculatedWidth = textDimensions.width + padding * 2;
+      const calculatedHeight = textDimensions.height + padding * 2;
       
       // Position text so it appears just above the cursor
       // This feels more natural than having cursor in the middle of text
       const offsetX = textData.x; // Align with cursor horizontally
-      const offsetY = textData.y - defaultHeight + 10; // Position above cursor (text bottom near cursor top)
+      const offsetY = textData.y - calculatedHeight + 10; // Position above cursor (text bottom near cursor top)
       
       const shapeData: Omit<ShapeData, 'id'> = {
         type: 'text',
         x: offsetX,
         y: offsetY,
-        width: defaultWidth,
-        height: defaultHeight,
-        text: 'TEXT', // Hardcoded placeholder text
-        fontSize: 24, // Fixed font size
+        width: calculatedWidth,
+        height: calculatedHeight,
+        text: placeholderText, // Use the placeholder text variable
+        fontSize: placeholderFontSize, // Use the placeholder font size variable
         color: textData.color,
         rotation: 0, // Fixed rotation
         groupId: null,

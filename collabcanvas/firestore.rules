@@ -16,8 +16,8 @@ service cloud.firestore {
     // Main canvas shapes - individual documents
     match /canvases/main/shapes/{shapeId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null && 
-                       request.resource.data.createdBy == request.auth.uid;
+      // TEMPORARY: Allow any authenticated user to create shapes with any createdBy value (for AI testing)
+      allow create: if request.auth != null;
       allow update: if request.auth != null;
       allow delete: if request.auth != null;
     }

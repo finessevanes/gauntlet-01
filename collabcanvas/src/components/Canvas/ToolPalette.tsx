@@ -51,7 +51,9 @@ export default function ToolPalette({
     setIsDrawMode, 
     setIsBombMode, 
     selectedColor,
-    shapes
+    shapes,
+    isAlignmentToolbarMinimized,
+    setIsAlignmentToolbarMinimized
   } = useCanvasContext();
   
   const [isChanging, setIsChanging] = useState(false);
@@ -199,6 +201,21 @@ export default function ToolPalette({
             )}
           </button>
         ))}
+        
+        {/* Alignment Tools Icon - shown when toolbar is minimized and 2+ shapes selected */}
+        {isAlignmentToolbarMinimized && selectedShapes.length >= 2 && (
+          <button
+            onClick={() => setIsAlignmentToolbarMinimized(false)}
+            style={{
+              ...styles.toolButton,
+              backgroundColor: '#d0d0d0',
+            }}
+            title="Show Alignment Tools"
+            aria-label="Show Alignment Tools"
+          >
+            ⚏
+          </button>
+        )}
       </div>
       
       {/* Current Colors Display */}
@@ -229,9 +246,9 @@ export default function ToolPalette({
           }}
           title={
             selectedShapes.length > 1 
-              ? `Duplicate ${selectedShapes.length} shapes (Ctrl+D)` 
+              ? `Duplicate ${selectedShapes.length} shapes (⌘D / Ctrl+D)` 
               : selectedShape 
-              ? "Duplicate (Ctrl+D)" 
+              ? "Duplicate (⌘D / Ctrl+D)" 
               : "Duplicate (select a shape first)"
           }
         >
@@ -300,7 +317,7 @@ export default function ToolPalette({
                 style={{
                   ...styles.actionButton,
                 }}
-                title={`Group ${selectedShapes.length} shapes`}
+                title={`Group ${selectedShapes.length} shapes (⌘G / Ctrl+G)`}
               >
                 <span style={{ fontSize: '18px' }}>
                   🔒
@@ -316,7 +333,7 @@ export default function ToolPalette({
                 style={{
                   ...styles.actionButton,
                 }}
-                title="Ungroup shapes"
+                title="Ungroup shapes (⌘⇧G / Ctrl+Shift+G)"
               >
                 <span style={{ fontSize: '18px' }}>
                   🔓
@@ -339,7 +356,7 @@ export default function ToolPalette({
               style={{
                 ...styles.zIndexButton,
               }}
-              title="Bring to Front"
+              title="Bring to Front (⌘⇧] / Ctrl+Shift+])"
             >
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                 <span style={{ fontSize: '16px' }}>⬆️</span>
@@ -352,7 +369,7 @@ export default function ToolPalette({
               style={{
                 ...styles.zIndexButton,
               }}
-              title="Send to Back"
+              title="Send to Back (⌘⇧[ / Ctrl+Shift+[)"
             >
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                 <span style={{ fontSize: '16px' }}>⬇️</span>
@@ -368,7 +385,7 @@ export default function ToolPalette({
               style={{
                 ...styles.zIndexButton,
               }}
-              title="Bring Forward (one layer up)"
+              title="Bring Forward (⌘] / Ctrl+])"
             >
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                 <span style={{ fontSize: '16px' }}>⬆️</span>
@@ -381,7 +398,7 @@ export default function ToolPalette({
               style={{
                 ...styles.zIndexButton,
               }}
-              title="Send Backward (one layer down)"
+              title="Send Backward (⌘[ / Ctrl+[)"
             >
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                 <span style={{ fontSize: '16px' }}>⬇️</span>
@@ -605,7 +622,7 @@ const styles = {
     paddingTop: '12px',
     borderTop: '1px solid #a0a0a0',
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr', // Two columns for actions
+    gridTemplateColumns: '1fr 1fr', // Two columns for actions (duplicate, delete)
     gap: '6px',
   },
   actionButton: {

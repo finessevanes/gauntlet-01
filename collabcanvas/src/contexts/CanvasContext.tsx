@@ -27,6 +27,10 @@ interface CanvasContextType {
   lastClickedShapeId: string | null;
   setLastClickedShapeId: (id: string | null) => void;
   
+  // Clipboard
+  clipboard: ShapeData[] | null;
+  setClipboard: (shapes: ShapeData[] | null) => void;
+  
   // Other users' selections (for locking visibility)
   userSelections: Record<string, UserSelection>;
   setUserSelections: (selections: Record<string, UserSelection>) => void;
@@ -89,6 +93,10 @@ interface CanvasContextType {
   alignShapes: (shapeIds: string[], alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => Promise<void>;
   distributeShapes: (shapeIds: string[], direction: 'horizontal' | 'vertical') => Promise<void>;
   
+  // Alignment toolbar state
+  isAlignmentToolbarMinimized: boolean;
+  setIsAlignmentToolbarMinimized: (minimized: boolean) => void;
+  
   // Loading state
   shapesLoading: boolean;
 }
@@ -110,6 +118,8 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 });
   const [shapes, setShapes] = useState<ShapeData[]>([]);
   const [shapesLoading, setShapesLoading] = useState(true);
+  const [clipboard, setClipboard] = useState<ShapeData[] | null>(null);
+  const [isAlignmentToolbarMinimized, setIsAlignmentToolbarMinimized] = useState(false);
 
   // Subscribe to real-time shape updates
   useEffect(() => {
@@ -348,6 +358,8 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     setStageScale,
     stagePosition,
     setStagePosition,
+    clipboard,
+    setClipboard,
     shapes,
     createShape,
     createCircle,
@@ -378,6 +390,8 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     batchSendBackward,
     alignShapes,
     distributeShapes,
+    isAlignmentToolbarMinimized,
+    setIsAlignmentToolbarMinimized,
     shapesLoading,
   };
 

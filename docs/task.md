@@ -1284,57 +1284,19 @@ Add toast notifications for shortcuts:
 
 ---
 
-## PR #10: Copy/Paste & Collaborative Comments
+## PR #10: Collaborative Comments
 
-**Branch:** `feature/pr-10-copy-paste-comments`  
-**Goal:** Add copy/paste functionality; add collaborative comment system on shapes
+**Branch:** `feature/pr-10-collab-comments`  
+**Goal:** Collaborative comment system on shapes
 
 > 🚦 **Before starting:** Ask AI to create `docs/PR-10-ACTION-PLAN.md` and wait for your approval
 
 ### PRD Reference
-See `docs/prd.md` Sections 11 & 12: "Copy/Paste" and "Collaborative Comments"
+See `docs/prd.md` Sections 12: Collaborative Comments
 
 ### Tasks
 
-#### 10.1: Clipboard state management
-
-Add clipboard to CanvasContext:
-
-```typescript
-const [clipboard, setClipboard] = useState<Shape[] | null>(null);
-```
-
-**Test Gate:** Console.log clipboard contents after copy
-
-#### 10.2: Copy functionality
-
-Implement copy:
-
-**Sub-tasks:**
-1. `Cmd/Ctrl + C`: Copy selected shapes to clipboard state
-   - Test Gate: Clipboard contains shape data
-2. Store full shape objects (not just IDs)
-   - Test Gate: Console.log clipboard, verify complete data
-3. Toast: "Copied 2 shapes"
-   - Test Gate: Toast appears
-
-#### 10.3: Paste functionality
-
-Implement paste:
-
-**Sub-tasks:**
-1. `Cmd/Ctrl + V`: Paste from clipboard
-   - Test Gate: Press Cmd+V, duplicates appear
-2. For each shape in clipboard, call `duplicateShape()`
-   - Test Gate: All shapes pasted with 20px offset
-3. Auto-select pasted shapes
-   - Test Gate: Pasted shapes become selected
-4. Toast: "Pasted 2 shapes"
-   - Test Gate: Toast appears
-5. Other users see pasted shapes in <100ms
-   - Test Gate: Multi-browser test
-
-#### 10.4: Comments Firestore collection
+#### 10.1: Comments Firestore collection
 
 Create `canvases/main/comments` collection:
 

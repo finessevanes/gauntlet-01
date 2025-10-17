@@ -287,6 +287,12 @@ export default function Canvas() {
         return;
       }
       
+      // Don't trigger shortcuts when text editing is active
+      if (editingTextId) {
+        console.log('⏭️ Skipping keyboard shortcut - text editing active');
+        return;
+      }
+      
       // Platform detection
       const cmdKey = (e.ctrlKey || e.metaKey);
       
@@ -878,6 +884,7 @@ export default function Canvas() {
     user, 
     isMarqueeActive,
     openCommentPanelShapeId,
+    editingTextId,
     deleteShape, 
     duplicateShape,
     shapes,

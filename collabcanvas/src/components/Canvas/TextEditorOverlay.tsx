@@ -51,6 +51,8 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
       e.preventDefault();
       onCancel();
     }
+    // Allow all other keys (backspace, delete, arrow keys, etc.) to work normally
+    // by not calling preventDefault() for them
   };
 
   // Handle text changes
@@ -104,6 +106,9 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
       // Prevent the input from being selected by canvas selection
       onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
+      // Ensure keyboard events are properly handled
+      onKeyUp={(e) => e.stopPropagation()}
+      onKeyPress={(e) => e.stopPropagation()}
     />
   );
 };

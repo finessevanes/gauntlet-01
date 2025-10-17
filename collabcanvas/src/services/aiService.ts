@@ -21,39 +21,95 @@ export class AIService {
   
   async executeCommand(prompt: string, userId: string): Promise<CommandResult> {
     try {
-      // 1. Get current canvas state for context
-      const shapes = await canvasService.getShapes();
+      // 1. Build conversation messages (don't pass shapes - let AI call getCanvasState for fresh data)
+      const messages: any[] = [
+        { role: "system", content: getSystemPrompt([]) }, // Empty array - AI will call getCanvasState
+        { role: "user", content: prompt }
+      ];
       
-      // 2. Call OpenAI with function tools
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-4-turbo-preview",
-        messages: [
-          { role: "system", content: getSystemPrompt(shapes) },
-          { role: "user", content: prompt }
-        ],
-        tools: this.getToolDefinitions(),
-        tool_choice: "auto",
-        temperature: 0.7,
-        max_tokens: 500
-      });
+      let allResults: any[] = [];
+      let iterations = 0;
+      const MAX_ITERATIONS = 5; // Prevent infinite loops
       
-      const message = response.choices[0].message;
-      
-      // 3. Execute tool calls
-      if (message.tool_calls && message.tool_calls.length > 0) {
-        const results = await this.executeToolCalls(message.tool_calls, userId);
-        return {
-          success: true,
-          message: this.generateSuccessMessage(results),
-          toolCalls: results
-        };
-      } else {
-        return {
-          success: false,
-          message: message.content || "I couldn't understand that command.",
-          toolCalls: []
-        };
+      // 3. Loop until we get a final text response (multi-turn function calling)
+      while (iterations < MAX_ITERATIONS) {
+        iterations++;
+        
+        const response = await this.openai.chat.completions.create({
+          model: "gpt-4-turbo-preview",
+          messages: messages,
+          tools: this.getToolDefinitions(),
+          tool_choice: "auto",
+          temperature: 0.7,
+          max_tokens: 500
+        });
+        
+        const message = response.choices[0].message;
+        
+        // If there are tool calls, execute them and continue the loop
+        if (message.tool_calls && message.tool_calls.length > 0) {
+          // Add the assistant's message with tool calls to conversation
+          messages.push(message);
+          
+          // Execute all tool calls
+          const results = await this.executeToolCalls(message.tool_calls, userId);
+          allResults.push(...results);
+          
+          // Add tool results to conversation for next iteration
+          for (let i = 0; i < message.tool_calls.length; i++) {
+            const toolCall = message.tool_calls[i];
+            const result = results[i];
+            
+            // Format result content - OpenAI requires a string
+            let content: string;
+            if (result.success) {
+              // If result is undefined or null, send success message
+              if (result.result === undefined || result.result === null) {
+                content = JSON.stringify({ success: true });
+              } else {
+                content = JSON.stringify(result.result);
+              }
+            } else {
+              content = JSON.stringify({ error: result.error });
+            }
+            
+            messages.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              content: content
+            });
+          }
+          
+          // Continue loop to get next response from AI
+          continue;
+        } else {
+          // No more tool calls - we have a final response
+          if (allResults.length > 0) {
+            // We executed tools, return success
+            return {
+              success: true,
+              message: this.generateSuccessMessage(allResults),
+              toolCalls: allResults
+            };
+          } else {
+            // No tools were executed, return the text response
+            return {
+              success: false,
+              message: message.content || "I couldn't understand that command.",
+              toolCalls: []
+            };
+          }
+        }
       }
+      
+      // If we hit max iterations, return what we have
+      console.warn('⚠️ Hit max iterations in function calling loop');
+      return {
+        success: allResults.length > 0,
+        message: this.generateSuccessMessage(allResults),
+        toolCalls: allResults
+      };
+      
     } catch (error) {
       console.error('AI execution error:', error);
       return {
@@ -66,15 +122,20 @@ export class AIService {
   
   private async executeToolCalls(toolCalls: any[], userId: string) {
     const results = [];
+    console.log(`🤖 AI making ${toolCalls.length} tool call(s):`, toolCalls.map(c => c.function.name));
+    
     for (const call of toolCalls) {
       try {
+        console.log(`🔧 Executing: ${call.function.name}`, JSON.parse(call.function.arguments));
         const result = await this.executeSingleTool(call, userId);
+        console.log(`✅ ${call.function.name} succeeded:`, result);
         results.push({
           tool: call.function.name,
           success: true,
           result: result
         });
       } catch (error: any) {
+        console.error(`❌ ${call.function.name} failed:`, error.message);
         results.push({
           tool: call.function.name,
           success: false,
@@ -147,6 +208,47 @@ export class AIService {
             textDecoration: args.textDecoration || 'none'
           }
         );
+      
+      // MANIPULATION TOOLS
+      case 'moveShape':
+        return await canvasService.updateShape(args.shapeId, {
+          x: args.x,
+          y: args.y
+        });
+        
+      case 'resizeShape':
+        if (args.radius !== undefined) {
+          // Circle resize
+          return await canvasService.resizeCircle(args.shapeId, args.radius);
+        } else {
+          // Rectangle/Triangle resize
+          return await canvasService.resizeShape(
+            args.shapeId,
+            args.width,
+            args.height
+          );
+        }
+        
+      case 'rotateShape':
+        return await canvasService.rotateShape(
+          args.shapeId,
+          args.rotation
+        );
+        
+      case 'duplicateShape':
+        return await canvasService.duplicateShape(args.shapeId, userId);
+        
+      case 'deleteShape':
+        return await canvasService.deleteShape(args.shapeId);
+        
+      case 'getCanvasState':
+        // Get shapes and sort by last interaction (updatedAt desc)
+        const shapes = await canvasService.getShapes();
+        return shapes.sort((a, b) => {
+          const timeA = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : (a.createdAt?.toMillis ? a.createdAt.toMillis() : 0);
+          const timeB = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : (b.createdAt?.toMillis ? b.createdAt.toMillis() : 0);
+          return timeB - timeA; // Descending (last touched first)
+        });
         
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -162,36 +264,42 @@ export class AIService {
       return `⚠️ Completed ${successCount} actions, but ${failCount} failed: ${errors}`;
     }
     
-    const toolNames = results.map(r => r.tool);
+    // Filter out getCanvasState calls (they're just helper calls, not user-visible actions)
+    const actionResults = results.filter(r => r.tool !== 'getCanvasState');
+    const toolNames = actionResults.map(r => r.tool);
     
-    // Generate specific messages based on tools used
-    if (toolNames.includes('createRectangle') && toolNames.length === 1) {
-      return '✓ Created 1 rectangle';
+    // If only getCanvasState was called, something went wrong
+    if (toolNames.length === 0) {
+      return '✓ Retrieved canvas state';
     }
     
-    if (toolNames.includes('createCircle') && toolNames.length === 1) {
-      return '✓ Created 1 circle';
-    }
-    
-    if (toolNames.includes('createTriangle') && toolNames.length === 1) {
-      return '✓ Created 1 triangle';
-    }
-    
-    if (toolNames.includes('createText') && toolNames.length === 1) {
-      return '✓ Created text layer';
+    // Single tool messages
+    if (toolNames.length === 1) {
+      const tool = toolNames[0];
+      switch (tool) {
+        case 'createRectangle': return '✓ Created 1 rectangle';
+        case 'createCircle': return '✓ Created 1 circle';
+        case 'createTriangle': return '✓ Created 1 triangle';
+        case 'createText': return '✓ Created text layer';
+        case 'moveShape': return '✓ Moved shape to new position';
+        case 'resizeShape': return '✓ Resized shape';
+        case 'rotateShape': return '✓ Rotated shape';
+        case 'duplicateShape': return '✓ Duplicated shape';
+        case 'deleteShape': return '✓ Deleted shape';
+        default: return '✓ Action completed';
+      }
     }
     
     // Multi-step operations
-    const shapeCount = toolNames.filter(t => 
-      ['createRectangle', 'createCircle', 'createTriangle'].includes(t)
+    const creationCount = toolNames.filter(t => 
+      ['createRectangle', 'createCircle', 'createTriangle', 'createText'].includes(t)
     ).length;
-    const textCount = toolNames.filter(t => t === 'createText').length;
     
-    if (shapeCount > 1 || textCount > 1) {
-      return `✓ Created ${shapeCount + textCount} elements`;
+    if (creationCount > 1) {
+      return `✓ Created ${creationCount} elements`;
     }
     
-    return `✓ Completed ${successCount} actions`;
+    return `✓ Completed ${toolNames.length} actions`;
   }
   
   private getToolDefinitions() {
@@ -279,6 +387,98 @@ export class AIService {
               }
             },
             required: ["text", "x", "y"]
+          }
+        }
+      },
+      
+      // MANIPULATION TOOLS
+      {
+        type: "function" as const,
+        function: {
+          name: "moveShape",
+          description: "Moves an existing shape to a new position. MUST call getCanvasState first to find the shapeId.",
+          parameters: {
+            type: "object",
+            properties: {
+              shapeId: { type: "string", description: "ID of the shape to move" },
+              x: { type: "number", description: "New X position" },
+              y: { type: "number", description: "New Y position" }
+            },
+            required: ["shapeId", "x", "y"]
+          }
+        }
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "resizeShape",
+          description: "Changes the dimensions of a shape. For rectangles/triangles use width/height, for circles use radius. MUST call getCanvasState first to find the shapeId.",
+          parameters: {
+            type: "object",
+            properties: {
+              shapeId: { type: "string", description: "ID of the shape to resize" },
+              width: { type: "number", description: "New width in pixels (for rectangles/triangles)" },
+              height: { type: "number", description: "New height in pixels (for rectangles/triangles)" },
+              radius: { type: "number", description: "New radius in pixels (for circles)" }
+            },
+            required: ["shapeId"]
+          }
+        }
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "rotateShape",
+          description: "Rotates a shape by specified degrees. MUST call getCanvasState first to find the shapeId.",
+          parameters: {
+            type: "object",
+            properties: {
+              shapeId: { type: "string", description: "ID of the shape to rotate" },
+              rotation: { type: "number", description: "Rotation angle in degrees (0-360)" }
+            },
+            required: ["shapeId", "rotation"]
+          }
+        }
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "duplicateShape",
+          description: "Creates a copy of an existing shape with a small offset. MUST call getCanvasState first to find the shapeId.",
+          parameters: {
+            type: "object",
+            properties: {
+              shapeId: { type: "string", description: "ID of the shape to duplicate" }
+            },
+            required: ["shapeId"]
+          }
+        }
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "deleteShape",
+          description: "Deletes a shape from the canvas. MUST call getCanvasState first to find the shapeId.",
+          parameters: {
+            type: "object",
+            properties: {
+              shapeId: { type: "string", description: "ID of the shape to delete" }
+            },
+            required: ["shapeId"]
+          }
+        }
+      },
+      
+      // CANVAS STATE TOOL
+      {
+        type: "function" as const,
+        function: {
+          name: "getCanvasState",
+          description: "Returns all shapes currently on canvas. ALWAYS call this FIRST before manipulating existing shapes to get their IDs and properties.",
+          parameters: {
+            type: "object",
+            properties: {},
+            required: []
           }
         }
       }

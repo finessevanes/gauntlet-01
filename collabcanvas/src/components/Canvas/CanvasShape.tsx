@@ -245,8 +245,8 @@ export default function CanvasShape({
               onDblClick={onTextDoubleClick ? () => onTextDoubleClick(shape.id) : undefined}
             />
             
-            {/* Selection box with dotted border (Paint-style) */}
-            {isSelected && (
+            {/* Selection box with dotted border (Paint-style) - hide when in edit mode */}
+            {isSelected && editingTextId !== shape.id && (
               <Rect
                 x={0}
                 y={0}
@@ -255,6 +255,21 @@ export default function CanvasShape({
                 stroke={isLockedByMe ? '#000000' : '#ff0000'}
                 strokeWidth={1}
                 dash={[4, 4]}
+                fill="transparent"
+                listening={false}
+              />
+            )}
+            
+            {/* Edit mode indicator - dotted/dashed line when editing */}
+            {editingTextId === shape.id && (
+              <Rect
+                x={0}
+                y={0}
+                width={currentWidth}
+                height={currentHeight}
+                stroke="#007acc"
+                strokeWidth={2}
+                dash={[6, 3]}
                 fill="transparent"
                 listening={false}
               />
@@ -340,7 +355,7 @@ export default function CanvasShape({
       )}
 
       {/* Resize handles for rectangles, triangles, and text (8 total: 4 corners + 4 edges) */}
-      {isSelected && isLockedByMe && !isResizing && !isRotating && (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text') && currentWidth !== undefined && currentHeight !== undefined && (
+      {isSelected && isLockedByMe && !isResizing && !isRotating && editingTextId !== shape.id && (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text') && currentWidth !== undefined && currentHeight !== undefined && (
         <Group>
           {(() => {
             // Scale handles inversely with zoom so they appear constant size on screen
@@ -434,7 +449,7 @@ export default function CanvasShape({
       )}
 
       {/* Rotation handle - appears 50px above the top of the shape when locked */}
-      {isSelected && isLockedByMe && !isResizing && !isRotating && (() => {
+      {isSelected && isLockedByMe && !isResizing && !isRotating && editingTextId !== shape.id && (() => {
         // Calculate shape center and rotation handle position based on type
         let centerX: number;
         let centerY: number;

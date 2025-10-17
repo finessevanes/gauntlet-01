@@ -1819,6 +1819,47 @@ class CanvasService {
   }
 
   /**
+   * Delete a reply from a comment (Reply author only)
+   */
+  async deleteReply(commentId: string, replyIndex: number, userId: string): Promise<void> {
+    try {
+      const commentRef = doc(firestore, this.commentsCollectionPath, commentId);
+      const commentSnap = await getDoc(commentRef);
+      
+      if (!commentSnap.exists()) {
+        throw new Error('Comment not found');
+      }
+
+      const comment = commentSnap.data() as CommentData;
+      
+      // Check if reply index is valid
+      if (!comment.replies || replyIndex < 0 || replyIndex >= comment.replies.length) {
+        throw new Error('Reply not found');
+      }
+
+      const reply = comment.replies[replyIndex];
+      
+      // Only allow the reply author to delete their reply
+      if (reply.userId !== userId) {
+        throw new Error('Only the reply author can delete this reply');
+      }
+
+      // Create new replies array without the deleted reply
+      const updatedReplies = comment.replies.filter((_, index) => index !== replyIndex);
+
+      // Update the comment with the new replies array
+      await updateDoc(commentRef, {
+        replies: updatedReplies,
+      });
+
+      console.log(`✅ Reply deleted from comment: ${commentId}`);
+    } catch (error) {
+      console.error('❌ Error deleting reply:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Subscribe to real-time comment updates
    */
   subscribeToComments(callback: (comments: CommentData[]) => void): Unsubscribe {

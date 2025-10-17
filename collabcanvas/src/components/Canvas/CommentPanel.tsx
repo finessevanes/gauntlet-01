@@ -12,6 +12,7 @@ interface CommentPanelProps {
   onAddReply: (commentId: string, text: string) => Promise<void>;
   onResolve: (commentId: string) => Promise<void>;
   onDelete: (commentId: string) => Promise<void>;
+  onDeleteReply: (commentId: string, replyIndex: number) => Promise<void>;
 }
 
 export function CommentPanel({
@@ -23,6 +24,7 @@ export function CommentPanel({
   onAddReply,
   onResolve,
   onDelete,
+  onDeleteReply,
 }: CommentPanelProps) {
   const { user } = useAuth();
   const [newCommentText, setNewCommentText] = useState('');
@@ -149,6 +151,24 @@ export function CommentPanel({
     } catch (error: any) {
       console.error('Error deleting comment:', error);
       alert(error.message || 'Failed to delete comment. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteReply = async (commentId: string, replyIndex: number) => {
+    if (isSubmitting) return;
+    
+    if (!confirm('Are you sure you want to delete this reply?')) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      await onDeleteReply(commentId, replyIndex);
+    } catch (error: any) {
+      console.error('Error deleting reply:', error);
+      alert(error.message || 'Failed to delete reply. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -290,6 +310,18 @@ export function CommentPanel({
                           <span className="comment-time">{formatTimestamp(reply.createdAt)}</span>
                         </div>
                         <div className="comment-text">{reply.text}</div>
+                        {/* Delete button for reply author */}
+                        {user && (user.uid === reply.userId) && (
+                          <div className="comment-actions">
+                            <button
+                              className="comment-action-btn comment-delete-btn"
+                              onClick={() => handleDeleteReply(comment.id, idx)}
+                              disabled={isSubmitting}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -374,6 +406,18 @@ export function CommentPanel({
                           <span className="comment-time">{formatTimestamp(reply.createdAt)}</span>
                         </div>
                         <div className="comment-text comment-text-resolved">{reply.text}</div>
+                        {/* Delete button for reply author */}
+                        {user && (user.uid === reply.userId) && (
+                          <div className="comment-actions">
+                            <button
+                              className="comment-action-btn comment-delete-btn"
+                              onClick={() => handleDeleteReply(comment.id, idx)}
+                              disabled={isSubmitting}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -86,7 +86,8 @@ export default function Canvas() {
     addComment,
     addReply,
     resolveComment,
-    deleteComment
+    deleteComment,
+    deleteReply
   } = useCanvasContext();
   
   const stageRef = useRef<Konva.Stage>(null);
@@ -2241,6 +2242,18 @@ export default function Canvas() {
     }
   };
 
+  const handleDeleteReply = async (commentId: string, replyIndex: number) => {
+    if (!user) return;
+    
+    try {
+      await deleteReply(commentId, replyIndex, user.uid);
+      toast.success('Reply deleted');
+    } catch (error) {
+      console.error('Error deleting reply:', error);
+      throw error;
+    }
+  };
+
   // Calculate screen position for a shape (considering stage transforms)
   const getShapeScreenPosition = (shape: ShapeData) => {
     let shapeX = shape.x;
@@ -2516,6 +2529,7 @@ export default function Canvas() {
             onAddReply={handleAddReply}
             onResolve={handleResolveComment}
             onDelete={handleDeleteComment}
+            onDeleteReply={handleDeleteReply}
           />
         );
       })()}

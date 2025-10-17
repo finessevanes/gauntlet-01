@@ -107,6 +107,7 @@ interface CanvasContextType {
   addReply: (commentId: string, userId: string, username: string, text: string) => Promise<void>;
   resolveComment: (commentId: string, userId: string) => Promise<void>;
   deleteComment: (commentId: string, userId: string) => Promise<void>;
+  deleteReply: (commentId: string, replyIndex: number, userId: string) => Promise<void>;
 }
 
 const CanvasContext = createContext<CanvasContextType | undefined>(undefined);
@@ -383,6 +384,10 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.deleteComment(commentId, userId);
   };
 
+  const deleteReply = async (commentId: string, replyIndex: number, userId: string): Promise<void> => {
+    return await canvasService.deleteReply(commentId, replyIndex, userId);
+  };
+
   const value = {
     selectedColor,
     setSelectedColor,
@@ -447,6 +452,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     addReply,
     resolveComment,
     deleteComment,
+    deleteReply,
   };
 
   return (

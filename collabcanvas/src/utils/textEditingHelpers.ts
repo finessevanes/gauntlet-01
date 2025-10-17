@@ -98,8 +98,8 @@ export const calculateTextDimensions = (
   // Calculate width with better scaling
   const estimatedWidth = text.length * baseCharWidth * boldMultiplier;
   
-  // Height calculation - use actual line height
-  const lineHeight = fontSize * 1.2; // Standard line height
+  // Height calculation - use font size for more accurate text height
+  const lineHeight = fontSize; // Use font size as text height for better centering
   
   // Add minimum width for very short text, but don't make it too large
   const minWidth = Math.max(estimatedWidth, fontSize * 0.8);

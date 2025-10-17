@@ -246,6 +246,12 @@ export default function CanvasShape({
         const textFontSize = (isSelected && previewFontSize) ? previewFontSize : (shape.fontSize || 16);
         const padding = 4;
         
+        // Calculate text height for proper vertical centering
+        // Use font size as the actual text height for more accurate centering
+        const textHeight = textFontSize; // Use font size as text height
+        const verticalCenter = currentHeight / 2;
+        const textY = verticalCenter - textHeight / 2;
+        
         return (
           <>
             {/* Invisible hitbox to make the entire text area draggable */}
@@ -318,7 +324,7 @@ export default function CanvasShape({
             {editingTextId !== shape.id && (
               <Text
                 x={padding}
-                y={currentHeight / 2}
+                y={textY}
                 text={textContent}
                 fontSize={textFontSize}
                 fill={shape.color}
@@ -326,7 +332,7 @@ export default function CanvasShape({
                 fontWeight={shape.fontWeight || 'normal'}
                 textDecoration={shape.textDecoration || 'none'}
                 align="left"
-                verticalAlign="middle"
+                verticalAlign="top"
                 opacity={isLockedByOther ? 0.5 : 1}
                 listening={false}
               />

@@ -113,17 +113,6 @@ export default function AlignmentToolbar({
     }
   }, [isDragging, position]);
 
-  console.log('🎨 AlignmentToolbar render:', { selectedShapesCount: selectedShapes.length, selectedShapes });
-
-  // Show toolbar only when 2+ shapes are selected
-  // This conditional return MUST come AFTER all hooks
-  if (selectedShapes.length < 2) {
-    console.log('🎨 AlignmentToolbar: Not showing (need 2+ shapes)');
-    return null;
-  }
-
-  console.log('🎨 AlignmentToolbar: SHOWING toolbar for', selectedShapes.length, 'shapes');
-
   const isDistributeEnabled = selectedShapes.length >= 3;
 
   return (

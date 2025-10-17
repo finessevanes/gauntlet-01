@@ -27,6 +27,10 @@ interface CanvasContextType {
   lastClickedShapeId: string | null;
   setLastClickedShapeId: (id: string | null) => void;
   
+  // Clipboard
+  clipboard: ShapeData[] | null;
+  setClipboard: (shapes: ShapeData[] | null) => void;
+  
   // Other users' selections (for locking visibility)
   userSelections: Record<string, UserSelection>;
   setUserSelections: (selections: Record<string, UserSelection>) => void;
@@ -110,6 +114,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 });
   const [shapes, setShapes] = useState<ShapeData[]>([]);
   const [shapesLoading, setShapesLoading] = useState(true);
+  const [clipboard, setClipboard] = useState<ShapeData[] | null>(null);
 
   // Subscribe to real-time shape updates
   useEffect(() => {
@@ -348,6 +353,8 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     setStageScale,
     stagePosition,
     setStagePosition,
+    clipboard,
+    setClipboard,
     shapes,
     createShape,
     createCircle,

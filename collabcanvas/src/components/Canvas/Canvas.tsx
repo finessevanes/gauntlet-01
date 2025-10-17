@@ -64,7 +64,18 @@ export default function Canvas() {
     userSelections,
     editingTextId,
     setEditingTextId,
-    shapesLoading
+    shapesLoading,
+    setClipboard,
+    groupShapes,
+    ungroupShapes,
+    bringToFront,
+    sendToBack,
+    bringForward,
+    sendBackward,
+    batchBringToFront,
+    batchSendToBack,
+    batchBringForward,
+    batchSendBackward
   } = useCanvasContext();
   
   const stageRef = useRef<Konva.Stage>(null);
@@ -227,6 +238,9 @@ export default function Canvas() {
         return;
       }
       
+      // Platform detection
+      const cmdKey = (e.ctrlKey || e.metaKey);
+      
       // Escape key - clear selection
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -241,6 +255,263 @@ export default function Canvas() {
 
       // Don't trigger delete/duplicate if no user
       if (!user) return;
+
+      // Cmd/Ctrl + G - Group shapes
+      if (cmdKey && e.key === 'g' && !e.shiftKey) {
+        e.preventDefault();
+        if (selectedShapes.length >= 2) {
+          try {
+            const groupId = await groupShapes(selectedShapes, user.uid);
+            toast.success(`Grouped ${selectedShapes.length} shapes`, {
+              duration: 1500,
+              position: 'top-center',
+            });
+            console.log('✅ Grouped shapes:', groupId);
+          } catch (error) {
+            console.error('Failed to group shapes:', error);
+            toast.error('Failed to group shapes', {
+              duration: 2000,
+              position: 'top-center',
+            });
+          }
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + Shift + G - Ungroup shapes
+      if (cmdKey && e.shiftKey && e.key === 'G') {
+        e.preventDefault();
+        if (selectedShapes.length > 0) {
+          try {
+            // Find if any selected shapes have a groupId
+            const groupedShapes = shapes.filter(s => selectedShapes.includes(s.id) && s.groupId);
+            if (groupedShapes.length > 0) {
+              const groupId = groupedShapes[0].groupId;
+              if (groupId) {
+                await ungroupShapes(groupId);
+                toast.success('Ungrouped shapes', {
+                  duration: 1500,
+                  position: 'top-center',
+                });
+                console.log('✅ Ungrouped shapes');
+              }
+            }
+          } catch (error) {
+            console.error('Failed to ungroup shapes:', error);
+            toast.error('Failed to ungroup shapes', {
+              duration: 2000,
+              position: 'top-center',
+            });
+          }
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + C - Copy to clipboard
+      if (cmdKey && e.key === 'c') {
+        e.preventDefault();
+        if (selectedShapes.length > 0) {
+          const shapesToCopy = shapes.filter(s => selectedShapes.includes(s.id));
+          setClipboard(shapesToCopy);
+          toast.success(`Copied ${selectedShapes.length} shape${selectedShapes.length > 1 ? 's' : ''}`, {
+            duration: 1500,
+            position: 'top-center',
+          });
+          console.log('✅ Copied shapes to clipboard:', shapesToCopy);
+        } else if (selectedShapeId) {
+          const shapeToCopy = shapes.find(s => s.id === selectedShapeId);
+          if (shapeToCopy) {
+            setClipboard([shapeToCopy]);
+            toast.success('Copied 1 shape', {
+              duration: 1500,
+              position: 'top-center',
+            });
+            console.log('✅ Copied shape to clipboard:', shapeToCopy);
+          }
+        }
+        return;
+      }
+
+      // Arrow keys - Nudge shapes (10px default, 1px with Shift)
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        
+        const NUDGE_AMOUNT = 10;
+        const FINE_NUDGE_AMOUNT = 1;
+        const nudgeAmount = e.shiftKey ? FINE_NUDGE_AMOUNT : NUDGE_AMOUNT;
+        
+        let dx = 0;
+        let dy = 0;
+        
+        if (e.key === 'ArrowUp') dy = -nudgeAmount;
+        if (e.key === 'ArrowDown') dy = nudgeAmount;
+        if (e.key === 'ArrowLeft') dx = -nudgeAmount;
+        if (e.key === 'ArrowRight') dx = nudgeAmount;
+        
+        // Nudge multi-selected shapes
+        if (selectedShapes.length > 0) {
+          const updates = selectedShapes.map(shapeId => {
+            const shape = shapes.find(s => s.id === shapeId);
+            if (!shape) return null;
+            return {
+              shapeId,
+              updates: { x: shape.x + dx, y: shape.y + dy }
+            };
+          }).filter(Boolean) as Array<{ shapeId: string; updates: Partial<ShapeData> }>;
+          
+          try {
+            await batchUpdateShapes(updates);
+          } catch (error) {
+            console.error('Failed to nudge shapes:', error);
+          }
+        }
+        // Nudge single selected shape
+        else if (selectedShapeId) {
+          const shape = shapes.find(s => s.id === selectedShapeId);
+          if (shape) {
+            try {
+              await updateShape(selectedShapeId, { x: shape.x + dx, y: shape.y + dy });
+            } catch (error) {
+              console.error('Failed to nudge shape:', error);
+            }
+          }
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + ] - Bring forward
+      if (cmdKey && e.key === ']' && !e.shiftKey) {
+        e.preventDefault();
+        if (selectedShapes.length > 0) {
+          try {
+            await batchBringForward(selectedShapes);
+            toast.success('Brought forward', {
+              duration: 1000,
+              position: 'top-center',
+            });
+          } catch (error) {
+            console.error('Failed to bring forward:', error);
+          }
+        } else if (selectedShapeId) {
+          try {
+            await bringForward(selectedShapeId);
+            toast.success('Brought forward', {
+              duration: 1000,
+              position: 'top-center',
+            });
+          } catch (error) {
+            console.error('Failed to bring forward:', error);
+          }
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + [ - Send backward
+      if (cmdKey && e.key === '[' && !e.shiftKey) {
+        e.preventDefault();
+        if (selectedShapes.length > 0) {
+          try {
+            await batchSendBackward(selectedShapes);
+            toast.success('Sent backward', {
+              duration: 1000,
+              position: 'top-center',
+            });
+          } catch (error) {
+            console.error('Failed to send backward:', error);
+          }
+        } else if (selectedShapeId) {
+          try {
+            await sendBackward(selectedShapeId);
+            toast.success('Sent backward', {
+              duration: 1000,
+              position: 'top-center',
+            });
+          } catch (error) {
+            console.error('Failed to send backward:', error);
+          }
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + Shift + ] - Bring to front
+      if (cmdKey && e.shiftKey && e.key === '}') { // Shift + ] = }
+        e.preventDefault();
+        if (selectedShapes.length > 0) {
+          try {
+            await batchBringToFront(selectedShapes);
+            toast.success('Brought to front', {
+              duration: 1000,
+              position: 'top-center',
+            });
+          } catch (error) {
+            console.error('Failed to bring to front:', error);
+          }
+        } else if (selectedShapeId) {
+          try {
+            await bringToFront(selectedShapeId);
+            toast.success('Brought to front', {
+              duration: 1000,
+              position: 'top-center',
+            });
+          } catch (error) {
+            console.error('Failed to bring to front:', error);
+          }
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + Shift + [ - Send to back
+      if (cmdKey && e.shiftKey && e.key === '{') { // Shift + [ = {
+        e.preventDefault();
+        if (selectedShapes.length > 0) {
+          try {
+            await batchSendToBack(selectedShapes);
+            toast.success('Sent to back', {
+              duration: 1000,
+              position: 'top-center',
+            });
+          } catch (error) {
+            console.error('Failed to send to back:', error);
+          }
+        } else if (selectedShapeId) {
+          try {
+            await sendToBack(selectedShapeId);
+            toast.success('Sent to back', {
+              duration: 1000,
+              position: 'top-center',
+            });
+          } catch (error) {
+            console.error('Failed to send to back:', error);
+          }
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + A - Select all shapes
+      if (cmdKey && e.key === 'a') {
+        e.preventDefault();
+        const allShapeIds = shapes.map(s => s.id);
+        setSelectedShapes(allShapeIds);
+        if (allShapeIds.length > 0) {
+          toast.success(`Selected ${allShapeIds.length} shape${allShapeIds.length > 1 ? 's' : ''}`, {
+            duration: 1000,
+            position: 'top-center',
+          });
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + 0 - Reset zoom to 100%
+      if (cmdKey && e.key === '0') {
+        e.preventDefault();
+        setStageScale(1);
+        setStagePosition({ x: 0, y: 0 });
+        toast.success('Reset zoom to 100%', {
+          duration: 1000,
+          position: 'top-center',
+        });
+        return;
+      }
 
       // Delete key - batch delete or single delete
       if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -298,7 +569,7 @@ export default function Canvas() {
       }
 
       // Ctrl+D or Cmd+D - duplicate selected shapes (batch or single)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+      if (cmdKey && e.key === 'd') {
         e.preventDefault();
         
         // Check if we have multiple shapes selected (batch duplicate)
@@ -364,7 +635,33 @@ export default function Canvas() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectedShapeId, selectedShapes, user, textInputVisible, editingTextId, isMarqueeActive, deleteShape, duplicateShape]);
+  }, [
+    selectedShapeId, 
+    selectedShapes, 
+    user, 
+    textInputVisible, 
+    editingTextId, 
+    isMarqueeActive, 
+    deleteShape, 
+    duplicateShape,
+    shapes,
+    setClipboard,
+    groupShapes,
+    ungroupShapes,
+    batchUpdateShapes,
+    updateShape,
+    bringForward,
+    sendBackward,
+    bringToFront,
+    sendToBack,
+    batchBringForward,
+    batchSendBackward,
+    batchBringToFront,
+    batchSendToBack,
+    setStageScale,
+    setStagePosition,
+    setSelectedShapes
+  ]);
 
   // Helper: Deselect shape and unlock
   const handleDeselectShape = async () => {

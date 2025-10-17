@@ -43,6 +43,7 @@ export default function Canvas() {
     createShape,
     createCircle,
     createTriangle,
+    createText,
     updateShape,
     batchUpdateShapes,
     resizeShape,
@@ -1096,7 +1097,7 @@ export default function Canvas() {
   };
 
   // Drawing handlers: Click-and-drag to create rectangles
-  const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+  const handleMouseDown = async (e: Konva.KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current;
     if (!stage) return;
 
@@ -1122,6 +1123,26 @@ export default function Canvas() {
       // Handle bomb mode - place bomb and explode
       if (activeTool === 'bomb') {
         handleBombClick(x, y);
+        return;
+      }
+
+      // Handle text tool - create text at click position
+      if (activeTool === 'text' && user) {
+        try {
+          await createText({
+            x,
+            y,
+            color: selectedColor,
+            createdBy: user.uid,
+          });
+          toast.success('Text created', {
+            duration: 1000,
+            position: 'top-center',
+          });
+        } catch (error) {
+          console.error('❌ Failed to create text:', error);
+          toast.error('Failed to create text');
+        }
         return;
       }
 

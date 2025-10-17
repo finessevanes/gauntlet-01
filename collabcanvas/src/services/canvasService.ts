@@ -483,6 +483,66 @@ class CanvasService {
   }
 
   /**
+   * Create a new text shape in Firestore
+   */
+  async createText(textData: { 
+    x: number; 
+    y: number; 
+    color: string; 
+    createdBy: string;
+  }): Promise<string> {
+    try {
+      // Ensure parent document exists
+      await this.ensureCanvasDocExists();
+      
+      // Generate a unique ID for the text shape
+      const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
+      
+      // Auto-increment z-index: new shapes appear on top by default
+      const shapes = await this.getShapes();
+      const maxZIndex = shapes.length > 0 ? Math.max(...shapes.map(s => s.zIndex || 0)) : -1;
+      const zIndex = maxZIndex + 1;
+      
+      // Default dimensions for text box
+      const defaultWidth = 100;
+      const defaultHeight = 30;
+      
+      // Position text so it appears just above the cursor
+      // This feels more natural than having cursor in the middle of text
+      const offsetX = textData.x; // Align with cursor horizontally
+      const offsetY = textData.y - defaultHeight + 10; // Position above cursor (text bottom near cursor top)
+      
+      const shapeData: Omit<ShapeData, 'id'> = {
+        type: 'text',
+        x: offsetX,
+        y: offsetY,
+        width: defaultWidth,
+        height: defaultHeight,
+        text: 'TEXT', // Hardcoded placeholder text
+        fontSize: 24, // Fixed font size
+        color: textData.color,
+        rotation: 0, // Fixed rotation
+        groupId: null,
+        zIndex,
+        createdBy: textData.createdBy,
+        createdAt: serverTimestamp() as Timestamp,
+        lockedBy: null,
+        lockedAt: null,
+        updatedAt: serverTimestamp() as Timestamp,
+      };
+
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await setDoc(shapeRef, shapeData);
+
+      console.log('✅ Text shape created above and to the right of cursor:', shapeId);
+      return shapeId;
+    } catch (error) {
+      console.error('❌ Error creating text shape:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Resize a circle by updating its radius
    */
   async resizeCircle(shapeId: string, radius: number): Promise<void> {

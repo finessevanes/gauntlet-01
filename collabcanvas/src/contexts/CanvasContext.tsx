@@ -54,6 +54,7 @@ interface CanvasContextType {
   createShape: (shapeInput: ShapeCreateInput) => Promise<string>;
   createCircle: (circleData: { x: number; y: number; radius: number; color: string; createdBy: string }) => Promise<string>;
   createTriangle: (triangleData: { x: number; y: number; width: number; height: number; color: string; createdBy: string }) => Promise<string>;
+  createText: (textData: { x: number; y: number; color: string; createdBy: string }) => Promise<string>;
   updateShape: (shapeId: string, updates: Partial<ShapeData>) => Promise<void>;
   batchUpdateShapes: (updates: Array<{ shapeId: string; updates: Partial<ShapeData> }>) => Promise<void>;
   resizeShape: (shapeId: string, width: number, height: number) => Promise<void>;
@@ -235,6 +236,10 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.createTriangle(triangleData);
   };
 
+  const createText = async (textData: { x: number; y: number; color: string; createdBy: string }): Promise<string> => {
+    return await canvasService.createText(textData);
+  };
+
   const updateShape = async (shapeId: string, updates: Partial<ShapeData>): Promise<void> => {
     return await canvasService.updateShape(shapeId, updates);
   };
@@ -385,6 +390,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     createShape,
     createCircle,
     createTriangle,
+    createText,
     updateShape,
     batchUpdateShapes,
     resizeShape,

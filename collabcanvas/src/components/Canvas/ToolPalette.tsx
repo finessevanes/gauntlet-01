@@ -25,6 +25,7 @@ interface ToolPaletteProps {
   onSendToBack?: () => void;
   onBringForward?: () => void;
   onSendBackward?: () => void;
+  onAddComment?: () => void;
   textFormattingDisabled?: boolean;
 }
 
@@ -43,6 +44,7 @@ export default function ToolPalette({
   onSendToBack,
   onBringForward,
   onSendBackward,
+  onAddComment,
   textFormattingDisabled = false
 }: ToolPaletteProps) {
   const { 
@@ -283,6 +285,24 @@ export default function ToolPalette({
           </span>
         </button>
       </div>
+
+      {/* Add Comment Button - shown when single shape is selected */}
+      {selectedShape && selectedShapes.length <= 1 && (
+        <div style={styles.shapeActionsSection}>
+          <button
+            onClick={onAddComment}
+            disabled={isChanging}
+            style={{
+              ...styles.actionButton,
+              width: '100%',
+            }}
+            title="Add Comment to Shape"
+          >
+            <span style={{ fontSize: '20px' }}>💬</span>
+            <span style={{ fontSize: '11px', marginLeft: '4px' }}>Comment</span>
+          </button>
+        </div>
+      )}
 
       {/* Grouping Controls */}
       {(() => {

@@ -40,6 +40,16 @@ export default function AppShell({ children }: AppShellProps) {
     batchSendBackward
   } = useCanvasContext();
 
+  // Handler to open comment panel for selected shape
+  const handleAddComment = () => {
+    if (!selectedShapeId) return;
+    
+    // Dispatch custom event that Canvas component will listen for
+    window.dispatchEvent(new CustomEvent('openCommentPanel', { 
+      detail: { shapeId: selectedShapeId } 
+    }));
+  };
+
   // Get the currently selected shape
   const selectedShape = selectedShapeId ? shapes.find(s => s.id === selectedShapeId) || null : null;
 
@@ -493,6 +503,7 @@ export default function AppShell({ children }: AppShellProps) {
         onSendToBack={handleSendToBack}
         onBringForward={handleBringForward}
         onSendBackward={handleSendBackward}
+        onAddComment={handleAddComment}
         textFormattingDisabled={textFormattingDisabled}
       />
       <div style={styles.mainArea}>

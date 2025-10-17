@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { DEFAULT_COLOR } from '../utils/constants';
 import { canvasService } from '../services/canvasService';
-import type { ShapeData, ShapeCreateInput } from '../services/canvasService';
+import type { ShapeData, ShapeCreateInput, CommentData } from '../services/canvasService';
 import { selectionService } from '../services/selectionService';
 import type { UserSelection } from '../services/selectionService';
 import { useAuth } from '../hooks/useAuth';
@@ -99,6 +99,14 @@ interface CanvasContextType {
   
   // Loading state
   shapesLoading: boolean;
+  
+  // Comment operations
+  comments: CommentData[];
+  commentsLoading: boolean;
+  addComment: (shapeId: string, text: string, userId: string, username: string) => Promise<string>;
+  addReply: (commentId: string, userId: string, username: string, text: string) => Promise<void>;
+  resolveComment: (commentId: string, userId: string) => Promise<void>;
+  deleteComment: (commentId: string, userId: string) => Promise<void>;
 }
 
 const CanvasContext = createContext<CanvasContextType | undefined>(undefined);
@@ -120,6 +128,8 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   const [shapesLoading, setShapesLoading] = useState(true);
   const [clipboard, setClipboard] = useState<ShapeData[] | null>(null);
   const [isAlignmentToolbarMinimized, setIsAlignmentToolbarMinimized] = useState(false);
+  const [comments, setComments] = useState<CommentData[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
 
   // Subscribe to real-time shape updates
   useEffect(() => {
@@ -134,6 +144,27 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     const unsubscribe: Unsubscribe = canvasService.subscribeToShapes((updatedShapes) => {
       setShapes(updatedShapes);
       setShapesLoading(false);
+    });
+
+    // Cleanup subscription on unmount or user change
+    return () => {
+      unsubscribe();
+    };
+  }, [user]);
+
+  // Subscribe to real-time comment updates
+  useEffect(() => {
+    if (!user) {
+      setComments([]);
+      setCommentsLoading(false);
+      return;
+    }
+
+    setCommentsLoading(true);
+
+    const unsubscribe: Unsubscribe = canvasService.subscribeToComments((updatedComments) => {
+      setComments(updatedComments);
+      setCommentsLoading(false);
     });
 
     // Cleanup subscription on unmount or user change
@@ -335,6 +366,23 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.distributeShapes(shapeIds, direction);
   };
 
+  // Comment operations
+  const addComment = async (shapeId: string, text: string, userId: string, username: string): Promise<string> => {
+    return await canvasService.addComment(shapeId, text, userId, username);
+  };
+
+  const addReply = async (commentId: string, userId: string, username: string, text: string): Promise<void> => {
+    return await canvasService.addReply(commentId, userId, username, text);
+  };
+
+  const resolveComment = async (commentId: string, userId: string): Promise<void> => {
+    return await canvasService.resolveComment(commentId, userId);
+  };
+
+  const deleteComment = async (commentId: string, userId: string): Promise<void> => {
+    return await canvasService.deleteComment(commentId, userId);
+  };
+
   const value = {
     selectedColor,
     setSelectedColor,
@@ -393,6 +441,12 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     isAlignmentToolbarMinimized,
     setIsAlignmentToolbarMinimized,
     shapesLoading,
+    comments,
+    commentsLoading,
+    addComment,
+    addReply,
+    resolveComment,
+    deleteComment,
   };
 
   return (

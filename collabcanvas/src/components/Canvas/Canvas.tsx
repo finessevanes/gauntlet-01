@@ -10,6 +10,8 @@ import CanvasShape from './CanvasShape';
 import CanvasPreview from './CanvasPreview';
 import CanvasTooltips from './CanvasTooltips';
 import AlignmentToolbar from './AlignmentToolbar';
+import { CommentPanel } from './CommentPanel';
+import { ShapeCommentIndicator } from './ShapeCommentIndicator';
 import { getShapeLockStatus, getCursorStyle } from './canvasHelpers';
 import { selectionService } from '../../services/selectionService';
 import toast from 'react-hot-toast';
@@ -79,7 +81,12 @@ export default function Canvas() {
     batchBringForward,
     batchSendBackward,
     isAlignmentToolbarMinimized,
-    setIsAlignmentToolbarMinimized
+    setIsAlignmentToolbarMinimized,
+    comments,
+    addComment,
+    addReply,
+    resolveComment,
+    deleteComment
   } = useCanvasContext();
   
   const stageRef = useRef<Konva.Stage>(null);
@@ -140,6 +147,9 @@ export default function Canvas() {
   
   // Space key panning state
   const [isSpacePressed, setIsSpacePressed] = useState(false);
+  
+  // Comment panel state
+  const [openCommentPanelShapeId, setOpenCommentPanelShapeId] = useState<string | null>(null);
   
   // Cursor tracking
   const { cursors, handleMouseMove: handleCursorMove, handleMouseLeave } = useCursors(stageRef);
@@ -226,6 +236,19 @@ export default function Canvas() {
     }
   }, [selectedShapes.length, isAlignmentToolbarMinimized, setIsAlignmentToolbarMinimized]);
 
+  // Listen for custom event to open comment panel
+  useEffect(() => {
+    const handleOpenCommentPanel = (e: Event) => {
+      const customEvent = e as CustomEvent<{ shapeId: string }>;
+      if (customEvent.detail?.shapeId) {
+        setOpenCommentPanelShapeId(customEvent.detail.shapeId);
+      }
+    };
+
+    window.addEventListener('openCommentPanel', handleOpenCommentPanel);
+    return () => window.removeEventListener('openCommentPanel', handleOpenCommentPanel);
+  }, []);
+
   // Space key handler for temporary panning
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -269,6 +292,12 @@ export default function Canvas() {
       // Don't trigger shortcuts when typing in text input
       if (textInputVisible || editingTextId) {
         console.log('⏭️ Skipping keyboard shortcut - text input active');
+        return;
+      }
+      
+      // Don't trigger shortcuts when comment panel is open
+      if (openCommentPanelShapeId) {
+        console.log('⏭️ Skipping keyboard shortcut - comment panel active');
         return;
       }
       
@@ -881,7 +910,8 @@ export default function Canvas() {
     user, 
     textInputVisible, 
     editingTextId, 
-    isMarqueeActive, 
+    isMarqueeActive,
+    openCommentPanelShapeId,
     deleteShape, 
     duplicateShape,
     shapes,
@@ -2141,6 +2171,100 @@ export default function Canvas() {
     setIsPanning(false);
   };
 
+  // ============================================
+  // Comment Handlers
+  // ============================================
+
+  const handleCommentIndicatorClick = (shapeId: string) => {
+    setOpenCommentPanelShapeId(shapeId);
+  };
+
+  const handleCommentPanelClose = () => {
+    setOpenCommentPanelShapeId(null);
+  };
+
+  const handleAddComment = async (text: string) => {
+    if (!user || !openCommentPanelShapeId) return;
+    
+    try {
+      await addComment(
+        openCommentPanelShapeId,
+        text,
+        user.uid,
+        user.displayName || user.email || 'Anonymous'
+      );
+      toast.success('Comment added');
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      throw error;
+    }
+  };
+
+  const handleAddReply = async (commentId: string, text: string) => {
+    if (!user) return;
+    
+    try {
+      await addReply(
+        commentId,
+        user.uid,
+        user.displayName || user.email || 'Anonymous',
+        text
+      );
+      toast.success('Reply added');
+    } catch (error) {
+      console.error('Error adding reply:', error);
+      throw error;
+    }
+  };
+
+  const handleResolveComment = async (commentId: string) => {
+    if (!user) return;
+    
+    try {
+      await resolveComment(commentId, user.uid);
+      toast.success('Comment resolved');
+    } catch (error) {
+      console.error('Error resolving comment:', error);
+      throw error;
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!user) return;
+    
+    try {
+      await deleteComment(commentId, user.uid);
+      toast.success('Comment deleted');
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      throw error;
+    }
+  };
+
+  // Calculate screen position for a shape (considering stage transforms)
+  const getShapeScreenPosition = (shape: ShapeData) => {
+    let shapeX = shape.x;
+    let shapeY = shape.y;
+    let shapeWidth = shape.width;
+    let shapeHeight = shape.height;
+
+    // For circles, adjust to get bounding box
+    if (shape.type === 'circle' && shape.radius) {
+      shapeX = shape.x - shape.radius;
+      shapeY = shape.y - shape.radius;
+      shapeWidth = shape.radius * 2;
+      shapeHeight = shape.radius * 2;
+    }
+
+    // Apply stage transforms
+    const screenX = shapeX * stageScale + stagePosition.x;
+    const screenY = shapeY * stageScale + stagePosition.y;
+    const screenWidth = shapeWidth * stageScale;
+    const screenHeight = shapeHeight * stageScale;
+
+    return { screenX, screenY, screenWidth, screenHeight };
+  };
+
   return (
     <>
     <div 
@@ -2345,6 +2469,53 @@ export default function Canvas() {
             onCancel={handleTextCancel}
             stageScale={stageScale}
             stagePosition={stagePosition}
+          />
+        );
+      })()}
+
+      {/* Comment Indicators - overlay on shapes */}
+      {shapes.map((shape) => {
+        const shapeComments = comments.filter(c => c.shapeId === shape.id && !c.resolved);
+        if (shapeComments.length === 0) return null;
+
+        const { screenX, screenY, screenWidth } = getShapeScreenPosition(shape);
+
+        return (
+          <div
+            key={`comment-indicator-${shape.id}`}
+            style={{
+              position: 'absolute',
+              left: `${screenX + screenWidth}px`,
+              top: `${screenY}px`,
+              pointerEvents: 'auto',
+            }}
+          >
+            <ShapeCommentIndicator
+              shapeId={shape.id}
+              commentCount={shapeComments.length}
+              onClick={() => handleCommentIndicatorClick(shape.id)}
+            />
+          </div>
+        );
+      })}
+
+      {/* Comment Panel */}
+      {openCommentPanelShapeId && (() => {
+        const shape = shapes.find(s => s.id === openCommentPanelShapeId);
+        if (!shape) return null;
+
+        const { screenX, screenY } = getShapeScreenPosition(shape);
+
+        return (
+          <CommentPanel
+            shapeId={openCommentPanelShapeId}
+            comments={comments}
+            onClose={handleCommentPanelClose}
+            position={{ x: screenX, y: screenY }}
+            onAddComment={handleAddComment}
+            onAddReply={handleAddReply}
+            onResolve={handleResolveComment}
+            onDelete={handleDeleteComment}
           />
         );
       })()}

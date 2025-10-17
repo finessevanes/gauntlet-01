@@ -36,6 +36,16 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
+    
+    // Comments collection - for shape comments and replies
+    match /canvases/main/comments/{commentId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && 
+                       request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null && 
+                       resource.data.userId == request.auth.uid;
+    }
   }
 }
 

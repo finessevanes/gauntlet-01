@@ -9,7 +9,9 @@ import {
   deleteDoc,
   serverTimestamp,
   query,
-  writeBatch
+  writeBatch,
+  arrayUnion,
+  Timestamp as FirestoreTimestamp
 } from 'firebase/firestore';
 import type { Timestamp, Unsubscribe } from 'firebase/firestore';
 import { firestore } from '../firebase';
@@ -53,6 +55,25 @@ export interface GroupData {
   createdAt: Timestamp | null;
 }
 
+// Comment data types
+export interface CommentReply {
+  userId: string;
+  username: string;
+  text: string;
+  createdAt: Timestamp | null;
+}
+
+export interface CommentData {
+  id: string;
+  shapeId: string;
+  userId: string;
+  username: string;
+  text: string;
+  createdAt: Timestamp | null;
+  resolved: boolean;
+  replies: CommentReply[];
+}
+
 export type ShapeCreateInput = Omit<ShapeData, 'id' | 'createdAt' | 'updatedAt' | 'lockedBy' | 'lockedAt' | 'groupId' | 'zIndex'> & {
   groupId?: string | null;
   zIndex?: number;
@@ -62,6 +83,7 @@ export type ShapeUpdateInput = Partial<Pick<ShapeData, 'x' | 'y' | 'width' | 'he
 class CanvasService {
   private shapesCollectionPath = 'canvases/main/shapes';
   private groupsCollectionPath = 'canvases/main/groups';
+  private commentsCollectionPath = 'canvases/main/comments';
   private canvasDocPath = 'canvases/main';
 
   /**
@@ -1664,6 +1686,197 @@ class CanvasService {
     } catch (error) {
       console.error('❌ Error distributing shapes:', error);
       throw error;
+    }
+  }
+
+  // ============================================
+  // Comment Methods
+  // ============================================
+
+  /**
+   * Add a new comment to a shape
+   */
+  async addComment(shapeId: string, text: string, userId: string, username: string): Promise<string> {
+    try {
+      // Ensure parent document exists
+      await this.ensureCanvasDocExists();
+      
+      // Generate a unique ID for the comment
+      const commentId = doc(collection(firestore, this.commentsCollectionPath)).id;
+      
+      const commentData: Omit<CommentData, 'id'> = {
+        shapeId,
+        userId,
+        username,
+        text,
+        createdAt: serverTimestamp() as Timestamp,
+        resolved: false,
+        replies: [],
+      };
+
+      const commentRef = doc(firestore, this.commentsCollectionPath, commentId);
+      await setDoc(commentRef, commentData);
+
+      console.log(`✅ Comment created: ${commentId} on shape ${shapeId}`);
+      return commentId;
+    } catch (error) {
+      console.error('❌ Error creating comment:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add a reply to an existing comment
+   */
+  async addReply(commentId: string, userId: string, username: string, text: string): Promise<void> {
+    try {
+      const commentRef = doc(firestore, this.commentsCollectionPath, commentId);
+      const commentSnap = await getDoc(commentRef);
+      
+      if (!commentSnap.exists()) {
+        throw new Error('Comment not found');
+      }
+
+      // Use Firestore Timestamp.now() instead of serverTimestamp() for array elements
+      // serverTimestamp() is a sentinel that doesn't work well with arrayUnion
+      const newReply: CommentReply = {
+        userId,
+        username,
+        text,
+        createdAt: FirestoreTimestamp.now(),
+      };
+
+      // Use arrayUnion to properly append to the replies array
+      await updateDoc(commentRef, {
+        replies: arrayUnion(newReply),
+      });
+
+      console.log(`✅ Reply added to comment: ${commentId}`);
+    } catch (error) {
+      console.error('❌ Error adding reply:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mark a comment as resolved (Author or Project Owner only)
+   */
+  async resolveComment(commentId: string, userId: string): Promise<void> {
+    try {
+      const commentRef = doc(firestore, this.commentsCollectionPath, commentId);
+      const commentSnap = await getDoc(commentRef);
+      
+      if (!commentSnap.exists()) {
+        throw new Error('Comment not found');
+      }
+
+      const comment = commentSnap.data() as CommentData;
+      
+      // For MVP, allow any authenticated user to resolve
+      // TODO: Add project owner check in future
+      if (comment.userId !== userId) {
+        // For now, we'll allow anyone to resolve (simplified MVP)
+        // In production, check if userId is project owner
+        console.log('⚠️ User is not comment author, but allowing resolution for MVP');
+      }
+
+      await updateDoc(commentRef, {
+        resolved: true,
+      });
+
+      console.log(`✅ Comment resolved: ${commentId}`);
+    } catch (error) {
+      console.error('❌ Error resolving comment:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a comment (Author only)
+   */
+  async deleteComment(commentId: string, userId: string): Promise<void> {
+    try {
+      const commentRef = doc(firestore, this.commentsCollectionPath, commentId);
+      const commentSnap = await getDoc(commentRef);
+      
+      if (!commentSnap.exists()) {
+        throw new Error('Comment not found');
+      }
+
+      const comment = commentSnap.data() as CommentData;
+      
+      // Only allow the comment author to delete
+      if (comment.userId !== userId) {
+        throw new Error('Only the comment author can delete this comment');
+      }
+
+      await deleteDoc(commentRef);
+      console.log(`✅ Comment deleted: ${commentId}`);
+    } catch (error) {
+      console.error('❌ Error deleting comment:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Subscribe to real-time comment updates
+   */
+  subscribeToComments(callback: (comments: CommentData[]) => void): Unsubscribe {
+    try {
+      const commentsRef = collection(firestore, this.commentsCollectionPath);
+      const q = query(commentsRef);
+
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const comments: CommentData[] = [];
+          
+          snapshot.forEach((doc) => {
+            comments.push({
+              id: doc.id,
+              ...doc.data(),
+            } as CommentData);
+          });
+
+          callback(comments);
+        },
+        (error) => {
+          console.error('❌ Error in comments subscription:', error);
+        }
+      );
+
+      return unsubscribe;
+    } catch (error) {
+      console.error('❌ Error subscribing to comments:', error);
+      // Return a no-op unsubscribe function
+      return () => {};
+    }
+  }
+
+  /**
+   * Get comments for a specific shape (one-time fetch)
+   */
+  async getCommentsByShapeId(shapeId: string): Promise<CommentData[]> {
+    try {
+      const commentsRef = collection(firestore, this.commentsCollectionPath);
+      const snapshot = await getDocs(commentsRef);
+
+      const comments: CommentData[] = [];
+      snapshot.forEach((doc) => {
+        const comment = {
+          id: doc.id,
+          ...doc.data(),
+        } as CommentData;
+        
+        if (comment.shapeId === shapeId) {
+          comments.push(comment);
+        }
+      });
+
+      return comments;
+    } catch (error) {
+      console.error('❌ Error fetching comments for shape:', error);
+      return [];
     }
   }
 }

@@ -17,7 +17,6 @@ interface UseShapeResizeParams {
   resizeCircle: (id: string, radius: number) => Promise<void>;
   updateShape: (id: string, updates: Partial<ShapeData>) => Promise<void>;
   unlockShape: (id: string) => Promise<void>;
-  updateTextFontSize: (id: string, fontSize: number) => Promise<void>;
 }
 
 interface UseShapeResizeReturn {
@@ -44,7 +43,6 @@ export function useShapeResize({
   resizeCircle,
   updateShape,
   unlockShape,
-  updateTextFontSize,
 }: UseShapeResizeParams): UseShapeResizeReturn {
   // Resize state management
   const [isResizing, setIsResizing] = useState(false);
@@ -116,31 +114,6 @@ export function useShapeResize({
         width: shape.width,
         height: shape.height,
       });
-    } else if (shape.type === 'text') {
-      // For text, calculate actual dimensions based on fontSize
-      const textContent = shape.text || '';
-      const textFontSize = shape.fontSize || 16;
-      const estimatedWidth = textContent.length * textFontSize * 0.6;
-      const estimatedHeight = textFontSize * 1.2;
-      const padding = 4;
-      const actualWidth = estimatedWidth + padding * 2;
-      const actualHeight = estimatedHeight + padding * 2;
-      
-      setResizeStart({
-        x: canvasX,
-        y: canvasY,
-        width: actualWidth,
-        height: actualHeight,
-        aspectRatio: actualWidth / actualHeight,
-        shapeX: shape.x,
-        shapeY: shape.y,
-      });
-      setPreviewDimensions({
-        x: shape.x,
-        y: shape.y,
-        width: actualWidth,
-        height: actualHeight,
-      });
     }
   };
 
@@ -185,75 +158,8 @@ export function useShapeResize({
       return;
     }
     
-    // Handle text resizing separately (text uses fontSize, not dimensions)
-    if (shape.type === 'text') {
-      // Calculate new fontSize based on resize handle drag
-      const rotation = shape.rotation || 0;
-      const hasRotation = Math.abs(rotation) > 0.1;
-      
-      let heightScale = 1;
-      
-      if (hasRotation) {
-        // For rotated text, calculate scale in local space
-        const centerX = resizeStart.shapeX + resizeStart.width / 2;
-        const centerY = resizeStart.shapeY + resizeStart.height / 2;
-        const relativeX = canvasX - centerX;
-        const relativeY = canvasY - centerY;
-        const rotationRad = (-rotation * Math.PI) / 180;
-        const cos = Math.cos(rotationRad);
-        const sin = Math.sin(rotationRad);
-        const localMouseY = relativeX * sin + relativeY * cos;
-        
-        // Determine if we're dragging from top or bottom
-        const isTop = activeHandle.includes('t');
-        const isBottom = activeHandle.includes('b');
-        
-        if (isTop || isBottom) {
-          const anchorLocalY = isTop ? resizeStart.height / 2 : -resizeStart.height / 2;
-          const newHeight = Math.abs(localMouseY - anchorLocalY);
-          heightScale = newHeight / resizeStart.height;
-        }
-      } else {
-        // For non-rotated text, simple height calculation
-        const isTop = activeHandle.includes('t');
-        const isBottom = activeHandle.includes('b');
-        
-        if (isTop) {
-          const anchorY = resizeStart.shapeY + resizeStart.height;
-          const newHeight = Math.max(MIN_SHAPE_HEIGHT, anchorY - canvasY);
-          heightScale = newHeight / resizeStart.height;
-        } else if (isBottom) {
-          const anchorY = resizeStart.shapeY;
-          const newHeight = Math.max(MIN_SHAPE_HEIGHT, canvasY - anchorY);
-          heightScale = newHeight / resizeStart.height;
-        }
-      }
-      
-      // Calculate new fontSize
-      const originalFontSize = shape.fontSize || 16;
-      const newFontSize = Math.round(originalFontSize * heightScale);
-      const clampedFontSize = Math.max(1, Math.min(500, newFontSize));
-      
-      // Update preview fontSize (this will make text box auto-resize)
-      setPreviewFontSize(clampedFontSize);
-      
-      // Also store position for potential position changes during resize
-      // (not used for dimensions, just for position tracking)
-      setPreviewDimensions({
-        x: resizeStart.shapeX,
-        y: resizeStart.shapeY,
-        width: 0, // Not used for text
-        height: 0, // Not used for text
-      });
-      
-      return;
-    }
-    
     const rotation = shape.rotation || 0;
     const hasRotation = Math.abs(rotation) > 0.1; // Consider rotated if > 0.1 degrees
-    
-    // For text shapes, we use the same resize logic as rectangles/triangles
-    // The key difference is that text dimensions are recalculated from fontSize on save
 
     // Calculate shape center (stays constant during resize for rotated shapes)
     const centerX = resizeStart.shapeX + resizeStart.width / 2;
@@ -599,43 +505,7 @@ export function useShapeResize({
     // Capture values before clearing state
     const shapeIdToUpdate = selectedShapeId;
     
-    // Handle text separately - it uses previewFontSize instead of dimensions
-    if (shape.type === 'text' && previewFontSize) {
-      // Clear resize state but KEEP previewFontSize temporarily
-      setIsResizing(false);
-      setActiveHandle(null);
-      setResizeStart(null);
-      // Don't clear previewFontSize yet - keep it visible during Firestore update
-      
-      try {
-        // Update font size in Firestore
-        await updateTextFontSize(shapeIdToUpdate, previewFontSize);
-        
-        // Wait for real-time listener to receive the update (prevents flicker)
-        setTimeout(() => {
-          setPreviewFontSize(null);
-          setPreviewDimensions(null);
-        }, 100);
-        
-        toast.success('Text resized', { duration: 1000 });
-        console.log('✅ Text resize persisted to Firestore with real-time sync');
-        
-        // Keep shape selected and locked so user can resize again
-        return;
-      } catch (error) {
-        console.error('❌ Failed to resize text:', error);
-        toast.error('Failed to resize text');
-        // Clear preview on error
-        setPreviewFontSize(null);
-        setPreviewDimensions(null);
-        // On error, unlock the shape
-        await unlockShape(shapeIdToUpdate);
-        setSelectedShapeId(null);
-        return;
-      }
-    }
-    
-    // For non-text shapes, validate minimum dimensions
+    // Validate minimum dimensions
     if (!previewDimensions) {
       setIsResizing(false);
       setActiveHandle(null);

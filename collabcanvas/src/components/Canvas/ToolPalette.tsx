@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useCanvasContext } from '../../contexts/CanvasContext';
-import { ALLOWED_FONT_SIZES } from '../../utils/helpers';
 import type { ShapeData } from '../../services/canvasService';
+
+// Text formatting constants (for legacy text shapes)
+const ALLOWED_FONT_SIZES = [12, 14, 16, 18, 20, 24, 32, 48];
 
 interface Tool {
   id: string;

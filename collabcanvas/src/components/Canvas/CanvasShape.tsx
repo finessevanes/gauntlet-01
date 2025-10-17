@@ -1,7 +1,6 @@
 import { Group, Rect, Circle, Line, Text } from 'react-konva';
 import type Konva from 'konva';
 import type { ShapeData } from '../../services/canvasService';
-import { getFontStyle } from '../../utils/helpers';
 
 interface CanvasShapeProps {
   shape: ShapeData;
@@ -23,11 +22,9 @@ interface CanvasShapeProps {
   hoveredHandle: string | null;
   hoveredRotationHandle: string | null;
   stageScale: number;
-  editingTextId: string | null;
   commentCount: number;
   hasUnreadReplies: boolean;
   onShapeMouseDown: (id: string, event?: MouseEvent | React.MouseEvent) => void;
-  onTextDoubleClick: (id: string) => void;
   onResizeStart: (e: Konva.KonvaEventObject<MouseEvent>, handle: string, shape: ShapeData) => void;
   onRotationStart: (e: Konva.KonvaEventObject<MouseEvent>, shape: ShapeData) => void;
   onDragStart: (e: Konva.KonvaEventObject<DragEvent>, shapeId: string) => void;
@@ -53,11 +50,9 @@ export default function CanvasShape({
   hoveredHandle,
   hoveredRotationHandle,
   stageScale,
-  editingTextId,
   commentCount,
   hasUnreadReplies,
   onShapeMouseDown,
-  onTextDoubleClick,
   onResizeStart,
   onRotationStart,
   onDragStart,
@@ -227,14 +222,14 @@ export default function CanvasShape({
         
         return (
           <>
-            {/* Invisible hitbox to make the entire text area draggable - disabled when editing */}
+            {/* Invisible hitbox to make the entire text area draggable */}
             <Rect
               x={0}
               y={0}
               width={currentWidth}
               height={currentHeight}
               fill="transparent"
-              listening={editingTextId !== shape.id}
+              listening={true}
               onMouseEnter={() => {
                 if (activeTool === 'select' && !isLockedByOther) {
                   document.body.style.cursor = 'move';
@@ -243,16 +238,10 @@ export default function CanvasShape({
               onMouseLeave={() => {
                 document.body.style.cursor = '';
               }}
-              onDblClick={(e) => {
-                e.cancelBubble = true;
-                if (activeTool === 'select' || activeTool === 'pan') {
-                  onTextDoubleClick(shape.id);
-                }
-              }}
             />
             
-            {/* Selection box with dotted border (Paint-style) - show when selected but NOT when editing */}
-            {isSelected && editingTextId !== shape.id && (
+            {/* Selection box with dotted border (Paint-style) */}
+            {isSelected && (
               <Rect
                 x={0}
                 y={0}
@@ -267,7 +256,7 @@ export default function CanvasShape({
             )}
             
             {/* Blue border for multi-selected text */}
-            {isMultiSelected && editingTextId !== shape.id && (
+            {isMultiSelected && (
               <Rect
                 x={0}
                 y={0}
@@ -283,23 +272,21 @@ export default function CanvasShape({
               />
             )}
             
-            {/* The actual text - hide when editing to avoid showing duplicate */}
-            {editingTextId !== shape.id && (
-              <Text
-                x={padding}
-                y={padding}
-                text={textContent}
-                fontSize={textFontSize}
-                fill={shape.color}
-                fontStyle={getFontStyle(shape)}
-                fontWeight={shape.fontWeight || 'normal'}
-                textDecoration={shape.textDecoration || 'none'}
-                align="left"
-                verticalAlign="top"
-                opacity={isLockedByOther ? 0.5 : 1}
-                listening={false}
-              />
-            )}
+            {/* The actual text */}
+            <Text
+              x={padding}
+              y={padding}
+              text={textContent}
+              fontSize={textFontSize}
+              fill={shape.color}
+              fontStyle="normal"
+              fontWeight={shape.fontWeight || 'normal'}
+              textDecoration={shape.textDecoration || 'none'}
+              align="left"
+              verticalAlign="top"
+              opacity={isLockedByOther ? 0.5 : 1}
+              listening={false}
+            />
           </>
         );
       })()}

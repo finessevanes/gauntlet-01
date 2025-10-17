@@ -22,8 +22,6 @@ export default function AppShell({ children }: AppShellProps) {
     selectedShapes,
     setSelectedShapes,
     lastClickedShapeId,
-    updateTextFormatting,
-    updateTextFontSize,
     deleteShape,
     duplicateShape,
     unlockShape,
@@ -74,60 +72,21 @@ export default function AppShell({ children }: AppShellProps) {
   const lockStatus = selectedShape ? getShapeLockStatus(selectedShape) : 'unlocked';
   const textFormattingDisabled = lockStatus !== 'locked-by-me';
 
-  // Text formatting handlers
+  // Text formatting handlers (disabled - text editing not supported in this version)
   const handleToggleBold = async () => {
-    if (!selectedShapeId || !selectedShape || selectedShape.type !== 'text') return;
-    const newWeight = selectedShape.fontWeight === 'bold' ? 'normal' : 'bold';
-    try {
-      await updateTextFormatting(selectedShapeId, { fontWeight: newWeight });
-    } catch (error) {
-      console.error('❌ Failed to toggle bold:', error);
-      toast.error('Failed to update formatting', {
-        duration: 2000,
-        position: 'top-center',
-      });
-    }
+    // No-op: text formatting removed
   };
 
   const handleToggleItalic = async () => {
-    if (!selectedShapeId || !selectedShape || selectedShape.type !== 'text') return;
-    const newStyle = selectedShape.fontStyle === 'italic' ? 'normal' : 'italic';
-    try {
-      await updateTextFormatting(selectedShapeId, { fontStyle: newStyle });
-    } catch (error) {
-      console.error('❌ Failed to toggle italic:', error);
-      toast.error('Failed to update formatting', {
-        duration: 2000,
-        position: 'top-center',
-      });
-    }
+    // No-op: text formatting removed
   };
 
   const handleToggleUnderline = async () => {
-    if (!selectedShapeId || !selectedShape || selectedShape.type !== 'text') return;
-    const newDecoration = selectedShape.textDecoration === 'underline' ? 'none' : 'underline';
-    try {
-      await updateTextFormatting(selectedShapeId, { textDecoration: newDecoration });
-    } catch (error) {
-      console.error('❌ Failed to toggle underline:', error);
-      toast.error('Failed to update formatting', {
-        duration: 2000,
-        position: 'top-center',
-      });
-    }
+    // No-op: text formatting removed
   };
 
-  const handleChangeFontSize = async (fontSize: number) => {
-    if (!selectedShapeId || !selectedShape || selectedShape.type !== 'text') return;
-    try {
-      await updateTextFontSize(selectedShapeId, fontSize);
-    } catch (error) {
-      console.error('❌ Failed to change font size:', error);
-      toast.error('Failed to update font size', {
-        duration: 2000,
-        position: 'top-center',
-      });
-    }
+  const handleChangeFontSize = async (_fontSize: number) => {
+    // No-op: text formatting removed
   };
 
   // Shape action handlers

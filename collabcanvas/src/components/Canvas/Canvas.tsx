@@ -5,7 +5,6 @@ import { useCursors } from '../../hooks/useCursors';
 import { useAuth } from '../../hooks/useAuth';
 import { useShapeResize } from '../../hooks/useShapeResize';
 import CursorLayer from '../Collaboration/CursorLayer';
-import TextInput from './TextInput';
 import CanvasShape from './CanvasShape';
 import CanvasPreview from './CanvasPreview';
 import CanvasTooltips from './CanvasTooltips';
@@ -44,8 +43,6 @@ export default function Canvas() {
     createShape,
     createCircle,
     createTriangle,
-    createText,
-    updateText,
     updateShape,
     batchUpdateShapes,
     resizeShape,
@@ -56,7 +53,6 @@ export default function Canvas() {
     deleteShape,
     duplicateShape,
     deleteAllShapes,
-    updateTextFontSize,
     selectedShapeId,
     setSelectedShapeId,
     selectedShapes,
@@ -64,8 +60,6 @@ export default function Canvas() {
     lastClickedShapeId,
     setLastClickedShapeId,
     userSelections,
-    editingTextId,
-    setEditingTextId,
     shapesLoading,
     clipboard,
     setClipboard,
@@ -129,11 +123,6 @@ export default function Canvas() {
   // Rotation handle hover state
   const [hoveredRotationHandle, setHoveredRotationHandle] = useState<string | null>(null);
   
-  // Text input state
-  const [textInputVisible, setTextInputVisible] = useState(false);
-  const [textInputPosition, setTextInputPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const textInputClosedTimeRef = useRef<number>(0);
-  
   // Rotation state management
   const [isRotating, setIsRotating] = useState(false);
   const [rotationStart, setRotationStart] = useState<{
@@ -172,15 +161,7 @@ export default function Canvas() {
     resizeCircle,
     updateShape,
     unlockShape,
-    updateTextFontSize,
   });
-
-  // Track when text input is closed for cooldown
-  useEffect(() => {
-    if (!textInputVisible) {
-      textInputClosedTimeRef.current = Date.now();
-    }
-  }, [textInputVisible, editingTextId]);
 
   // Deselect and unlock when selected shape is deleted/changed externally
   useEffect(() => {
@@ -253,8 +234,8 @@ export default function Canvas() {
   // Space key handler for temporary panning
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Enable panning when Space is pressed (but not when typing in text input)
-      if (e.key === ' ' && !textInputVisible && !editingTextId) {
+      // Enable panning when Space is pressed
+      if (e.key === ' ') {
         e.preventDefault(); // Prevent page scrolling
         setIsSpacePressed(true);
       }
@@ -274,7 +255,7 @@ export default function Canvas() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [textInputVisible, editingTextId]);
+  }, []);
 
   // Keyboard shortcuts for delete, duplicate, and clear selection
   useEffect(() => {
@@ -284,16 +265,8 @@ export default function Canvas() {
         console.log('🔑 DELETE KEY PRESSED', {
           selectedShapes: selectedShapes.length,
           selectedShapeId,
-          textInputVisible,
-          editingTextId,
           isMarqueeActive,
         });
-      }
-      
-      // Don't trigger shortcuts when typing in text input
-      if (textInputVisible || editingTextId) {
-        console.log('⏭️ Skipping keyboard shortcut - text input active');
-        return;
       }
       
       // Don't trigger shortcuts when comment panel is open
@@ -460,21 +433,9 @@ export default function Canvas() {
                 color: shape.color,
                 createdBy: user.uid,
               });
-            } else if (shape.type === 'text') {
-              return await createText(
-                shape.text || 'Text',
-                newX,
-                newY,
-                shape.color,
-                user.uid,
-                {
-                  width: shape.width,
-                  height: shape.height,
-                  fontSize: shape.fontSize || 16,
-                  rotation: shape.rotation || 0,
-                }
-              );
             }
+            // Text shapes are not supported in this version
+            return null;
           });
           
           const newShapeIds = await Promise.all(pastePromises);
@@ -909,8 +870,6 @@ export default function Canvas() {
     selectedShapeId, 
     selectedShapes, 
     user, 
-    textInputVisible, 
-    editingTextId, 
     isMarqueeActive,
     openCommentPanelShapeId,
     deleteShape, 
@@ -921,7 +880,6 @@ export default function Canvas() {
     createShape,
     createCircle,
     createTriangle,
-    createText,
     groupShapes,
     ungroupShapes,
     batchUpdateShapes,
@@ -1094,54 +1052,6 @@ export default function Canvas() {
     }
   };
 
-  // Helper: Handle text double-click for editing
-  const handleTextDoubleClick = async (shapeId: string) => {
-    if (!user) return;
-    
-    const shape = shapes.find(s => s.id === shapeId);
-    if (!shape || shape.type !== 'text') return;
-    
-    // Check if text is locked by another user
-    if (shape.lockedBy && shape.lockedBy !== user.uid) {
-      const lockStatus = getShapeLockStatus(shape, user, selectedShapeId);
-      if (lockStatus === 'locked-by-other') {
-        toast.error('Text is locked by another user', {
-          duration: 2000,
-          position: 'top-center',
-        });
-        return;
-      }
-    }
-    
-    // Lock the shape if not already locked
-    if (selectedShapeId !== shapeId) {
-      // Deselect current shape first
-      if (selectedShapeId) {
-        await handleDeselectShape();
-      }
-      
-      // Select and lock the text
-      setSelectedShapeId(shapeId);
-      const result = await lockShape(shapeId, user.uid);
-      
-      if (!result.success) {
-        setSelectedShapeId(null);
-        const username = result.lockedByUsername || 'another user';
-        toast.error(`Text locked by ${username}`, {
-          duration: 2000,
-          position: 'top-center',
-        });
-        return;
-      }
-    }
-    
-    // Enter edit mode
-    setEditingTextId(shapeId);
-    setTextInputPosition({ x: shape.x, y: shape.y });
-    setTextInputVisible(true);
-  };
-
-
   // Track previous mode when switching to bomb mode
   useEffect(() => {
     if (isBombMode) {
@@ -1185,94 +1095,6 @@ export default function Canvas() {
     }, 800);
   };
 
-  // Text input handlers
-  const handleTextSave = async (text: string) => {
-    if (!user) return;
-    
-    if (!text.trim()) {
-      toast.error('Text cannot be empty', {
-        duration: 2000,
-        position: 'top-center',
-      });
-      return;
-    }
-
-    try {
-      const textId = await createText(
-        text,
-        textInputPosition.x,
-        textInputPosition.y,
-        selectedColor,
-        user.uid
-      );
-      setTextInputVisible(false);
-      
-      // Select and lock the newly created text so user can see resize handles
-      setSelectedShapeId(textId);
-      await lockShape(textId, user.uid);
-      
-      toast.success('Text created!', {
-        duration: 1000,
-        position: 'top-center',
-      });
-    } catch (error) {
-      console.error('❌ Failed to create text:', error);
-      toast.error('Failed to create text', {
-        duration: 2000,
-        position: 'top-center',
-      });
-    }
-  };
-
-  const handleTextCancel = () => {
-    setTextInputVisible(false);
-  };
-
-  // Handle text edit save
-  const handleTextEditSave = async (text: string) => {
-    if (!user || !editingTextId) return;
-    
-    if (!text.trim()) {
-      toast.error('Text cannot be empty', {
-        duration: 2000,
-        position: 'top-center',
-      });
-      return;
-    }
-
-    try {
-      await updateText(editingTextId, text.trim());
-      
-      // Unlock the shape after editing
-      await unlockShape(editingTextId);
-      setSelectedShapeId(null);
-      
-      setTextInputVisible(false);
-      setEditingTextId(null);
-      toast.success('Text updated!', {
-        duration: 1000,
-        position: 'top-center',
-      });
-    } catch (error) {
-      console.error('❌ Failed to update text:', error);
-      toast.error('Failed to update text', {
-        duration: 2000,
-        position: 'top-center',
-      });
-    }
-  };
-
-  // Handle text edit cancel
-  const handleTextEditCancel = async () => {
-    if (editingTextId) {
-      // Unlock the shape when canceling edit
-      await unlockShape(editingTextId);
-      setSelectedShapeId(null);
-    }
-    setTextInputVisible(false);
-    setEditingTextId(null);
-  };
-
   // Drawing handlers: Click-and-drag to create rectangles
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current;
@@ -1300,20 +1122,6 @@ export default function Canvas() {
       // Handle bomb mode - place bomb and explode
       if (activeTool === 'bomb') {
         handleBombClick(x, y);
-        return;
-      }
-
-      // Handle text tool - show text input at click position
-      if (activeTool === 'text') {
-        // Don't create new text input if one is already visible
-        if (textInputVisible) return;
-        
-        // Don't immediately create a new input after closing one (cooldown)
-        const timeSinceClose = Date.now() - textInputClosedTimeRef.current;
-        if (timeSinceClose < 200) return;
-        
-        setTextInputPosition({ x, y });
-        setTextInputVisible(true);
         return;
       }
 
@@ -2436,11 +2244,9 @@ export default function Canvas() {
                 hoveredHandle={hoveredHandle}
                 hoveredRotationHandle={hoveredRotationHandle}
                 stageScale={stageScale}
-                editingTextId={editingTextId}
                 commentCount={commentCount}
                 hasUnreadReplies={hasUnreadReplies}
                 onShapeMouseDown={handleShapeMouseDown}
-                onTextDoubleClick={handleTextDoubleClick}
                 onResizeStart={handleResizeStart}
                 onRotationStart={handleRotationStart}
                 onDragStart={handleShapeDragStart}
@@ -2517,49 +2323,6 @@ export default function Canvas() {
         {/* Cursor Layer - render other users' cursors */}
         <CursorLayer cursors={cursors} />
       </Stage>
-
-      {/* Text Input Overlay */}
-      {textInputVisible && (() => {
-        // Check if we're editing an existing text
-        if (editingTextId) {
-          const shape = shapes.find(s => s.id === editingTextId);
-          if (shape && shape.type === 'text') {
-            return (
-              <TextInput
-                initialText={shape.text}
-                x={textInputPosition.x}
-                y={textInputPosition.y}
-                width={shape.width}
-                height={shape.height}
-                fontSize={shape.fontSize || 16}
-                color={shape.color}
-                rotation={shape.rotation || 0}
-                onSave={handleTextEditSave}
-                onCancel={handleTextEditCancel}
-                stageScale={stageScale}
-                stagePosition={stagePosition}
-              />
-            );
-          }
-        }
-        
-        // Creating new text
-        return (
-          <TextInput
-            initialText="Text"
-            x={textInputPosition.x}
-            y={textInputPosition.y}
-            fontSize={16}
-            color={selectedColor}
-            rotation={0}
-            onSave={handleTextSave}
-            onCancel={handleTextCancel}
-            stageScale={stageScale}
-            stagePosition={stagePosition}
-          />
-        );
-      })()}
-
 
       {/* Comment Panel */}
       {openCommentPanelShapeId && (() => {

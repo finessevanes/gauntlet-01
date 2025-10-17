@@ -43,10 +43,6 @@ interface CanvasContextType {
   isBombMode: boolean;
   setIsBombMode: (isBombMode: boolean) => void;
   
-  // Text editing
-  editingTextId: string | null;
-  setEditingTextId: (id: string | null) => void;
-  
   // Stage transform
   stageScale: number;
   setStageScale: (scale: number) => void;
@@ -68,12 +64,6 @@ interface CanvasContextType {
   deleteShape: (shapeId: string) => Promise<void>;
   duplicateShape: (shapeId: string, userId: string) => Promise<string>;
   deleteAllShapes: () => Promise<void>;
-  
-  // Text operations
-  createText: (text: string, x: number, y: number, color: string, createdBy: string, options?: any) => Promise<string>;
-  updateText: (shapeId: string, text: string) => Promise<void>;
-  updateTextFontSize: (shapeId: string, fontSize: number) => Promise<void>;
-  updateTextFormatting: (shapeId: string, formatting: any) => Promise<void>;
   
   // Grouping operations
   groupShapes: (shapeIds: string[], userId: string, name?: string) => Promise<string>;
@@ -123,7 +113,6 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   const [userSelections, setUserSelections] = useState<Record<string, UserSelection>>({});
   const [isDrawMode, setIsDrawMode] = useState(false); // Deprecated: kept for backward compatibility
   const [isBombMode, setIsBombMode] = useState(false); // Deprecated: kept for backward compatibility
-  const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [stageScale, setStageScale] = useState(1);
   const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 });
   const [shapes, setShapes] = useState<ShapeData[]>([]);
@@ -286,30 +275,6 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.deleteAllShapes();
   };
 
-  // Text operations
-  const createText = async (
-    text: string,
-    x: number,
-    y: number,
-    color: string,
-    createdBy: string,
-    options?: any
-  ): Promise<string> => {
-    return await canvasService.createText(text, x, y, color, createdBy, options);
-  };
-
-  const updateText = async (shapeId: string, text: string): Promise<void> => {
-    return await canvasService.updateText(shapeId, text);
-  };
-
-  const updateTextFontSize = async (shapeId: string, fontSize: number): Promise<void> => {
-    return await canvasService.updateTextFontSize(shapeId, fontSize);
-  };
-
-  const updateTextFormatting = async (shapeId: string, formatting: any): Promise<void> => {
-    return await canvasService.updateTextFormatting(shapeId, formatting);
-  };
-
   // Grouping operations
   const groupShapes = async (shapeIds: string[], userId: string, name?: string): Promise<string> => {
     return await canvasService.groupShapes(shapeIds, userId, name);
@@ -410,8 +375,6 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     setIsDrawMode,
     isBombMode,
     setIsBombMode,
-    editingTextId,
-    setEditingTextId,
     stageScale,
     setStageScale,
     stagePosition,
@@ -432,10 +395,6 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     deleteShape,
     duplicateShape,
     deleteAllShapes,
-    createText,
-    updateText,
-    updateTextFontSize,
-    updateTextFormatting,
     groupShapes,
     ungroupShapes,
     bringToFront,

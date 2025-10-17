@@ -194,20 +194,8 @@ export class AIService {
         });
         
       case 'createText':
-        this.validatePosition(args.x, args.y, 'text');
-        return await canvasService.createText(
-          args.text,
-          args.x,
-          args.y,
-          args.color || '#000000',
-          userId,
-          {
-            fontSize: args.fontSize || 16,
-            fontWeight: args.fontWeight || 'normal',
-            fontStyle: args.fontStyle || 'normal',
-            textDecoration: args.textDecoration || 'none'
-          }
-        );
+        // Text creation is not supported in this version
+        throw new Error('Text creation is not supported. Please use rectangle, circle, or triangle shapes instead.');
       
       // MANIPULATION TOOLS
       case 'moveShape':
@@ -280,7 +268,6 @@ export class AIService {
         case 'createRectangle': return '✓ Created 1 rectangle';
         case 'createCircle': return '✓ Created 1 circle';
         case 'createTriangle': return '✓ Created 1 triangle';
-        case 'createText': return '✓ Created text layer';
         case 'moveShape': return '✓ Moved shape to new position';
         case 'resizeShape': return '✓ Resized shape';
         case 'rotateShape': return '✓ Rotated shape';
@@ -292,7 +279,7 @@ export class AIService {
     
     // Multi-step operations
     const creationCount = toolNames.filter(t => 
-      ['createRectangle', 'createCircle', 'createTriangle', 'createText'].includes(t)
+      ['createRectangle', 'createCircle', 'createTriangle'].includes(t)
     ).length;
     
     if (creationCount > 1) {
@@ -357,39 +344,7 @@ export class AIService {
           }
         }
       },
-      {
-        type: "function" as const,
-        function: {
-          name: "createText",
-          description: "Creates a text layer at specified position with optional fontSize, color, and formatting.",
-          parameters: {
-            type: "object",
-            properties: {
-              text: { type: "string", description: "Text content to display" },
-              x: { type: "number", description: "X position in pixels" },
-              y: { type: "number", description: "Y position in pixels" },
-              fontSize: { type: "number", description: "Font size in pixels (default 16)" },
-              color: { type: "string", description: "Text color hex code (default #000000)" },
-              fontWeight: { 
-                type: "string", 
-                enum: ["normal", "bold"], 
-                description: "Font weight (default normal)" 
-              },
-              fontStyle: { 
-                type: "string", 
-                enum: ["normal", "italic"], 
-                description: "Font style (default normal)" 
-              },
-              textDecoration: { 
-                type: "string", 
-                enum: ["none", "underline"], 
-                description: "Text decoration (default none)" 
-              }
-            },
-            required: ["text", "x", "y"]
-          }
-        }
-      },
+      // Note: createText is removed - text layer support is being rebuilt with Konva native implementation
       
       // MANIPULATION TOOLS
       {

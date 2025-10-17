@@ -2450,7 +2450,6 @@ export default function Canvas() {
             fontSize={shape.fontSize || 16}
             color={shape.color}
             onSave={handleSaveText}
-            onCancel={handleCancelEdit}
             onTextChange={handleEditingTextChange}
             onDimensionsChange={handleEditingDimensionsChange}
           />

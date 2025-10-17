@@ -7,7 +7,6 @@ interface TextEditorOverlayProps {
   fontSize: number;
   color: string;
   onSave: (text: string) => void;
-  onCancel: () => void;
   onTextChange?: (text: string) => void;
   onDimensionsChange?: (dimensions: { width: number; height: number }) => void;
 }
@@ -31,7 +30,6 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
   fontSize,
   color,
   onSave,
-  onCancel,
   onTextChange,
   onDimensionsChange,
 }) => {
@@ -80,7 +78,9 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
       onSave(text);
     } else if (e.key === 'Escape') {
       e.preventDefault();
-      onCancel();
+      console.log('ESC pressed - clearing text completely');
+      // Save empty string to effectively remove the text
+      onSave('');
     }
     // Allow all other keys (backspace, delete, arrow keys, etc.) to work normally
     // by not calling preventDefault() for them
@@ -98,6 +98,7 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
 
   // Handle blur (click outside) - save changes
   const handleBlur = () => {
+    console.log('Blur event - saving text:', text);
     onSave(text);
   };
 

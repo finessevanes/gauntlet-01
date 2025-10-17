@@ -1,0 +1,80 @@
+.comment-indicator {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  background-color: #c0c0c0;
+  border: 2px solid;
+  border-color: #ffffff #808080 #808080 #ffffff;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: 'MS Sans Serif', Arial, sans-serif;
+  user-select: none;
+  z-index: 1000;
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.2);
+}
+
+.comment-indicator:hover {
+  background-color: #d4d0c8;
+}
+
+.comment-indicator:active {
+  border-color: #808080 #ffffff #ffffff #808080;
+  padding: 3px 5px 1px 7px;
+}
+
+.comment-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.comment-count {
+  font-weight: bold;
+  color: #000080;
+  line-height: 1;
+}
+
+/* Pulse animation for new comments */
+.comment-indicator.pulse {
+  animation: pulse 0.6s ease-in-out 3;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    background-color: #c0c0c0;
+  }
+  50% {
+    transform: scale(1.15);
+    background-color: #ffffe0;
+  }
+}
+
+/* Notification badge for unread replies */
+.comment-notification-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  background-color: #ff0000;
+  border: 1px solid #ffffff;
+  border-radius: 50%;
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.2);
+  }
+}
+

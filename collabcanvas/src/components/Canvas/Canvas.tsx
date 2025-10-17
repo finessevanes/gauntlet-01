@@ -10,6 +10,7 @@ import CanvasShape from './CanvasShape';
 import CanvasPreview from './CanvasPreview';
 import CanvasTooltips from './CanvasTooltips';
 import AlignmentToolbar from './AlignmentToolbar';
+import { CommentPanel } from './CommentPanel';
 import { getShapeLockStatus, getCursorStyle } from './canvasHelpers';
 import { selectionService } from '../../services/selectionService';
 import toast from 'react-hot-toast';
@@ -79,7 +80,14 @@ export default function Canvas() {
     batchBringForward,
     batchSendBackward,
     isAlignmentToolbarMinimized,
-    setIsAlignmentToolbarMinimized
+    setIsAlignmentToolbarMinimized,
+    comments,
+    addComment,
+    addReply,
+    resolveComment,
+    deleteComment,
+    deleteReply,
+    markRepliesAsRead
   } = useCanvasContext();
   
   const stageRef = useRef<Konva.Stage>(null);
@@ -140,6 +148,9 @@ export default function Canvas() {
   
   // Space key panning state
   const [isSpacePressed, setIsSpacePressed] = useState(false);
+  
+  // Comment panel state
+  const [openCommentPanelShapeId, setOpenCommentPanelShapeId] = useState<string | null>(null);
   
   // Cursor tracking
   const { cursors, handleMouseMove: handleCursorMove, handleMouseLeave } = useCursors(stageRef);
@@ -226,6 +237,19 @@ export default function Canvas() {
     }
   }, [selectedShapes.length, isAlignmentToolbarMinimized, setIsAlignmentToolbarMinimized]);
 
+  // Listen for custom event to open comment panel
+  useEffect(() => {
+    const handleOpenCommentPanel = (e: Event) => {
+      const customEvent = e as CustomEvent<{ shapeId: string }>;
+      if (customEvent.detail?.shapeId) {
+        setOpenCommentPanelShapeId(customEvent.detail.shapeId);
+      }
+    };
+
+    window.addEventListener('openCommentPanel', handleOpenCommentPanel);
+    return () => window.removeEventListener('openCommentPanel', handleOpenCommentPanel);
+  }, []);
+
   // Space key handler for temporary panning
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -269,6 +293,12 @@ export default function Canvas() {
       // Don't trigger shortcuts when typing in text input
       if (textInputVisible || editingTextId) {
         console.log('⏭️ Skipping keyboard shortcut - text input active');
+        return;
+      }
+      
+      // Don't trigger shortcuts when comment panel is open
+      if (openCommentPanelShapeId) {
+        console.log('⏭️ Skipping keyboard shortcut - comment panel active');
         return;
       }
       
@@ -881,7 +911,8 @@ export default function Canvas() {
     user, 
     textInputVisible, 
     editingTextId, 
-    isMarqueeActive, 
+    isMarqueeActive,
+    openCommentPanelShapeId,
     deleteShape, 
     duplicateShape,
     shapes,
@@ -2141,6 +2172,142 @@ export default function Canvas() {
     setIsPanning(false);
   };
 
+  // ============================================
+  // Comment Handlers
+  // ============================================
+
+  // Helper function to mark all replies as read for a specific shape
+  const markRepliesAsReadForShape = async (shapeId: string) => {
+    if (!user) return;
+    
+    const shapeComments = comments.filter(
+      c => c.shapeId === shapeId && c.userId === user.uid
+    );
+    
+    for (const comment of shapeComments) {
+      try {
+        await markRepliesAsRead(comment.id, user.uid);
+      } catch (error) {
+        console.error('Error marking replies as read:', error);
+      }
+    }
+  };
+
+  const handleCommentIndicatorClick = async (shapeId: string) => {
+    setOpenCommentPanelShapeId(shapeId);
+  };
+
+  const handleCommentPanelClose = async () => {
+    // Mark all comments on this shape as read when closing the panel
+    // This is a fallback for when user just views without taking action
+    if (user && openCommentPanelShapeId) {
+      await markRepliesAsReadForShape(openCommentPanelShapeId);
+    }
+    
+    setOpenCommentPanelShapeId(null);
+  };
+
+  const handleAddComment = async (text: string) => {
+    if (!user || !openCommentPanelShapeId) return;
+    
+    try {
+      await addComment(
+        openCommentPanelShapeId,
+        text,
+        user.uid,
+        user.displayName || user.email || 'Anonymous'
+      );
+      toast.success('Comment added');
+      
+      // Mark replies as read after user takes action (engagement indicates they've read)
+      await markRepliesAsReadForShape(openCommentPanelShapeId);
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      throw error;
+    }
+  };
+
+  const handleAddReply = async (commentId: string, text: string) => {
+    if (!user || !openCommentPanelShapeId) return;
+    
+    try {
+      await addReply(
+        commentId,
+        user.uid,
+        user.displayName || user.email || 'Anonymous',
+        text
+      );
+      toast.success('Reply added');
+      
+      // Mark replies as read after user takes action (engagement indicates they've read)
+      await markRepliesAsReadForShape(openCommentPanelShapeId);
+    } catch (error) {
+      console.error('Error adding reply:', error);
+      throw error;
+    }
+  };
+
+  const handleResolveComment = async (commentId: string) => {
+    if (!user) return;
+    
+    try {
+      await resolveComment(commentId, user.uid);
+      toast.success('Comment resolved');
+    } catch (error) {
+      console.error('Error resolving comment:', error);
+      throw error;
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!user) return;
+    
+    try {
+      await deleteComment(commentId, user.uid);
+      toast.success('Comment deleted');
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      throw error;
+    }
+  };
+
+  const handleDeleteReply = async (commentId: string, replyIndex: number) => {
+    if (!user) return;
+    
+    try {
+      await deleteReply(commentId, replyIndex, user.uid);
+      toast.success('Reply deleted');
+    } catch (error) {
+      console.error('Error deleting reply:', error);
+      throw error;
+    }
+  };
+
+  // Calculate screen position for a shape (considering stage transforms)
+  // Used for positioning the CommentPanel overlay
+  const getShapeScreenPosition = (shape: ShapeData) => {
+    let shapeX = shape.x;
+    let shapeY = shape.y;
+    let shapeWidth = shape.width;
+    let shapeHeight = shape.height;
+
+    // For circles, adjust to get bounding box
+    if (shape.type === 'circle' && shape.radius) {
+      shapeX = shape.x - shape.radius;
+      shapeY = shape.y - shape.radius;
+      shapeWidth = shape.radius * 2;
+      shapeHeight = shape.radius * 2;
+    }
+
+    // Apply stage transforms
+    const screenX = shapeX * stageScale + stagePosition.x;
+    const screenY = shapeY * stageScale + stagePosition.y;
+    const screenWidth = shapeWidth * stageScale;
+    const screenHeight = shapeHeight * stageScale;
+
+    return { screenX, screenY, screenWidth, screenHeight };
+  };
+
   return (
     <>
     <div 
@@ -2211,6 +2378,47 @@ export default function Canvas() {
             // 2. Selected by another user (new selection locking)
             const isLockedByOther = lockStatus === 'locked-by-other' || isSelectedByOther;
 
+            // Calculate comment info for this shape
+            const shapeComments = comments.filter(c => c.shapeId === shape.id && !c.resolved);
+            const commentCount = shapeComments.length;
+            
+            // Check if there are unread replies for the current user
+            const hasUnreadReplies = user ? shapeComments.some(comment => {
+              // Only check comments that belong to this shape and where the current user is the author
+              if (comment.shapeId !== shape.id || comment.userId !== user.uid) {
+                return false;
+              }
+              
+              // Check if there are replies and if they haven't been read
+              if (!comment.replies || comment.replies.length === 0) {
+                return false;
+              }
+              
+              // Check if there are any replies from OTHER users (not from the comment author themselves)
+              const hasRepliesFromOthers = comment.replies.some(reply => reply.userId !== user.uid);
+              if (!hasRepliesFromOthers) {
+                return false; // Only own replies, don't show notification
+              }
+              
+              // If there's a lastReplyAt timestamp
+              if (comment.lastReplyAt) {
+                const lastReadTimestamp = comment.replyReadStatus?.[user.uid];
+                
+                // If user has never read replies, or last read was before last reply
+                if (!lastReadTimestamp) {
+                  return true;
+                }
+                
+                // Compare timestamps - convert to milliseconds for comparison
+                const lastReadMs = lastReadTimestamp.toMillis ? lastReadTimestamp.toMillis() : lastReadTimestamp.seconds * 1000;
+                const lastReplyMs = comment.lastReplyAt.toMillis ? comment.lastReplyAt.toMillis() : comment.lastReplyAt.seconds * 1000;
+                
+                return lastReplyMs > lastReadMs;
+              }
+              
+              return false;
+            }) : false;
+
             return (
               <CanvasShape
                 key={shape.id}
@@ -2229,6 +2437,8 @@ export default function Canvas() {
                 hoveredRotationHandle={hoveredRotationHandle}
                 stageScale={stageScale}
                 editingTextId={editingTextId}
+                commentCount={commentCount}
+                hasUnreadReplies={hasUnreadReplies}
                 onShapeMouseDown={handleShapeMouseDown}
                 onTextDoubleClick={handleTextDoubleClick}
                 onResizeStart={handleResizeStart}
@@ -2238,6 +2448,7 @@ export default function Canvas() {
                 onDragEnd={handleShapeDragEnd}
                 setHoveredHandle={setHoveredHandle}
                 setHoveredRotationHandle={setHoveredRotationHandle}
+                onCommentIndicatorClick={handleCommentIndicatorClick}
               />
             );
           })}
@@ -2345,6 +2556,29 @@ export default function Canvas() {
             onCancel={handleTextCancel}
             stageScale={stageScale}
             stagePosition={stagePosition}
+          />
+        );
+      })()}
+
+
+      {/* Comment Panel */}
+      {openCommentPanelShapeId && (() => {
+        const shape = shapes.find(s => s.id === openCommentPanelShapeId);
+        if (!shape) return null;
+
+        const { screenX, screenY } = getShapeScreenPosition(shape);
+
+        return (
+          <CommentPanel
+            shapeId={openCommentPanelShapeId}
+            comments={comments}
+            onClose={handleCommentPanelClose}
+            position={{ x: screenX, y: screenY }}
+            onAddComment={handleAddComment}
+            onAddReply={handleAddReply}
+            onResolve={handleResolveComment}
+            onDelete={handleDeleteComment}
+            onDeleteReply={handleDeleteReply}
           />
         );
       })()}

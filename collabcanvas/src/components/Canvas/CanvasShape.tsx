@@ -24,6 +24,8 @@ interface CanvasShapeProps {
   hoveredRotationHandle: string | null;
   stageScale: number;
   editingTextId: string | null;
+  commentCount: number;
+  hasUnreadReplies: boolean;
   onShapeMouseDown: (id: string, event?: MouseEvent | React.MouseEvent) => void;
   onTextDoubleClick: (id: string) => void;
   onResizeStart: (e: Konva.KonvaEventObject<MouseEvent>, handle: string, shape: ShapeData) => void;
@@ -33,6 +35,7 @@ interface CanvasShapeProps {
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>, shapeId: string) => void;
   setHoveredHandle: (id: string | null) => void;
   setHoveredRotationHandle: (id: string | null) => void;
+  onCommentIndicatorClick: (shapeId: string) => void;
 }
 
 export default function CanvasShape({
@@ -51,6 +54,8 @@ export default function CanvasShape({
   hoveredRotationHandle,
   stageScale,
   editingTextId,
+  commentCount,
+  hasUnreadReplies,
   onShapeMouseDown,
   onTextDoubleClick,
   onResizeStart,
@@ -60,6 +65,7 @@ export default function CanvasShape({
   onDragEnd,
   setHoveredHandle,
   setHoveredRotationHandle,
+  onCommentIndicatorClick,
 }: CanvasShapeProps) {
   // Shape is being resized if isResizing is true OR if preview dimensions exist (during transition)
   // For text, we don't use preview dimensions (dimensions are always calculated from fontSize)
@@ -502,6 +508,128 @@ export default function CanvasShape({
               verticalAlign="middle"
               listening={false}
             />
+          </Group>
+        );
+      })()}
+
+      {/* Comment indicator badge - positioned to the right of the shape */}
+      {commentCount > 0 && (() => {
+        // Calculate badge position based on shape type
+        let badgeX: number;
+        let badgeY: number;
+        const scale = 1 / stageScale; // Scale inversely with zoom
+        
+        // Larger sizing to match visual prominence of original HTML badge
+        const horizontalPadding = 8 * scale;
+        const verticalPadding = 4 * scale;
+        const gap = 4 * scale; // gap between icon and count
+        const iconSize = 18 * scale;
+        const fontSize = 14 * scale;
+        const notificationSize = 10 * scale;
+        const borderWidth = 2 * scale;
+        
+        // Calculate badge dimensions based on content
+        const countText = commentCount.toString();
+        const countWidth = countText.length * fontSize * 0.6; // Better char width estimate
+        const badgeWidth = horizontalPadding * 2 + iconSize + gap + countWidth;
+        const badgeHeight = verticalPadding * 2 + Math.max(iconSize, fontSize);
+        
+        if (shape.type === 'circle' && currentRadius !== undefined) {
+          // Position touching the top-right of the circle
+          badgeX = currentRadius;
+          badgeY = -currentRadius;
+        } else if (currentWidth !== undefined && currentHeight !== undefined) {
+          // Position touching the top-right of the rectangle/triangle/text
+          badgeX = currentWidth;
+          badgeY = 0;
+        } else {
+          return null;
+        }
+        
+        return (
+          <Group
+            x={badgeX}
+            y={badgeY}
+            onMouseDown={(e) => {
+              e.cancelBubble = true;
+              onCommentIndicatorClick(shape.id);
+            }}
+          >
+            {/* Gray background (Windows 95 style) */}
+            <Rect
+              x={0}
+              y={0}
+              width={badgeWidth}
+              height={badgeHeight}
+              fill="#c0c0c0"
+              cornerRadius={3 * scale}
+              shadowColor="#000000"
+              shadowBlur={0}
+              shadowOffset={{ x: 1 * scale, y: 1 * scale }}
+              shadowOpacity={0.2}
+            />
+            
+            {/* Top-left highlight (beveled border - light) */}
+            <Line
+              points={[
+                3 * scale, badgeHeight,
+                3 * scale, 3 * scale,
+                badgeWidth - 3 * scale, 3 * scale
+              ]}
+              stroke="#ffffff"
+              strokeWidth={borderWidth}
+              listening={false}
+              lineCap="square"
+              lineJoin="miter"
+            />
+            
+            {/* Bottom-right shadow (beveled border - dark) */}
+            <Line
+              points={[
+                badgeWidth, 3 * scale,
+                badgeWidth, badgeHeight,
+                3 * scale, badgeHeight
+              ]}
+              stroke="#808080"
+              strokeWidth={borderWidth}
+              listening={false}
+              lineCap="square"
+              lineJoin="miter"
+            />
+            
+            {/* Comment icon emoji */}
+            <Text
+              x={horizontalPadding}
+              y={verticalPadding}
+              text="💬"
+              fontSize={iconSize}
+              listening={false}
+            />
+            
+            {/* Comment count in navy blue */}
+            <Text
+              x={horizontalPadding + iconSize + gap}
+              y={verticalPadding + (iconSize - fontSize) / 2}
+              text={countText}
+              fontSize={fontSize}
+              fontStyle="bold"
+              fill="#000080"
+              fontFamily="Arial, sans-serif"
+              listening={false}
+            />
+            
+            {/* Unread replies notification badge (red dot) */}
+            {hasUnreadReplies && (
+              <Circle
+                x={badgeWidth - 4 * scale}
+                y={4 * scale}
+                radius={notificationSize / 2}
+                fill="#ff0000"
+                stroke="#ffffff"
+                strokeWidth={1 * scale}
+                listening={false}
+              />
+            )}
           </Group>
         );
       })()}

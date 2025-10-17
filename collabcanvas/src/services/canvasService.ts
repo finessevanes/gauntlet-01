@@ -160,6 +160,24 @@ class CanvasService {
   }
 
   /**
+   * Update text content of a shape
+   * Used specifically for text editing functionality
+   */
+  async updateShapeText(shapeId: string, text: string): Promise<void> {
+    try {
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await updateDoc(shapeRef, {
+        text: text,
+        updatedAt: serverTimestamp()
+      });
+      console.log('✅ Text updated:', shapeId);
+    } catch (error) {
+      console.error('❌ Error updating text:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Batch update multiple shapes in a single atomic operation
    * This ensures all shapes update simultaneously, preventing visual lag for remote users
    */

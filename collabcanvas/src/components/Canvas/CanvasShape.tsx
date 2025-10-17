@@ -33,6 +33,8 @@ interface CanvasShapeProps {
   setHoveredHandle: (id: string | null) => void;
   setHoveredRotationHandle: (id: string | null) => void;
   onCommentIndicatorClick: (shapeId: string) => void;
+  onTextDoubleClick?: (shapeId: string) => void;
+  editingTextId?: string | null;
 }
 
 export default function CanvasShape({
@@ -61,6 +63,8 @@ export default function CanvasShape({
   setHoveredHandle,
   setHoveredRotationHandle,
   onCommentIndicatorClick,
+  onTextDoubleClick,
+  editingTextId,
 }: CanvasShapeProps) {
   // Shape is being resized if isResizing is true OR if preview dimensions exist (during transition)
   // For text, we don't use preview dimensions (dimensions are always calculated from fontSize)
@@ -238,6 +242,7 @@ export default function CanvasShape({
               onMouseLeave={() => {
                 document.body.style.cursor = '';
               }}
+              onDblClick={onTextDoubleClick ? () => onTextDoubleClick(shape.id) : undefined}
             />
             
             {/* Selection box with dotted border (Paint-style) */}
@@ -272,21 +277,23 @@ export default function CanvasShape({
               />
             )}
             
-            {/* The actual text */}
-            <Text
-              x={padding}
-              y={padding}
-              text={textContent}
-              fontSize={textFontSize}
-              fill={shape.color}
-              fontStyle="normal"
-              fontWeight={shape.fontWeight || 'normal'}
-              textDecoration={shape.textDecoration || 'none'}
-              align="left"
-              verticalAlign="top"
-              opacity={isLockedByOther ? 0.5 : 1}
-              listening={false}
-            />
+            {/* The actual text - hide when being edited */}
+            {editingTextId !== shape.id && (
+              <Text
+                x={padding}
+                y={padding}
+                text={textContent}
+                fontSize={textFontSize}
+                fill={shape.color}
+                fontStyle="normal"
+                fontWeight={shape.fontWeight || 'normal'}
+                textDecoration={shape.textDecoration || 'none'}
+                align="left"
+                verticalAlign="top"
+                opacity={isLockedByOther ? 0.5 : 1}
+                listening={false}
+              />
+            )}
           </>
         );
       })()}

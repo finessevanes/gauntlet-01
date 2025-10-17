@@ -100,6 +100,12 @@ interface CanvasContextType {
   deleteComment: (commentId: string, userId: string) => Promise<void>;
   deleteReply: (commentId: string, replyIndex: number, userId: string) => Promise<void>;
   markRepliesAsRead: (commentId: string, userId: string) => Promise<void>;
+  
+  // Text editing state
+  editingTextId: string | null;
+  enterEdit: (shapeId: string) => void;
+  saveText: (shapeId: string, text: string) => Promise<void>;
+  cancelEdit: () => void;
 }
 
 const CanvasContext = createContext<CanvasContextType | undefined>(undefined);
@@ -122,6 +128,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   const [isAlignmentToolbarMinimized, setIsAlignmentToolbarMinimized] = useState(false);
   const [comments, setComments] = useState<CommentData[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
 
   // Subscribe to real-time shape updates
   useEffect(() => {
@@ -363,6 +370,29 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.markRepliesAsRead(commentId, userId);
   };
 
+  // Text editing functions
+  const enterEdit = (shapeId: string): void => {
+    setEditingTextId(shapeId);
+  };
+
+  const saveText = async (shapeId: string, text: string): Promise<void> => {
+    try {
+      await canvasService.updateShapeText(shapeId, text);
+      setEditingTextId(null);
+      // Reset cursor to pointer after saving text
+      setActiveTool('select');
+    } catch (error) {
+      console.error('❌ Error saving text:', error);
+      throw error;
+    }
+  };
+
+  const cancelEdit = (): void => {
+    setEditingTextId(null);
+    // Reset cursor to pointer after cancelling text editing
+    setActiveTool('select');
+  };
+
   const value = {
     selectedColor,
     setSelectedColor,
@@ -424,6 +454,10 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     deleteComment,
     deleteReply,
     markRepliesAsRead,
+    editingTextId,
+    enterEdit,
+    saveText,
+    cancelEdit,
   };
 
   return (

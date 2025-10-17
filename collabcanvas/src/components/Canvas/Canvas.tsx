@@ -10,6 +10,7 @@ import CanvasPreview from './CanvasPreview';
 import CanvasTooltips from './CanvasTooltips';
 import AlignmentToolbar from './AlignmentToolbar';
 import { CommentPanel } from './CommentPanel';
+import TextEditorOverlay from './TextEditorOverlay';
 import { getShapeLockStatus, getCursorStyle } from './canvasHelpers';
 import { selectionService } from '../../services/selectionService';
 import toast from 'react-hot-toast';
@@ -82,7 +83,11 @@ export default function Canvas() {
     resolveComment,
     deleteComment,
     deleteReply,
-    markRepliesAsRead
+    markRepliesAsRead,
+    editingTextId,
+    enterEdit,
+    saveText,
+    cancelEdit
   } = useCanvasContext();
   
   const stageRef = useRef<Konva.Stage>(null);
@@ -1129,12 +1134,16 @@ export default function Canvas() {
       // Handle text tool - create text at click position
       if (activeTool === 'text' && user) {
         try {
-          await createText({
+          const newTextId = await createText({
             x,
             y,
             color: selectedColor,
             createdBy: user.uid,
           });
+          
+          // Auto-enter edit mode for newly created text
+          enterEdit(newTextId);
+          
           toast.success('Text created', {
             duration: 1000,
             position: 'top-center',
@@ -2276,6 +2285,8 @@ export default function Canvas() {
                 setHoveredHandle={setHoveredHandle}
                 setHoveredRotationHandle={setHoveredRotationHandle}
                 onCommentIndicatorClick={handleCommentIndicatorClick}
+                onTextDoubleClick={enterEdit}
+                editingTextId={editingTextId}
               />
             );
           })}
@@ -2363,6 +2374,27 @@ export default function Canvas() {
             onResolve={handleResolveComment}
             onDelete={handleDeleteComment}
             onDeleteReply={handleDeleteReply}
+          />
+        );
+      })()}
+
+      {/* Text Editor Overlay - for in-place text editing */}
+      {editingTextId && (() => {
+        const shape = shapes.find(s => s.id === editingTextId);
+        if (!shape || shape.type !== 'text') return null;
+
+        // Calculate position for the overlay
+        const { screenX, screenY } = getShapeScreenPosition(shape);
+        
+        return (
+          <TextEditorOverlay
+            shapeId={editingTextId}
+            initialText={shape.text || ''}
+            position={{ x: screenX, y: screenY }}
+            fontSize={shape.fontSize || 16}
+            color={shape.color}
+            onSave={(text) => saveText(editingTextId, text)}
+            onCancel={cancelEdit}
           />
         );
       })()}

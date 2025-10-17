@@ -289,10 +289,27 @@ export default function AppShell({ children }: AppShellProps) {
   // Z-Index handlers
   const handleBringToFront = async () => {
     // Handle both single and multi-selection
-    const targetIds = selectedShapes.length > 0 ? selectedShapes : (selectedShapeId ? [selectedShapeId] : []);
+    let targetIds = selectedShapes.length > 0 ? selectedShapes : (selectedShapeId ? [selectedShapeId] : []);
     if (targetIds.length === 0) return;
     
     try {
+      // Check if any selected shapes are in a group
+      const selectedShapeObjects = shapes.filter(s => targetIds.includes(s.id));
+      const hasGroupedShapes = selectedShapeObjects.some(s => s.groupId);
+      
+      // If any selected shape is in a group, make sure ALL shapes in that group are included
+      if (hasGroupedShapes) {
+        const groupIds = new Set(selectedShapeObjects.filter(s => s.groupId).map(s => s.groupId));
+        
+        // Find all shapes that belong to any of these groups
+        const allGroupedShapeIds = shapes
+          .filter(s => s.groupId && groupIds.has(s.groupId))
+          .map(s => s.id);
+        
+        // Merge with selected shapes (remove duplicates)
+        targetIds = [...new Set([...targetIds, ...allGroupedShapeIds])];
+      }
+      
       // Use batch operation for multiple shapes (atomic update)
       if (targetIds.length > 1) {
         await batchBringToFront(targetIds);
@@ -319,10 +336,27 @@ export default function AppShell({ children }: AppShellProps) {
 
   const handleSendToBack = async () => {
     // Handle both single and multi-selection
-    const targetIds = selectedShapes.length > 0 ? selectedShapes : (selectedShapeId ? [selectedShapeId] : []);
+    let targetIds = selectedShapes.length > 0 ? selectedShapes : (selectedShapeId ? [selectedShapeId] : []);
     if (targetIds.length === 0) return;
     
     try {
+      // Check if any selected shapes are in a group
+      const selectedShapeObjects = shapes.filter(s => targetIds.includes(s.id));
+      const hasGroupedShapes = selectedShapeObjects.some(s => s.groupId);
+      
+      // If any selected shape is in a group, make sure ALL shapes in that group are included
+      if (hasGroupedShapes) {
+        const groupIds = new Set(selectedShapeObjects.filter(s => s.groupId).map(s => s.groupId));
+        
+        // Find all shapes that belong to any of these groups
+        const allGroupedShapeIds = shapes
+          .filter(s => s.groupId && groupIds.has(s.groupId))
+          .map(s => s.id);
+        
+        // Merge with selected shapes (remove duplicates)
+        targetIds = [...new Set([...targetIds, ...allGroupedShapeIds])];
+      }
+      
       // Use batch operation for multiple shapes (atomic update)
       if (targetIds.length > 1) {
         await batchSendToBack(targetIds);
@@ -349,10 +383,27 @@ export default function AppShell({ children }: AppShellProps) {
 
   const handleBringForward = async () => {
     // Handle both single and multi-selection
-    const targetIds = selectedShapes.length > 0 ? selectedShapes : (selectedShapeId ? [selectedShapeId] : []);
+    let targetIds = selectedShapes.length > 0 ? selectedShapes : (selectedShapeId ? [selectedShapeId] : []);
     if (targetIds.length === 0) return;
     
     try {
+      // Check if any selected shapes are in a group
+      const selectedShapeObjects = shapes.filter(s => targetIds.includes(s.id));
+      const hasGroupedShapes = selectedShapeObjects.some(s => s.groupId);
+      
+      // If any selected shape is in a group, make sure ALL shapes in that group are included
+      if (hasGroupedShapes) {
+        const groupIds = new Set(selectedShapeObjects.filter(s => s.groupId).map(s => s.groupId));
+        
+        // Find all shapes that belong to any of these groups
+        const allGroupedShapeIds = shapes
+          .filter(s => s.groupId && groupIds.has(s.groupId))
+          .map(s => s.id);
+        
+        // Merge with selected shapes (remove duplicates)
+        targetIds = [...new Set([...targetIds, ...allGroupedShapeIds])];
+      }
+      
       // Use batch operation for multiple shapes (atomic update)
       if (targetIds.length > 1) {
         await batchBringForward(targetIds);
@@ -379,10 +430,27 @@ export default function AppShell({ children }: AppShellProps) {
 
   const handleSendBackward = async () => {
     // Handle both single and multi-selection
-    const targetIds = selectedShapes.length > 0 ? selectedShapes : (selectedShapeId ? [selectedShapeId] : []);
+    let targetIds = selectedShapes.length > 0 ? selectedShapes : (selectedShapeId ? [selectedShapeId] : []);
     if (targetIds.length === 0) return;
     
     try {
+      // Check if any selected shapes are in a group
+      const selectedShapeObjects = shapes.filter(s => targetIds.includes(s.id));
+      const hasGroupedShapes = selectedShapeObjects.some(s => s.groupId);
+      
+      // If any selected shape is in a group, make sure ALL shapes in that group are included
+      if (hasGroupedShapes) {
+        const groupIds = new Set(selectedShapeObjects.filter(s => s.groupId).map(s => s.groupId));
+        
+        // Find all shapes that belong to any of these groups
+        const allGroupedShapeIds = shapes
+          .filter(s => s.groupId && groupIds.has(s.groupId))
+          .map(s => s.id);
+        
+        // Merge with selected shapes (remove duplicates)
+        targetIds = [...new Set([...targetIds, ...allGroupedShapeIds])];
+      }
+      
       // Use batch operation for multiple shapes (atomic update)
       if (targetIds.length > 1) {
         await batchSendBackward(targetIds);

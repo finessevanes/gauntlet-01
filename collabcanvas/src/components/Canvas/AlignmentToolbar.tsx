@@ -5,12 +5,14 @@ interface AlignmentToolbarProps {
   selectedShapes: string[];
   onAlign?: (alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => void;
   onDistribute?: (direction: 'horizontal' | 'vertical') => void;
+  onMinimize?: () => void;
 }
 
 export default function AlignmentToolbar({ 
   selectedShapes,
   onAlign,
-  onDistribute
+  onDistribute,
+  onMinimize
 }: AlignmentToolbarProps) {
   const { alignShapes, distributeShapes } = useCanvasContext();
   
@@ -131,6 +133,16 @@ export default function AlignmentToolbar({
         onMouseDown={handleMouseDown}
       >
         <span style={styles.titleText}>Alignment Tools</span>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onMinimize?.();
+          }}
+          style={styles.minimizeButton}
+          title="Minimize"
+        >
+          −
+        </button>
       </div>
 
       <div style={styles.container}>
@@ -324,6 +336,22 @@ const styles = {
     fontSize: '12px',
     fontWeight: 'bold' as const,
     letterSpacing: '0.5px',
+  },
+  minimizeButton: {
+    backgroundColor: '#c0c0c0',
+    border: '1px solid #808080',
+    borderRadius: '2px',
+    width: '20px',
+    height: '18px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    fontSize: '16px',
+    fontWeight: 'bold' as const,
+    color: '#000000',
+    padding: 0,
+    lineHeight: 1,
   },
   container: {
     display: 'flex',

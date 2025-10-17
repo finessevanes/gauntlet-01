@@ -24,7 +24,7 @@ Implement 15+ keyboard shortcuts for power user workflows including shape operat
 - [x] Add Cmd/Ctrl + Shift + [ for send to back
 - [x] Add Cmd/Ctrl + A for select all shapes
 - [x] Add Cmd/Ctrl + 0 for reset zoom to 100%
-- [x] Verify Space + Drag panning works (already implemented)
+- [x] Implement Space + Drag panning (was not implemented, now added)
 
 **Note:** Delete, Backspace, Cmd+D duplicate, and Escape already implemented.
 
@@ -71,18 +71,18 @@ Implement 15+ keyboard shortcuts for power user workflows including shape operat
 ### 6. Testing
 
 **Basic Functionality:**
-- [ ] Cmd/Ctrl+G groups 2+ selected shapes
-- [ ] Cmd/Ctrl+Shift+G ungroups selected shape in a group
-- [ ] Cmd/Ctrl+C copies shapes and shows toast
-- [ ] Arrow keys move shapes by 10px
-- [ ] Shift+Arrow keys move shapes by 1px
-- [ ] Cmd/Ctrl+] brings shape forward
-- [ ] Cmd/Ctrl+[ sends shape backward
-- [ ] Cmd/Ctrl+Shift+] brings shape to front
-- [ ] Cmd/Ctrl+Shift+[ sends shape to back
-- [ ] Cmd/Ctrl+A selects all shapes
-- [ ] Cmd/Ctrl+0 resets zoom to 100%
-- [ ] Space+Drag pans canvas
+- [x] Cmd/Ctrl+G groups 2+ selected shapes
+- [x] Cmd/Ctrl+Shift+G ungroups selected shape in a group
+- [x] Cmd/Ctrl+C copies shapes and shows toast
+- [x] Arrow keys move shapes by 10px
+- [x] Shift+Arrow keys move shapes by 1px
+- [x] Cmd/Ctrl+] brings shape forward - **PARTIAL FIX**: grouped shapes may still split (see backlog)
+- [x] Cmd/Ctrl+[ sends shape backward - **PARTIAL FIX**: grouped shapes may still split (see backlog)
+- [x] Cmd/Ctrl+Shift+] brings shape to front
+- [x] Cmd/Ctrl+Shift+[ sends shape to back
+- [x] Cmd/Ctrl+A selects all shapes - Fixed: Now preserves "select all" when clicking on grouped shapes
+- [x] Cmd/Ctrl+0 resets zoom to 100%
+- [x] Space+Drag pans canvas
 
 **Edge Cases:**
 - [ ] Shortcuts ignored when typing in text input
@@ -110,11 +110,15 @@ Implement 15+ keyboard shortcuts for power user workflows including shape operat
 2. `collabcanvas/src/components/Canvas/Canvas.tsx`
    - Extend existing keyboard handler (lines ~205-367)
    - Add new shortcuts
+   - Implement Space+Drag panning
 
-3. `collabcanvas/src/components/Canvas/ToolPalette.tsx`
+3. `collabcanvas/src/components/Canvas/canvasHelpers.ts`
+   - Update getCursorStyle to handle Space key panning
+
+4. `collabcanvas/src/components/Canvas/ToolPalette.tsx`
    - Update button tooltips
 
-4. `collabcanvas/src/components/Canvas/AlignmentToolbar.tsx`
+5. `collabcanvas/src/components/Canvas/AlignmentToolbar.tsx`
    - Update button tooltips (if group/ungroup buttons exist)
 
 ---
@@ -175,20 +179,20 @@ if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
 - [x] Delete/Backspace removes shapes (already exists)
 - [x] Cmd+D duplicates shapes (already exists)
 - [x] Escape clears selection (already exists)
-- [ ] Cmd+G groups shapes
-- [ ] Cmd+Shift+G ungroups shapes
-- [ ] Cmd+C copies shapes
-- [ ] Arrow keys nudge shapes (10px)
-- [ ] Shift+Arrow nudges shapes (1px)
+- [x] Cmd+G groups shapes
+- [x] Cmd+Shift+G ungroups shapes
+- [x] Cmd+C copies shapes
+- [x] Arrow keys nudge shapes (10px)
+- [x] Shift+Arrow nudges shapes (1px)
 - [ ] Cmd+[/] changes z-index
 - [ ] Cmd+Shift+[/] moves to front/back
-- [ ] Cmd+A selects all
-- [ ] Cmd+0 resets zoom
+- [x] Cmd+A selects all
+- [x] Cmd+0 resets zoom
 - [ ] Space+Drag pans
 - [ ] All shortcuts have toast notifications
 - [ ] Button tooltips show shortcuts
-- [ ] Real-time sync works
-- [ ] No console errors
+- [x] Real-time sync works
+- [x] No console errors
 
 ---
 
@@ -217,8 +221,13 @@ if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
   - **Cmd/Ctrl + Shift + [**: Send to back
   - **Cmd/Ctrl + A**: Select all shapes
   - **Cmd/Ctrl + 0**: Reset zoom to 100%
+  - **Space + Drag**: Temporary panning (works in any tool mode)
 - Added toast notifications for all keyboard actions
 - Updated useEffect dependencies to include all new functions
+- Implemented Space key detection with separate useEffect hook
+- Added `isSpacePressed` state to track spacebar status
+- Updated Stage `draggable` prop to enable panning when Space is held
+- Cursor changes to 'grab' when Space is pressed, 'grabbing' when dragging
 
 **3. ToolPalette.tsx**
 - Updated button tooltips to show keyboard shortcuts:
@@ -258,6 +267,35 @@ if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
 - Clipboard stores full shape data for future paste functionality
 - Z-index shortcuts detect Shift key for to-front/to-back vs forward/backward
 - All operations use existing batch methods for multi-selection support
+- Space+Drag panning uses separate useEffect to avoid conflicts with other shortcuts
+- Space key panning is disabled during text input/editing to prevent interference
+- Stage draggable prop responds to both `activeTool === 'pan'` and `isSpacePressed`
+- Cursor changes dynamically: 'grab' when Space held, 'grabbing' when actively panning
+
+### Bug Fixes
+
+**Issue**: Keyboard shortcuts for layer ordering (Bring Forward / Send Backward) were splitting up grouped shapes
+- **Status**: ⚠️ **PARTIAL FIX - NEEDS FURTHER TESTING** (documented in backlog)
+- **Root Cause**: When shapes were grouped, they kept their original z-indices. If you grouped shape 1 (z-index: 3) and shape 4 (z-index: 0), they'd have non-consecutive z-indices, meaning they weren't actually "together" in the z-order. When moving them, they'd split up.
+- **Attempted Solution**: 
+  1. **Modified `groupShapes()`** to reassign z-indices when grouping:
+     - Get the maximum z-index in the canvas
+     - Assign grouped shapes consecutive z-indices starting from max + 1
+     - Preserves relative order of shapes within the group
+     - This creates a new "layer" where the group lives together
+  2. **Rewrote `batchBringForward()` and `batchSendBackward()`** to move shapes together:
+     - Calculate the z-index range of all selected shapes
+     - Find the closest overlapping shape (above for forward, below for backward)
+     - Move ALL selected shapes by the same z-index offset
+     - Swap with only ONE target shape
+     - Added `shapesOverlap()` helper method
+- **Result**: Partial fix implemented but still exhibiting issues in testing. Shapes may still split during repeated z-index operations. Full fix deferred to backlog for comprehensive testing and refinement.
+- **Files Modified**: `collabcanvas/src/services/canvasService.ts`
+  - Modified `groupShapes()` to assign consecutive z-indices when grouping
+  - Added `shapesOverlap()` helper method to check if two shapes overlap in 2D space
+  - Rewrote `batchBringForward()` to move all shapes together with debug logging
+  - Rewrote `batchSendBackward()` to move all shapes together with debug logging
+- **See**: `docs/backlog.md` - "Fix Grouped Shapes Splitting During Z-Index Operations" for full details and testing plan
 
 ---
 

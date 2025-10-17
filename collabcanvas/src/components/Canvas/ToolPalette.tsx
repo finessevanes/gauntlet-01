@@ -51,7 +51,9 @@ export default function ToolPalette({
     setIsDrawMode, 
     setIsBombMode, 
     selectedColor,
-    shapes
+    shapes,
+    isAlignmentToolbarMinimized,
+    setIsAlignmentToolbarMinimized
   } = useCanvasContext();
   
   const [isChanging, setIsChanging] = useState(false);
@@ -199,6 +201,21 @@ export default function ToolPalette({
             )}
           </button>
         ))}
+        
+        {/* Alignment Tools Icon - shown when toolbar is minimized and 2+ shapes selected */}
+        {isAlignmentToolbarMinimized && selectedShapes.length >= 2 && (
+          <button
+            onClick={() => setIsAlignmentToolbarMinimized(false)}
+            style={{
+              ...styles.toolButton,
+              backgroundColor: '#d0d0d0',
+            }}
+            title="Show Alignment Tools"
+            aria-label="Show Alignment Tools"
+          >
+            ⚏
+          </button>
+        )}
       </div>
       
       {/* Current Colors Display */}

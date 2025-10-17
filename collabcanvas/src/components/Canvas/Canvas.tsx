@@ -60,6 +60,7 @@ export default function Canvas() {
     setSelectedShapeId,
     selectedShapes,
     setSelectedShapes,
+    lastClickedShapeId,
     setLastClickedShapeId,
     userSelections,
     editingTextId,
@@ -76,7 +77,9 @@ export default function Canvas() {
     batchBringToFront,
     batchSendToBack,
     batchBringForward,
-    batchSendBackward
+    batchSendBackward,
+    isAlignmentToolbarMinimized,
+    setIsAlignmentToolbarMinimized
   } = useCanvasContext();
   
   const stageRef = useRef<Konva.Stage>(null);
@@ -134,6 +137,9 @@ export default function Canvas() {
   // Bomb explosion state
   const [explosionPos, setExplosionPos] = useState<{ x: number; y: number } | null>(null);
   const [previousMode, setPreviousMode] = useState<'draw' | 'pan'>('pan');
+  
+  // Space key panning state
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
   
   // Cursor tracking
   const { cursors, handleMouseMove: handleCursorMove, handleMouseLeave } = useCursors(stageRef);
@@ -213,6 +219,39 @@ export default function Canvas() {
     }
   }, [selectedShapeId, shapes]);
 
+  // Reset alignment toolbar minimized state when selection changes to less than 2 shapes
+  useEffect(() => {
+    if (selectedShapes.length < 2 && isAlignmentToolbarMinimized) {
+      setIsAlignmentToolbarMinimized(false);
+    }
+  }, [selectedShapes.length, isAlignmentToolbarMinimized, setIsAlignmentToolbarMinimized]);
+
+  // Space key handler for temporary panning
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Enable panning when Space is pressed (but not when typing in text input)
+      if (e.key === ' ' && !textInputVisible && !editingTextId) {
+        e.preventDefault(); // Prevent page scrolling
+        setIsSpacePressed(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      // Disable panning when Space is released
+      if (e.key === ' ') {
+        setIsSpacePressed(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [textInputVisible, editingTextId]);
+
   // Keyboard shortcuts for delete, duplicate, and clear selection
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
@@ -280,7 +319,7 @@ export default function Canvas() {
       }
 
       // Cmd/Ctrl + Shift + G - Ungroup shapes
-      if (cmdKey && e.shiftKey && e.key === 'G') {
+      if (cmdKey && e.shiftKey && (e.key === 'G' || e.key === 'g')) {
         e.preventDefault();
         if (selectedShapes.length > 0) {
           try {
@@ -290,6 +329,16 @@ export default function Canvas() {
               const groupId = groupedShapes[0].groupId;
               if (groupId) {
                 await ungroupShapes(groupId);
+                
+                // After ungrouping, select only the last clicked shape
+                if (lastClickedShapeId && selectedShapes.includes(lastClickedShapeId)) {
+                  console.log('🔵 Setting selection to last clicked shape after ungroup:', lastClickedShapeId);
+                  setSelectedShapes([lastClickedShapeId]);
+                } else {
+                  // Fallback: clear selection if last clicked shape isn't available
+                  setSelectedShapes([]);
+                }
+                
                 toast.success('Ungrouped shapes', {
                   duration: 1500,
                   position: 'top-center',
@@ -475,7 +524,32 @@ export default function Canvas() {
         e.preventDefault();
         if (selectedShapes.length > 0) {
           try {
-            await batchBringForward(selectedShapes);
+            // Check if any selected shapes are in a group
+            const selectedShapeObjects = shapes.filter(s => selectedShapes.includes(s.id));
+            const hasGroupedShapes = selectedShapeObjects.some(s => s.groupId);
+            
+            let shapeIdsToBring = [...selectedShapes];
+            
+            // If any selected shape is in a group, make sure ALL shapes in that group are included
+            if (hasGroupedShapes) {
+              const groupIds = new Set(selectedShapeObjects.filter(s => s.groupId).map(s => s.groupId));
+              
+              // Find all shapes that belong to any of these groups
+              const allGroupedShapeIds = shapes
+                .filter(s => s.groupId && groupIds.has(s.groupId))
+                .map(s => s.id);
+              
+              // Merge with selected shapes (remove duplicates)
+              shapeIdsToBring = [...new Set([...selectedShapes, ...allGroupedShapeIds])];
+              
+              console.log('⬆️ BRING FORWARD - Including all grouped shapes:', {
+                originalSelection: selectedShapes,
+                groupIds: Array.from(groupIds),
+                finalSelection: shapeIdsToBring,
+              });
+            }
+            
+            await batchBringForward(shapeIdsToBring);
             toast.success('Brought forward', {
               duration: 1000,
               position: 'top-center',
@@ -502,7 +576,32 @@ export default function Canvas() {
         e.preventDefault();
         if (selectedShapes.length > 0) {
           try {
-            await batchSendBackward(selectedShapes);
+            // Check if any selected shapes are in a group
+            const selectedShapeObjects = shapes.filter(s => selectedShapes.includes(s.id));
+            const hasGroupedShapes = selectedShapeObjects.some(s => s.groupId);
+            
+            let shapeIdsToSend = [...selectedShapes];
+            
+            // If any selected shape is in a group, make sure ALL shapes in that group are included
+            if (hasGroupedShapes) {
+              const groupIds = new Set(selectedShapeObjects.filter(s => s.groupId).map(s => s.groupId));
+              
+              // Find all shapes that belong to any of these groups
+              const allGroupedShapeIds = shapes
+                .filter(s => s.groupId && groupIds.has(s.groupId))
+                .map(s => s.id);
+              
+              // Merge with selected shapes (remove duplicates)
+              shapeIdsToSend = [...new Set([...selectedShapes, ...allGroupedShapeIds])];
+              
+              console.log('⬇️ SEND BACKWARD - Including all grouped shapes:', {
+                originalSelection: selectedShapes,
+                groupIds: Array.from(groupIds),
+                finalSelection: shapeIdsToSend,
+              });
+            }
+            
+            await batchSendBackward(shapeIdsToSend);
             toast.success('Sent backward', {
               duration: 1000,
               position: 'top-center',
@@ -529,7 +628,32 @@ export default function Canvas() {
         e.preventDefault();
         if (selectedShapes.length > 0) {
           try {
-            await batchBringToFront(selectedShapes);
+            // Check if any selected shapes are in a group
+            const selectedShapeObjects = shapes.filter(s => selectedShapes.includes(s.id));
+            const hasGroupedShapes = selectedShapeObjects.some(s => s.groupId);
+            
+            let shapeIdsToBring = [...selectedShapes];
+            
+            // If any selected shape is in a group, make sure ALL shapes in that group are included
+            if (hasGroupedShapes) {
+              const groupIds = new Set(selectedShapeObjects.filter(s => s.groupId).map(s => s.groupId));
+              
+              // Find all shapes that belong to any of these groups
+              const allGroupedShapeIds = shapes
+                .filter(s => s.groupId && groupIds.has(s.groupId))
+                .map(s => s.id);
+              
+              // Merge with selected shapes (remove duplicates)
+              shapeIdsToBring = [...new Set([...selectedShapes, ...allGroupedShapeIds])];
+              
+              console.log('🔺 BRING TO FRONT - Including all grouped shapes:', {
+                originalSelection: selectedShapes,
+                groupIds: Array.from(groupIds),
+                finalSelection: shapeIdsToBring,
+              });
+            }
+            
+            await batchBringToFront(shapeIdsToBring);
             toast.success('Brought to front', {
               duration: 1000,
               position: 'top-center',
@@ -556,7 +680,32 @@ export default function Canvas() {
         e.preventDefault();
         if (selectedShapes.length > 0) {
           try {
-            await batchSendToBack(selectedShapes);
+            // Check if any selected shapes are in a group
+            const selectedShapeObjects = shapes.filter(s => selectedShapes.includes(s.id));
+            const hasGroupedShapes = selectedShapeObjects.some(s => s.groupId);
+            
+            let shapeIdsToSend = [...selectedShapes];
+            
+            // If any selected shape is in a group, make sure ALL shapes in that group are included
+            if (hasGroupedShapes) {
+              const groupIds = new Set(selectedShapeObjects.filter(s => s.groupId).map(s => s.groupId));
+              
+              // Find all shapes that belong to any of these groups
+              const allGroupedShapeIds = shapes
+                .filter(s => s.groupId && groupIds.has(s.groupId))
+                .map(s => s.id);
+              
+              // Merge with selected shapes (remove duplicates)
+              shapeIdsToSend = [...new Set([...selectedShapes, ...allGroupedShapeIds])];
+              
+              console.log('🔻 SEND TO BACK - Including all grouped shapes:', {
+                originalSelection: selectedShapes,
+                groupIds: Array.from(groupIds),
+                finalSelection: shapeIdsToSend,
+              });
+            }
+            
+            await batchSendToBack(shapeIdsToSend);
             toast.success('Sent to back', {
               duration: 1000,
               position: 'top-center',
@@ -756,7 +905,9 @@ export default function Canvas() {
     batchSendToBack,
     setStageScale,
     setStagePosition,
-    setSelectedShapes
+    setSelectedShapes,
+    lastClickedShapeId,
+    setLastClickedShapeId
   ]);
 
   // Helper: Deselect shape and unlock
@@ -789,6 +940,15 @@ export default function Canvas() {
         shapeId,
         lockedBy: selectionLockStatus.username,
       });
+      return;
+    }
+
+    // IMPORTANT: Check if clicking on a shape that's already part of a multi-selection FIRST
+    // This prevents the group selection logic from overwriting a "select all" operation
+    if (selectedShapes.includes(shapeId) && selectedShapes.length > 1 && !event?.shiftKey) {
+      console.log('🔵 Clicked on multi-selected shape, keeping multi-selection for drag');
+      // Track which shape was actually clicked
+      setLastClickedShapeId(shapeId);
       return;
     }
 
@@ -870,13 +1030,6 @@ export default function Canvas() {
     // Single select mode (no Shift)
     // If clicking on already selected shape, do nothing
     if (selectedShapeId === shapeId) {
-      return;
-    }
-
-    // If clicking on a shape that's part of a multi-selection, keep the multi-selection
-    // (This allows dragging multi-selected shapes)
-    if (selectedShapes.includes(shapeId) && selectedShapes.length > 1) {
-      console.log('🔵 Clicked on multi-selected shape, keeping multi-selection for drag');
       return;
     }
 
@@ -1994,14 +2147,14 @@ export default function Canvas() {
       ref={containerRef}
       style={{
         ...styles.canvasContainer,
-        cursor: getCursorStyle(isDrawing, isPanning, activeTool),
+        cursor: getCursorStyle(isDrawing, isPanning, activeTool, isSpacePressed),
       }}
     >
       <Stage
         ref={stageRef}
         width={window.innerWidth - 70} // Account for tool palette
         height={window.innerHeight - 131} // Account for title bar, menu bar, color palette, status bar
-        draggable={activeTool === 'pan'} // Only allow dragging in pan mode
+        draggable={activeTool === 'pan' || isSpacePressed} // Allow dragging in pan mode OR when Space is pressed
         onWheel={handleWheel}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
@@ -2198,8 +2351,13 @@ export default function Canvas() {
 
     </div>
 
-    {/* Alignment Toolbar - shown when 2+ shapes selected - OUTSIDE overflow:hidden container */}
-    <AlignmentToolbar selectedShapes={selectedShapes} />
+    {/* Alignment Toolbar - shown when 2+ shapes selected and not minimized - OUTSIDE overflow:hidden container */}
+    {selectedShapes.length >= 2 && !isAlignmentToolbarMinimized && (
+      <AlignmentToolbar 
+        selectedShapes={selectedShapes}
+        onMinimize={() => setIsAlignmentToolbarMinimized(true)}
+      />
+    )}
     </>
   );
 }

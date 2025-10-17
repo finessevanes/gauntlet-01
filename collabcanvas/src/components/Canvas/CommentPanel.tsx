@@ -303,27 +303,45 @@ export function CommentPanel({
                 {/* Replies */}
                 {comment.replies && comment.replies.length > 0 && (
                   <div className="comment-replies">
-                    {comment.replies.map((reply, idx) => (
-                      <div key={idx} className="comment-reply">
-                        <div className="comment-header">
-                          <span className="comment-author">{reply.username}</span>
-                          <span className="comment-time">{formatTimestamp(reply.createdAt)}</span>
-                        </div>
-                        <div className="comment-text">{reply.text}</div>
-                        {/* Delete button for reply author */}
-                        {user && (user.uid === reply.userId) && (
-                          <div className="comment-actions">
-                            <button
-                              className="comment-action-btn comment-delete-btn"
-                              onClick={() => handleDeleteReply(comment.id, idx)}
-                              disabled={isSubmitting}
-                            >
-                              Delete
-                            </button>
+                    {comment.replies.map((reply, idx) => {
+                      // Check if this reply is new (unread) for the comment author
+                      // Don't show NEW badge for user's own replies
+                      const isNewReply = user && comment.userId === user.uid && reply.userId !== user.uid && (() => {
+                        if (!reply.createdAt) return false;
+                        
+                        const lastReadTimestamp = comment.replyReadStatus?.[user.uid];
+                        if (!lastReadTimestamp) return true; // Never read
+                        
+                        // Compare timestamps
+                        const lastReadMs = lastReadTimestamp.toMillis ? lastReadTimestamp.toMillis() : lastReadTimestamp.seconds * 1000;
+                        const replyMs = reply.createdAt.toMillis ? reply.createdAt.toMillis() : reply.createdAt.seconds * 1000;
+                        
+                        return replyMs > lastReadMs;
+                      })();
+                      
+                      return (
+                        <div key={idx} className="comment-reply">
+                          <div className="comment-header">
+                            <span className="comment-author">{reply.username}</span>
+                            <span className="comment-time">{formatTimestamp(reply.createdAt)}</span>
+                            {isNewReply && <span className="comment-new-badge">NEW</span>}
                           </div>
-                        )}
-                      </div>
-                    ))}
+                          <div className="comment-text">{reply.text}</div>
+                          {/* Delete button for reply author */}
+                          {user && (user.uid === reply.userId) && (
+                            <div className="comment-actions">
+                              <button
+                                className="comment-action-btn comment-delete-btn"
+                                onClick={() => handleDeleteReply(comment.id, idx)}
+                                disabled={isSubmitting}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -399,27 +417,45 @@ export function CommentPanel({
                 {/* Replies in resolved comments */}
                 {comment.replies && comment.replies.length > 0 && (
                   <div className="comment-replies">
-                    {comment.replies.map((reply, idx) => (
-                      <div key={idx} className="comment-reply">
-                        <div className="comment-header">
-                          <span className="comment-author">{reply.username}</span>
-                          <span className="comment-time">{formatTimestamp(reply.createdAt)}</span>
-                        </div>
-                        <div className="comment-text comment-text-resolved">{reply.text}</div>
-                        {/* Delete button for reply author */}
-                        {user && (user.uid === reply.userId) && (
-                          <div className="comment-actions">
-                            <button
-                              className="comment-action-btn comment-delete-btn"
-                              onClick={() => handleDeleteReply(comment.id, idx)}
-                              disabled={isSubmitting}
-                            >
-                              Delete
-                            </button>
+                    {comment.replies.map((reply, idx) => {
+                      // Check if this reply is new (unread) for the comment author (even in resolved comments)
+                      // Don't show NEW badge for user's own replies
+                      const isNewReply = user && comment.userId === user.uid && reply.userId !== user.uid && (() => {
+                        if (!reply.createdAt) return false;
+                        
+                        const lastReadTimestamp = comment.replyReadStatus?.[user.uid];
+                        if (!lastReadTimestamp) return true; // Never read
+                        
+                        // Compare timestamps
+                        const lastReadMs = lastReadTimestamp.toMillis ? lastReadTimestamp.toMillis() : lastReadTimestamp.seconds * 1000;
+                        const replyMs = reply.createdAt.toMillis ? reply.createdAt.toMillis() : reply.createdAt.seconds * 1000;
+                        
+                        return replyMs > lastReadMs;
+                      })();
+                      
+                      return (
+                        <div key={idx} className="comment-reply">
+                          <div className="comment-header">
+                            <span className="comment-author">{reply.username}</span>
+                            <span className="comment-time">{formatTimestamp(reply.createdAt)}</span>
+                            {isNewReply && <span className="comment-new-badge">NEW</span>}
                           </div>
-                        )}
-                      </div>
-                    ))}
+                          <div className="comment-text comment-text-resolved">{reply.text}</div>
+                          {/* Delete button for reply author */}
+                          {user && (user.uid === reply.userId) && (
+                            <div className="comment-actions">
+                              <button
+                                className="comment-action-btn comment-delete-btn"
+                                onClick={() => handleDeleteReply(comment.id, idx)}
+                                disabled={isSubmitting}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

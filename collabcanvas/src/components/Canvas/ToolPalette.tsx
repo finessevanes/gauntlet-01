@@ -288,14 +288,11 @@ export default function ToolPalette({
 
       {/* Add Comment Button - shown when single shape is selected */}
       {selectedShape && selectedShapes.length <= 1 && (
-        <div style={styles.shapeActionsSection}>
+        <div style={styles.fullWidthSection}>
           <button
             onClick={onAddComment}
             disabled={isChanging}
-            style={{
-              ...styles.actionButton,
-              width: '100%',
-            }}
+            style={styles.fullWidthButton}
             title="Add Comment to Shape"
           >
             <span style={{ fontSize: '20px' }}>💬</span>
@@ -789,6 +786,28 @@ const styles = {
     backgroundColor: '#e8e8e8',
     color: '#a0a0a0',
     cursor: 'not-allowed',
+  },
+  fullWidthSection: {
+    marginTop: '12px',
+    paddingTop: '12px',
+    borderTop: '1px solid #a0a0a0',
+    display: 'flex',
+    width: '100%',
+  },
+  fullWidthButton: {
+    width: '100%',
+    height: '40px',
+    backgroundColor: '#d8d8d8',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '16px',
+    padding: 0,
+    borderRadius: '3px',
+    boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
+    transition: 'none',
   },
 };
 

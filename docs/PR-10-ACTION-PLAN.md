@@ -266,6 +266,175 @@ async deleteComment(commentId: string, userId: string): Promise<void> {
 
 ---
 
+## PHASE 2: Reply Notifications (Future Task for Agent)
+
+This section provides a complete task list for implementing reply notifications. An AI agent can use these checkmarks to implement the feature systematically.
+
+### Overview
+Add visual notifications to alert users when they receive replies to their comments. A red pulsing badge appears on the comment indicator (💬) when there are unread replies.
+
+### Implementation Checklist
+
+#### 1. Update Data Model
+**File:** `collabcanvas/src/services/canvasService.ts`
+
+- [ ] Update `CommentData` interface to add:
+  - `replyReadStatus: Record<string, Timestamp>` - Map of userId to last read timestamp
+  - `lastReplyAt: Timestamp | null` - Timestamp of most recent reply
+- [ ] Modify `addComment()` to initialize new fields: `replyReadStatus: {}`, `lastReplyAt: null`
+- [ ] Modify `addReply()` to update `lastReplyAt: FirestoreTimestamp.now()` when adding a reply
+- [ ] Add new method `markRepliesAsRead(commentId: string, userId: string)` to update `replyReadStatus[userId]` with current timestamp
+- [ ] Add backward compatibility in `subscribeToComments()` and `getCommentsByShapeId()` - default missing fields to `{}` and `null`
+
+#### 2. Update Context
+**File:** `collabcanvas/src/contexts/CanvasContext.tsx`
+
+- [ ] Add `markRepliesAsRead` to context interface
+- [ ] Implement `markRepliesAsRead` wrapper function calling `canvasService.markRepliesAsRead()`
+- [ ] Export `markRepliesAsRead` in context value
+
+#### 3. Enhance ShapeCommentIndicator Component
+**File:** `collabcanvas/src/components/Canvas/ShapeCommentIndicator.tsx`
+
+- [ ] Add props: `comments: CommentData[]` and `currentUserId: string`
+- [ ] Calculate `hasUnreadReplies` by:
+  - Filtering comments where `comment.userId === currentUserId` (user is author)
+  - Checking if `lastReplyAt` exists and is after `replyReadStatus[currentUserId]`
+  - Excluding comments where user is replying to themselves
+- [ ] Render red notification badge when `hasUnreadReplies === true`
+- [ ] Update tooltip to show "(new replies)" when unread
+
+**File:** `collabcanvas/src/components/Canvas/ShapeCommentIndicator.css`
+
+- [ ] Add `.comment-notification-badge` styles:
+  - Position absolute, top: -4px, right: -4px
+  - Red circle (8px × 8px)
+  - White border
+  - Pulsing animation (2s infinite cycle)
+
+#### 4. Enhance CommentPanel Component
+**File:** `collabcanvas/src/components/Canvas/CommentPanel.tsx`
+
+- [ ] For each reply, calculate if it's unread:
+  - Check if reply is NOT from current user (no self-notification)
+  - Compare reply's `createdAt` with comment's `replyReadStatus[currentUserId]`
+  - If `createdAt > replyReadStatus`, reply is unread
+- [ ] Render red "NEW" badge next to unread replies
+- [ ] Apply logic to both active and resolved comments
+
+**File:** `collabcanvas/src/components/Canvas/CommentPanel.css`
+
+- [ ] Add `.comment-new-badge` styles:
+  - Red background, white text
+  - Font size: 9px
+  - Padding: 2px 6px
+  - Pulsing animation (1.5s, 3 cycles only)
+  - Drop shadow for visibility
+
+#### 5. Update Canvas Component
+**File:** `collabcanvas/src/components/Canvas/Canvas.tsx`
+
+- [ ] Import `markRepliesAsRead` from canvas context
+- [ ] Update `handleCommentIndicatorClick()` to NOT mark as read when opening (keep NEW badges visible)
+- [ ] Make `handleCommentPanelClose()` async
+- [ ] In `handleCommentPanelClose()`, mark replies as read for all user's comments on that shape:
+  - Filter comments by `shapeId` and `userId === currentUserId`
+  - Call `markRepliesAsRead(commentId, currentUserId)` for each
+  - Wrap in try-catch (non-blocking operation)
+- [ ] Update `ShapeCommentIndicator` usage to pass `comments` array and `currentUserId`
+- [ ] Mark replies as read when user adds a comment or reply (engagement = read)
+
+#### 6. Testing Scenarios
+
+**Basic Notification Flow:**
+- [ ] User A creates comment on shape
+- [ ] User B adds reply
+- [ ] Verify User A sees red pulsing dot on 💬 indicator
+- [ ] User A opens panel → verify NEW badge appears on reply
+- [ ] User A closes panel → verify red dot disappears
+- [ ] User A reopens panel → verify no red dot, no NEW badge (marked as read)
+
+**Multiple Replies:**
+- [ ] User B adds multiple replies in succession
+- [ ] Verify only one red dot appears (not multiple)
+- [ ] Verify all unread replies show NEW badge when opened
+- [ ] Verify previously read replies don't show NEW badge
+
+**Multiple Shapes:**
+- [ ] Create 3 shapes with comments
+- [ ] Add replies to 2 of them
+- [ ] Verify red dots appear only on shapes with new replies
+- [ ] Opening one panel doesn't clear dots on other shapes
+
+**Authorization:**
+- [ ] User C replies to User A's comment
+- [ ] Verify User A sees notification (comment author)
+- [ ] Verify User B does NOT see notification (not comment author)
+- [ ] Verify User C does NOT see notification on their own reply (no self-notification)
+
+**Resolved Comments:**
+- [ ] Add reply to comment, then resolve it
+- [ ] Verify NEW badge shows in resolved section
+- [ ] Verify marking as read works for resolved comments
+
+**Backward Compatibility:**
+- [ ] Test with existing comments (without new fields)
+- [ ] Verify no console errors
+- [ ] Verify adding reply to old comment creates notification
+
+**Performance:**
+- [ ] Notification appears within 1-2 seconds after reply
+- [ ] No lag when opening/closing comment panel
+- [ ] Mark as read is non-blocking (errors don't break UI)
+
+### User Flow Reference
+
+```
+1. User A creates comment on shape
+2. User B replies to comment
+3. User A sees: 💬1 🔴 (red pulsing dot)
+4. User A clicks indicator → panel opens
+5. Panel shows reply with [🔴 NEW] badge (pulsing 3 times)
+6. User A closes panel → replies marked as read
+7. Red dot disappears, NEW badges won't show again
+8. If User B adds another reply → red dot reappears
+```
+
+### Key Implementation Notes
+
+- Red dot remains visible WHILE panel is open (indicates "viewing new content")
+- NEW badges stay visible until panel is closed (not marked as read until action)
+- Users NEVER see NEW on their own replies (no self-notification)
+- Timestamp comparison uses `.toMillis()` for accuracy
+- Firestore update is non-blocking (errors logged, not thrown)
+- Backward compatible with existing comments (default to empty/null)
+
+### Database Structure Reference
+
+```typescript
+canvases/main/comments/{commentId} {
+  // ... existing fields ...
+  replyReadStatus: {
+    "user-a-id": Timestamp,  // When User A last read replies
+    "user-b-id": Timestamp   // When User B last read replies
+  },
+  lastReplyAt: Timestamp     // When most recent reply was added
+}
+```
+
+### Success Criteria
+
+- [ ] Red dot badge appears on comment indicator when user receives replies
+- [ ] NEW badge appears on individual unread replies in panel
+- [ ] Both badges pulse to draw attention
+- [ ] Badges disappear after user closes panel
+- [ ] No self-notifications (users don't see NEW on own replies)
+- [ ] Works with multiple shapes, users, and replies
+- [ ] Backward compatible with existing comments
+- [ ] No performance issues or console errors
+
+---
+
 ## Implementation Summary
 
 **Implementation Date:** October 17, 2025  

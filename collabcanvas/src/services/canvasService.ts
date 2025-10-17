@@ -72,6 +72,10 @@ export interface CommentData {
   createdAt: Timestamp | null;
   resolved: boolean;
   replies: CommentReply[];
+  // Track which users have read the replies (userId => last read timestamp)
+  replyReadStatus: Record<string, Timestamp>;
+  // Track the last reply timestamp for quick comparison
+  lastReplyAt: Timestamp | null;
 }
 
 export type ShapeCreateInput = Omit<ShapeData, 'id' | 'createdAt' | 'updatedAt' | 'lockedBy' | 'lockedAt' | 'groupId' | 'zIndex'> & {
@@ -1712,6 +1716,8 @@ class CanvasService {
         createdAt: serverTimestamp() as Timestamp,
         resolved: false,
         replies: [],
+        replyReadStatus: {},
+        lastReplyAt: null,
       };
 
       const commentRef = doc(firestore, this.commentsCollectionPath, commentId);
@@ -1747,14 +1753,41 @@ class CanvasService {
       };
 
       // Use arrayUnion to properly append to the replies array
+      // Also update lastReplyAt to track when the last reply was added
       await updateDoc(commentRef, {
         replies: arrayUnion(newReply),
+        lastReplyAt: FirestoreTimestamp.now(),
       });
 
       console.log(`✅ Reply added to comment: ${commentId}`);
     } catch (error) {
       console.error('❌ Error adding reply:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Mark replies as read for a specific user
+   */
+  async markRepliesAsRead(commentId: string, userId: string): Promise<void> {
+    try {
+      const commentRef = doc(firestore, this.commentsCollectionPath, commentId);
+      const commentSnap = await getDoc(commentRef);
+      
+      if (!commentSnap.exists()) {
+        console.warn('⚠️ Comment not found:', commentId);
+        return;
+      }
+
+      // Update the replyReadStatus to mark this timestamp as read for this user
+      await updateDoc(commentRef, {
+        [`replyReadStatus.${userId}`]: FirestoreTimestamp.now(),
+      });
+
+      console.log(`✅ Replies marked as read for user ${userId} on comment ${commentId}`);
+    } catch (error) {
+      console.error('❌ Error marking replies as read:', error);
+      // Don't throw - this is a non-critical operation
     }
   }
 
@@ -1873,9 +1906,13 @@ class CanvasService {
           const comments: CommentData[] = [];
           
           snapshot.forEach((doc) => {
+            const data = doc.data();
+            // Ensure new fields exist with default values for backward compatibility
             comments.push({
               id: doc.id,
-              ...doc.data(),
+              ...data,
+              replyReadStatus: data.replyReadStatus || {},
+              lastReplyAt: data.lastReplyAt || null,
             } as CommentData);
           });
 
@@ -1904,9 +1941,12 @@ class CanvasService {
 
       const comments: CommentData[] = [];
       snapshot.forEach((doc) => {
+        const data = doc.data();
         const comment = {
           id: doc.id,
-          ...doc.data(),
+          ...data,
+          replyReadStatus: data.replyReadStatus || {},
+          lastReplyAt: data.lastReplyAt || null,
         } as CommentData;
         
         if (comment.shapeId === shapeId) {

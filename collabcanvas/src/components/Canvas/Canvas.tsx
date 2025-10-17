@@ -88,7 +88,6 @@ export default function Canvas() {
     editingTextId,
     enterEdit,
     saveText,
-    cancelEdit
   } = useCanvasContext();
   
   const stageRef = useRef<Konva.Stage>(null);
@@ -152,13 +151,6 @@ export default function Canvas() {
       setEditingTextDimensions(null); // Reset dimensions
     }
     enterEdit(shapeId);
-  };
-  
-  // Reset editing text content when canceling edit mode
-  const handleCancelEdit = () => {
-    setEditingTextContent('');
-    setEditingTextDimensions(null);
-    cancelEdit();
   };
   
   // Handle saving text and reset editing content

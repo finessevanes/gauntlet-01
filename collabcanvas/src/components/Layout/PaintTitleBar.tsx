@@ -71,14 +71,18 @@ export default function PaintTitleBar() {
         <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
           {/* Modal Title Bar */}
           <div style={styles.modalTitleBar}>
+            <div style={styles.modalWindowControls}>
+              <div 
+                onClick={() => setShowShortcutsModal(false)}
+                style={styles.windowButtonRed}
+                className="modal-close-button"
+                title="Close"
+              />
+              <div style={styles.windowButtonYellow} />
+              <div style={styles.windowButtonGreen} />
+            </div>
             <span style={styles.modalTitle}>Keyboard Shortcuts</span>
-            <button 
-              onClick={() => setShowShortcutsModal(false)}
-              style={styles.closeButton}
-              title="Close"
-            >
-              ✕
-            </button>
+            <div style={styles.modalTitleSpacer} />
           </div>
 
           {/* Modal Content */}
@@ -119,6 +123,10 @@ export default function PaintTitleBar() {
                 <div style={styles.shortcutRow}>
                   <span style={styles.shortcutName}>Copy</span>
                   <span style={styles.shortcutKey}>⌘C</span>
+                </div>
+                <div style={styles.shortcutRow}>
+                  <span style={styles.shortcutName}>Paste</span>
+                  <span style={styles.shortcutKey}>⌘V</span>
                 </div>
                 <div style={styles.shortcutRow}>
                   <span style={styles.shortcutName}>Group Shapes</span>
@@ -269,110 +277,146 @@ const styles = {
     justifyContent: 'center',
     zIndex: 10000,
     backdropFilter: 'blur(2px)',
+    animation: 'fadeIn 0.15s ease-out',
   },
   modal: {
     backgroundColor: '#f0f0f0',
-    border: '2px solid #0078d7',
-    borderRadius: '4px',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-    maxWidth: '700px',
+    border: '3px solid #0078d7',
+    borderRadius: '0',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 1px 1px 0 rgba(255, 255, 255, 0.3)',
+    maxWidth: '750px',
     width: '90%',
-    maxHeight: '80vh',
+    maxHeight: '85vh',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column' as const,
+    animation: 'slideIn 0.2s ease-out',
   },
   modalTitleBar: {
-    background: 'linear-gradient(to bottom, #0078d7 0%, #0066c0 100%)',
-    padding: '8px 12px',
+    background: 'linear-gradient(to bottom, #2c5fa8 0%, #1e4785 100%)',
+    padding: '6px 8px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    borderBottom: '1px solid #003d7a',
+  },
+  modalWindowControls: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center',
+    minWidth: '60px',
+  },
+  windowButtonRed: {
+    width: '12px',
+    height: '12px',
+    borderRadius: '50%',
+    backgroundColor: '#ff5f56',
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'all 0.1s',
+  },
+  windowButtonYellow: {
+    width: '12px',
+    height: '12px',
+    borderRadius: '50%',
+    backgroundColor: '#ffbd2e',
+    border: 'none',
+  },
+  windowButtonGreen: {
+    width: '12px',
+    height: '12px',
+    borderRadius: '50%',
+    backgroundColor: '#27c93f',
+    border: 'none',
   },
   modalTitle: {
+    position: 'absolute' as const,
+    left: '50%',
+    transform: 'translateX(-50%)',
     color: '#ffffff',
     fontSize: '13px',
     fontWeight: 'bold' as const,
     fontFamily: 'system-ui, -apple-system, sans-serif',
+    letterSpacing: '0.3px',
   },
-  closeButton: {
-    background: 'transparent',
-    border: 'none',
-    color: '#ffffff',
-    fontSize: '18px',
-    cursor: 'pointer',
-    width: '24px',
-    height: '24px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: '3px',
-    transition: 'background-color 0.15s',
+  modalTitleSpacer: {
+    minWidth: '60px',
   },
   modalContent: {
     padding: '20px',
     overflowY: 'auto' as const,
     backgroundColor: '#ffffff',
+    border: '1px solid #dfdfdf',
+    borderTop: 'none',
   },
   shortcutsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: '20px',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+    gap: '18px',
     marginBottom: '16px',
   },
   shortcutSection: {
-    backgroundColor: '#f8f8f8',
-    padding: '12px',
-    borderRadius: '4px',
-    border: '1px solid #e0e0e0',
+    backgroundColor: '#f8f9fa',
+    padding: '14px',
+    borderRadius: '0',
+    border: '2px solid #d0d0d0',
+    boxShadow: 'inset 1px 1px 0 rgba(255, 255, 255, 0.8), 1px 1px 2px rgba(0, 0, 0, 0.1)',
   },
   sectionTitle: {
     fontSize: '13px',
     fontWeight: 'bold' as const,
-    color: '#0078d7',
-    marginBottom: '12px',
+    color: '#1e4785',
+    marginBottom: '10px',
     marginTop: 0,
     fontFamily: 'system-ui, -apple-system, sans-serif',
-    borderBottom: '2px solid #0078d7',
-    paddingBottom: '6px',
+    borderBottom: '2px solid #2c5fa8',
+    paddingBottom: '5px',
+    letterSpacing: '0.3px',
   },
   shortcutRow: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '6px 8px',
-    marginBottom: '4px',
+    padding: '7px 10px',
+    marginBottom: '5px',
     backgroundColor: '#ffffff',
-    borderRadius: '3px',
-    border: '1px solid #e8e8e8',
+    borderRadius: '0',
+    border: '1px solid #d0d0d0',
+    boxShadow: 'inset 1px 1px 0 rgba(0, 0, 0, 0.05)',
   },
   shortcutName: {
     fontSize: '12px',
-    color: '#333333',
+    color: '#2d2d2d',
     fontFamily: 'system-ui, -apple-system, sans-serif',
+    fontWeight: '500' as const,
   },
   shortcutKey: {
     fontSize: '12px',
     fontWeight: 'bold' as const,
-    color: '#0078d7',
+    color: '#1e4785',
     fontFamily: 'SF Mono, Monaco, Consolas, monospace',
-    backgroundColor: '#f0f0f0',
-    padding: '4px 8px',
-    borderRadius: '4px',
-    border: '1px solid #d0d0d0',
-    boxShadow: '0 2px 0 #d0d0d0',
+    backgroundColor: '#f4f4f4',
+    padding: '4px 10px',
+    borderRadius: '0',
+    border: '1px solid #a8a8a8',
+    boxShadow: '0 2px 0 #a8a8a8, inset 1px 1px 0 rgba(255, 255, 255, 0.8)',
+    letterSpacing: '0.5px',
   },
   modalFooter: {
-    marginTop: '12px',
-    paddingTop: '12px',
-    borderTop: '1px solid #e0e0e0',
+    marginTop: '14px',
+    paddingTop: '14px',
+    borderTop: '2px solid #d0d0d0',
+    backgroundColor: '#f8f9fa',
+    padding: '12px 16px',
+    margin: '-20px -20px 0 -20px',
   },
   footerText: {
     fontSize: '11px',
-    color: '#666666',
+    color: '#555555',
     margin: 0,
     textAlign: 'center' as const,
     fontFamily: 'system-ui, -apple-system, sans-serif',
+    fontWeight: '500' as const,
   },
 };
 

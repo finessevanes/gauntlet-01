@@ -65,6 +65,7 @@ export default function Canvas() {
     editingTextId,
     setEditingTextId,
     shapesLoading,
+    clipboard,
     setClipboard,
     groupShapes,
     ungroupShapes,
@@ -328,6 +329,96 @@ export default function Canvas() {
             });
             console.log('✅ Copied shape to clipboard:', shapeToCopy);
           }
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + V - Paste from clipboard
+      if (cmdKey && e.key === 'v') {
+        e.preventDefault();
+        if (!clipboard || clipboard.length === 0) {
+          console.log('⚠️ Nothing to paste - clipboard is empty');
+          return;
+        }
+
+        console.log('📋 PASTE - Pasting', clipboard.length, 'shapes from clipboard');
+        
+        const PASTE_OFFSET = 20; // Offset pasted shapes by 20px so they don't overlap
+        
+        try {
+          // Create duplicates of all clipboard shapes with offset
+          const pastePromises = clipboard.map(async (shape) => {
+            // Calculate new position with offset and clamp to canvas
+            const newX = Math.min(shape.x + PASTE_OFFSET, CANVAS_WIDTH - (shape.width || 0));
+            const newY = Math.min(shape.y + PASTE_OFFSET, CANVAS_HEIGHT - (shape.height || 0));
+            
+            // Build the shape data for creation
+            if (shape.type === 'rectangle') {
+              return await createShape({
+                type: 'rectangle',
+                x: newX,
+                y: newY,
+                width: shape.width,
+                height: shape.height,
+                color: shape.color,
+                rotation: shape.rotation || 0,
+                createdBy: user.uid,
+              });
+            } else if (shape.type === 'circle') {
+              return await createCircle({
+                x: newX,
+                y: newY,
+                radius: shape.radius || 50,
+                color: shape.color,
+                createdBy: user.uid,
+              });
+            } else if (shape.type === 'triangle') {
+              return await createTriangle({
+                x: newX,
+                y: newY,
+                width: shape.width,
+                height: shape.height,
+                color: shape.color,
+                createdBy: user.uid,
+              });
+            } else if (shape.type === 'text') {
+              return await createText(
+                shape.text || 'Text',
+                newX,
+                newY,
+                shape.color,
+                user.uid,
+                {
+                  width: shape.width,
+                  height: shape.height,
+                  fontSize: shape.fontSize || 16,
+                  rotation: shape.rotation || 0,
+                }
+              );
+            }
+          });
+          
+          const newShapeIds = await Promise.all(pastePromises);
+          
+          console.log('✅ PASTE SUCCESS - All', clipboard.length, 'shapes pasted');
+          console.log('   New shape IDs:', newShapeIds);
+          
+          // Clear any existing selection and select the newly pasted shapes
+          if (selectedShapeId) {
+            await handleDeselectShape();
+          }
+          setSelectedShapes(newShapeIds.filter(Boolean) as string[]);
+          
+          toast.success(`Pasted ${clipboard.length} shape${clipboard.length > 1 ? 's' : ''}`, {
+            duration: 1500,
+            position: 'top-center',
+          });
+        } catch (error) {
+          console.error('❌ PASTE ERROR - Failed to paste shapes:', error);
+          toast.error('Failed to paste shapes', {
+            duration: 2000,
+            position: 'top-center',
+          });
         }
         return;
       }
@@ -645,7 +736,12 @@ export default function Canvas() {
     deleteShape, 
     duplicateShape,
     shapes,
+    clipboard,
     setClipboard,
+    createShape,
+    createCircle,
+    createTriangle,
+    createText,
     groupShapes,
     ungroupShapes,
     batchUpdateShapes,

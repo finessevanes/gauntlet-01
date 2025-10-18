@@ -562,10 +562,10 @@ class CanvasService {
       const calculatedWidth = textDimensions.width + padding * 2;
       const calculatedHeight = textDimensions.height + padding * 2;
       
-      // Position text so it appears just above the cursor
-      // This feels more natural than having cursor in the middle of text
-      const offsetX = textData.x; // Align with cursor horizontally
-      const offsetY = textData.y - calculatedHeight + 10; // Position above cursor (text bottom near cursor top)
+      // For AI-created text, use exact coordinates without offset
+      // For manual text creation, we would apply offset, but AI provides precise positioning
+      const offsetX = textData.x; // Use exact x coordinate from AI
+      const offsetY = textData.y; // Use exact y coordinate from AI
       
       const shapeData: Omit<ShapeData, 'id'> = {
         type: 'text',

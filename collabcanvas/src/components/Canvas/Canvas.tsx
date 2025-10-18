@@ -274,35 +274,17 @@ export default function Canvas() {
     return () => window.removeEventListener('openCommentPanel', handleOpenCommentPanel);
   }, []);
 
-  // Space key handler for temporary panning
+
+  // Combined keyboard handler for space bar and all shortcuts
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Enable panning when Space is pressed
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      // Space key handling for panning
       if (e.key === ' ') {
         e.preventDefault(); // Prevent page scrolling
         setIsSpacePressed(true);
+        return; // Don't process other shortcuts when space is pressed
       }
-    };
 
-    const handleKeyUp = (e: KeyboardEvent) => {
-      // Disable panning when Space is released
-      if (e.key === ' ') {
-        setIsSpacePressed(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, []);
-
-  // Keyboard shortcuts for delete, duplicate, and clear selection
-  useEffect(() => {
-    const handleKeyDown = async (e: KeyboardEvent) => {
       // Debug: Log all keydown events to diagnose issues
       if (e.key === 'Delete' || e.key === 'Backspace') {
         console.log('🔑 DELETE KEY PRESSED', {
@@ -482,8 +464,34 @@ export default function Canvas() {
                 color: shape.color,
                 createdBy: user.uid,
               });
+            } else if (shape.type === 'text') {
+              // Handle text shapes with proper undefined filtering
+              const textShapeData: any = {
+                type: 'text',
+                x: newX,
+                y: newY,
+                width: shape.width,
+                height: shape.height,
+                color: shape.color,
+                rotation: shape.rotation || 0,
+                text: shape.text,
+                fontSize: shape.fontSize,
+                createdBy: user.uid,
+              };
+              
+              // Only add font properties if they are defined
+              if (shape.fontWeight !== undefined) {
+                textShapeData.fontWeight = shape.fontWeight;
+              }
+              if (shape.fontStyle !== undefined) {
+                textShapeData.fontStyle = shape.fontStyle;
+              }
+              if (shape.textDecoration !== undefined) {
+                textShapeData.textDecoration = shape.textDecoration;
+              }
+              
+              return await createText(textShapeData);
             }
-            // Text shapes are not supported in this version
             return null;
           });
           
@@ -514,6 +522,11 @@ export default function Canvas() {
 
       // Arrow keys - Nudge shapes (10px default, 1px with Shift)
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        // Don't intercept arrow keys if user is typing in an input field
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) {
+          return;
+        }
+        
         e.preventDefault();
         
         const NUDGE_AMOUNT = 10;
@@ -795,6 +808,12 @@ export default function Canvas() {
 
       // Delete key - batch delete or single delete
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Don't delete shapes if user is typing in an input field
+        const activeElement = document.activeElement;
+        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+          return; // Let the input handle the key
+        }
+        
         e.preventDefault();
         
         // Check if we have multiple shapes selected
@@ -910,10 +929,19 @@ export default function Canvas() {
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      // Disable panning when Space is released
+      if (e.key === ' ') {
+        setIsSpacePressed(false);
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
     
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
     };
   }, [
     selectedShapeId, 
@@ -922,40 +950,24 @@ export default function Canvas() {
     isMarqueeActive,
     openCommentPanelShapeId,
     editingTextId,
-    deleteShape, 
-    duplicateShape,
     shapes,
     clipboard,
-    setClipboard,
-    createShape,
-    createCircle,
-    createTriangle,
-    groupShapes,
-    ungroupShapes,
-    batchUpdateShapes,
-    updateShape,
-    bringForward,
-    sendBackward,
-    bringToFront,
-    sendToBack,
-    batchBringForward,
-    batchSendBackward,
-    batchBringToFront,
-    batchSendToBack,
-    setStageScale,
-    setStagePosition,
-    setSelectedShapes,
-    lastClickedShapeId,
-    setLastClickedShapeId
+    lastClickedShapeId
   ]);
 
   // Helper: Deselect shape and unlock
   const handleDeselectShape = async () => {
     if (selectedShapeId) {
-      try {
-        await unlockShape(selectedShapeId);
-      } catch (error) {
-        console.error('Failed to unlock shape:', error);
+      // Check if the shape still exists before trying to unlock it
+      const shapeStillExists = shapes.find(s => s.id === selectedShapeId);
+      if (shapeStillExists) {
+        try {
+          await unlockShape(selectedShapeId);
+        } catch (error) {
+          console.error('Failed to unlock shape:', error);
+        }
+      } else {
+        console.log('⚠️ Shape no longer exists, skipping unlock:', selectedShapeId);
       }
       
       setSelectedShapeId(null);
@@ -2181,6 +2193,20 @@ export default function Canvas() {
       shapeY = shape.y - shape.radius;
       shapeWidth = shape.radius * 2;
       shapeHeight = shape.radius * 2;
+    } else if (shape.type === 'text') {
+      // For text shapes, use dynamic dimension calculation to match CanvasShape.tsx
+      const textContent = shape.text || '';
+      const textFontSize = shape.fontSize || 16;
+      const fontWeight = shape.fontWeight || 'normal';
+      
+      // Use the same text dimension calculation as CanvasShape.tsx
+      const textDimensions = calculateTextDimensions(textContent, textFontSize, fontWeight);
+      const padding = 4;
+      
+      shapeX = shape.x;
+      shapeY = shape.y;
+      shapeWidth = textDimensions.width + padding * 2;
+      shapeHeight = textDimensions.height + padding * 2;
     }
 
     // Apply stage transforms

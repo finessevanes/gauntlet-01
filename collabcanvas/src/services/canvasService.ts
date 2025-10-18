@@ -670,10 +670,18 @@ class CanvasService {
       
       if (originalShape.type === 'text') {
         newShapeInput.text = originalShape.text;
-        newShapeInput.fontSize = originalShape.fontSize;
-        newShapeInput.fontWeight = originalShape.fontWeight;
-        newShapeInput.fontStyle = originalShape.fontStyle;
-        newShapeInput.textDecoration = originalShape.textDecoration;
+        if (originalShape.fontSize !== undefined) {
+          newShapeInput.fontSize = originalShape.fontSize;
+        }
+        if (originalShape.fontWeight !== undefined) {
+          newShapeInput.fontWeight = originalShape.fontWeight;
+        }
+        if (originalShape.fontStyle !== undefined) {
+          newShapeInput.fontStyle = originalShape.fontStyle;
+        }
+        if (originalShape.textDecoration !== undefined) {
+          newShapeInput.textDecoration = originalShape.textDecoration;
+        }
       }
 
       const newShapeId = await this.createShape(newShapeInput);

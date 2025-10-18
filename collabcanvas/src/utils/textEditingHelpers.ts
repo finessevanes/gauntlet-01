@@ -105,8 +105,15 @@ export const calculateTextDimensions = (
     textWidth = text.length * baseCharWidth * boldMultiplier;
   }
   
-  // Height calculation - use font size for more accurate text height
-  const lineHeight = fontSize; // Use font size as text height for better centering
+  // Height calculation - use actual text metrics for accurate height
+  let lineHeight = fontSize * 1.2; // Use 1.2 line height multiplier for better text rendering
+  
+  if (context) {
+    // Get actual text metrics for more accurate height
+    const metrics = context.measureText(text);
+    // Use the font size as the baseline height, but account for descenders
+    lineHeight = Math.max(fontSize, fontSize * 1.2);
+  }
   
   // Use actual measured width, with minimal padding
   const minWidth = Math.max(textWidth, fontSize * 0.3);

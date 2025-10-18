@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useCanvasContext } from '../../contexts/CanvasContext';
 import type { ShapeData } from '../../services/canvasService';
 
@@ -62,6 +62,8 @@ export default function ToolPalette({
   } = useCanvasContext();
   
   const [isChanging, setIsChanging] = useState(false);
+  const [localFontSize, setLocalFontSize] = useState<number | null>(null);
+  const [lastSavedFontSize, setLastSavedFontSize] = useState<number>(16);
 
   const tools: Tool[] = [
     { id: 'select', icon: '➤', name: 'Select / Move Objects', active: activeTool === 'select' },
@@ -115,21 +117,66 @@ export default function ToolPalette({
     }
   };
 
-  const handleFontSizeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFontSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Update local state to allow continuous typing without losing focus
+    const value = e.target.value;
+    if (value === '') {
+      setLocalFontSize(null);
+    } else {
+      const size = parseInt(value, 10);
+      if (!isNaN(size)) {
+        setLocalFontSize(size);
+      }
+    }
+  };
+
+  const handleFontSizeBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
     if (!onChangeFontSize || textControlsDisabled || isChanging) return;
     const size = parseInt(e.target.value, 10);
     
     // Validate: must be a number between 1 and 500
     if (isNaN(size) || size < 1 || size > 500) {
+      // Reset to current font size if invalid
+      setLocalFontSize(null);
       return;
     }
     
     setIsChanging(true);
     try {
       await onChangeFontSize(size);
+      setLastSavedFontSize(size); // Save the last valid size
+      setLocalFontSize(null); // Reset local state after successful update
     } finally {
       setTimeout(() => setIsChanging(false), 100);
     }
+  };
+
+  const handleFontSizeKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow normal typing (backspace, delete, arrow keys, etc.)
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // Trigger the same logic as blur
+      const target = e.target as HTMLInputElement;
+      const size = parseInt(target.value, 10);
+      
+      if (!onChangeFontSize || textControlsDisabled || isChanging) return;
+      
+      // Validate: must be a number between 1 and 500
+      if (isNaN(size) || size < 1 || size > 500) {
+        setLocalFontSize(null);
+        return;
+      }
+      
+      setIsChanging(true);
+      try {
+        await onChangeFontSize(size);
+        setLastSavedFontSize(size); // Save the last valid size
+        setLocalFontSize(null);
+      } finally {
+        setTimeout(() => setIsChanging(false), 100);
+      }
+    }
+    // Don't prevent default for other keys (backspace, delete, etc.)
   };
 
   const handleFontSizeSelect = async (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -148,6 +195,7 @@ export default function ToolPalette({
     setIsChanging(true);
     try {
       await onChangeFontSize(size);
+      setLastSavedFontSize(size); // Save the last valid size
     } finally {
       setTimeout(() => setIsChanging(false), 100);
     }
@@ -163,12 +211,21 @@ export default function ToolPalette({
   const isUnderline = isTextSelected ? (selectedShape?.textDecoration === 'underline') : (textFormattingDefaults.textDecoration === 'underline');
   
   // Get current font size, ensuring it's a valid number
-  let currentFontSize = 16; // default
-  if (isTextSelected && selectedShape?.fontSize !== undefined) {
-    currentFontSize = selectedShape.fontSize;
-  } else if (isTextToolActive) {
-    currentFontSize = textFormattingDefaults.fontSize;
-  }
+  const currentFontSize = useMemo(() => {
+    if (isTextSelected && selectedShape?.fontSize !== undefined) {
+      return selectedShape.fontSize;
+    } else if (isTextToolActive) {
+      return textFormattingDefaults.fontSize;
+    }
+    return 16; // default
+  }, [isTextSelected, selectedShape?.fontSize, isTextToolActive, textFormattingDefaults.fontSize]);
+  
+  // Update last saved font size when current font size changes (e.g., when selecting different text)
+  useEffect(() => {
+    if (currentFontSize && currentFontSize !== lastSavedFontSize) {
+      setLastSavedFontSize(currentFontSize);
+    }
+  }, [currentFontSize, lastSavedFontSize]);
   
   // Debug: Log the selected shape data
   if (isTextSelected) {
@@ -505,8 +562,10 @@ export default function ToolPalette({
             {/* Large input field for current size and custom entry */}
             <input
               type="number"
-              value={currentFontSize}
+              value={localFontSize !== null ? localFontSize : currentFontSize}
               onChange={handleFontSizeChange}
+              onBlur={handleFontSizeBlur}
+              onKeyDown={handleFontSizeKeyDown}
               disabled={textControlsDisabled || isChanging}
               min={1}
               max={500}
@@ -515,7 +574,7 @@ export default function ToolPalette({
                 ...(textControlsDisabled ? styles.disabledInput : {}),
               }}
               title={isTextSelected ? "Type custom size (1-500px)" : (textControlsDisabled ? "Font size (select text first)" : "Font size (text tool active)")}
-              placeholder="16"
+              placeholder={currentFontSize.toString()}
             />
             {/* Dropdown for preset sizes */}
             <select

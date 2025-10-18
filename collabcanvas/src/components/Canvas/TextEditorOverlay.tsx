@@ -69,7 +69,7 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
         });
       }
     }
-  }, [text, fontSize, onDimensionsChange]);
+  }, [text, fontSize]); // Removed onDimensionsChange from dependencies to prevent infinite loop
 
   // Handle keyboard events
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -106,9 +106,20 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
   // The position passed in is the top-left of the text shape border
   // We need to account for padding and vertical centering
   const padding = 4; // Same padding as used in CanvasShape.tsx
+  
+  // Calculate text dimensions to properly center the input
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  let textHeight = fontSize * 1.2; // Default line height
+  
+  if (context) {
+    context.font = `${fontSize}px Arial, sans-serif`;
+    textHeight = Math.max(fontSize, fontSize * 1.2);
+  }
+  
   const finalPosition = {
     x: position.x + padding,
-    y: position.y + padding, // Start from top of border + padding
+    y: position.y + padding + (textHeight - fontSize) / 2, // Center vertically within border
   };
 
   // Style the input to match the text appearance

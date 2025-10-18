@@ -247,8 +247,9 @@ export default function CanvasShape({
         const padding = 4;
         
         // Calculate text height for proper vertical centering
-        // Use font size as the actual text height for more accurate centering
-        const textHeight = textFontSize; // Use font size as text height
+        // Use the actual text dimensions for accurate centering
+        const textDimensions = calculateTextDimensions(textContent, textFontSize, shape.fontWeight || 'normal');
+        const textHeight = textDimensions.height;
         const verticalCenter = currentHeight / 2;
         const textY = verticalCenter - textHeight / 2;
         

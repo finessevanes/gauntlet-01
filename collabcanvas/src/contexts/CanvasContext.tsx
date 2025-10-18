@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { DEFAULT_COLOR } from '../utils/constants';
 import { canvasService } from '../services/canvasService';
@@ -254,19 +254,19 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   }, [user, selectedShapes]);
 
   // Shape operations
-  const createShape = async (shapeInput: ShapeCreateInput): Promise<string> => {
+  const createShape = useCallback(async (shapeInput: ShapeCreateInput): Promise<string> => {
     return await canvasService.createShape(shapeInput);
-  };
+  }, []);
 
-  const createCircle = async (circleData: { x: number; y: number; radius: number; color: string; createdBy: string }): Promise<string> => {
+  const createCircle = useCallback(async (circleData: { x: number; y: number; radius: number; color: string; createdBy: string }): Promise<string> => {
     return await canvasService.createCircle(circleData);
-  };
+  }, []);
 
-  const createTriangle = async (triangleData: { x: number; y: number; width: number; height: number; color: string; createdBy: string }): Promise<string> => {
+  const createTriangle = useCallback(async (triangleData: { x: number; y: number; width: number; height: number; color: string; createdBy: string }): Promise<string> => {
     return await canvasService.createTriangle(triangleData);
-  };
+  }, []);
 
-  const createText = async (textData: { x: number; y: number; color: string; createdBy: string }): Promise<string> => {
+  const createText = useCallback(async (textData: { x: number; y: number; color: string; createdBy: string }): Promise<string> => {
     return await canvasService.createText({
       ...textData,
       fontSize: textFormattingDefaults.fontSize,
@@ -274,137 +274,137 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
       fontStyle: textFormattingDefaults.fontStyle,
       textDecoration: textFormattingDefaults.textDecoration,
     });
-  };
+  }, [textFormattingDefaults]);
 
-  const updateShape = async (shapeId: string, updates: Partial<ShapeData>): Promise<void> => {
+  const updateShape = useCallback(async (shapeId: string, updates: Partial<ShapeData>): Promise<void> => {
     return await canvasService.updateShape(shapeId, updates);
-  };
+  }, []);
 
-  const batchUpdateShapes = async (updates: Array<{ shapeId: string; updates: Partial<ShapeData> }>): Promise<void> => {
+  const batchUpdateShapes = useCallback(async (updates: Array<{ shapeId: string; updates: Partial<ShapeData> }>): Promise<void> => {
     return await canvasService.batchUpdateShapes(updates);
-  };
+  }, []);
 
-  const resizeShape = async (shapeId: string, width: number, height: number): Promise<void> => {
+  const resizeShape = useCallback(async (shapeId: string, width: number, height: number): Promise<void> => {
     return await canvasService.resizeShape(shapeId, width, height);
-  };
+  }, []);
 
-  const resizeCircle = async (shapeId: string, radius: number) => {
+  const resizeCircle = useCallback(async (shapeId: string, radius: number) => {
     return await canvasService.resizeCircle(shapeId, radius);
-  };
+  }, []);
 
-  const rotateShape = async (shapeId: string, rotation: number): Promise<void> => {
+  const rotateShape = useCallback(async (shapeId: string, rotation: number): Promise<void> => {
     return await canvasService.rotateShape(shapeId, rotation);
-  };
+  }, []);
 
-  const lockShape = async (shapeId: string, userId: string): Promise<{ success: boolean; lockedByUsername?: string }> => {
+  const lockShape = useCallback(async (shapeId: string, userId: string): Promise<{ success: boolean; lockedByUsername?: string }> => {
     return await canvasService.lockShape(shapeId, userId);
-  };
+  }, []);
 
-  const unlockShape = async (shapeId: string): Promise<void> => {
+  const unlockShape = useCallback(async (shapeId: string): Promise<void> => {
     return await canvasService.unlockShape(shapeId);
-  };
+  }, []);
 
-  const deleteShape = async (shapeId: string): Promise<void> => {
+  const deleteShape = useCallback(async (shapeId: string): Promise<void> => {
     return await canvasService.deleteShape(shapeId);
-  };
+  }, []);
 
-  const duplicateShape = async (shapeId: string, userId: string): Promise<string> => {
+  const duplicateShape = useCallback(async (shapeId: string, userId: string): Promise<string> => {
     return await canvasService.duplicateShape(shapeId, userId);
-  };
+  }, []);
 
-  const deleteAllShapes = async (): Promise<void> => {
+  const deleteAllShapes = useCallback(async (): Promise<void> => {
     return await canvasService.deleteAllShapes();
-  };
+  }, []);
 
   // Grouping operations
-  const groupShapes = async (shapeIds: string[], userId: string, name?: string): Promise<string> => {
+  const groupShapes = useCallback(async (shapeIds: string[], userId: string, name?: string): Promise<string> => {
     return await canvasService.groupShapes(shapeIds, userId, name);
-  };
+  }, []);
 
-  const ungroupShapes = async (groupId: string): Promise<void> => {
+  const ungroupShapes = useCallback(async (groupId: string): Promise<void> => {
     return await canvasService.ungroupShapes(groupId);
-  };
+  }, []);
 
   // Z-Index operations
-  const bringToFront = async (shapeId: string): Promise<void> => {
+  const bringToFront = useCallback(async (shapeId: string): Promise<void> => {
     return await canvasService.bringToFront(shapeId);
-  };
+  }, []);
 
-  const sendToBack = async (shapeId: string): Promise<void> => {
+  const sendToBack = useCallback(async (shapeId: string): Promise<void> => {
     return await canvasService.sendToBack(shapeId);
-  };
+  }, []);
 
-  const bringForward = async (shapeId: string): Promise<void> => {
+  const bringForward = useCallback(async (shapeId: string): Promise<void> => {
     return await canvasService.bringForward(shapeId);
-  };
+  }, []);
 
-  const sendBackward = async (shapeId: string): Promise<void> => {
+  const sendBackward = useCallback(async (shapeId: string): Promise<void> => {
     return await canvasService.sendBackward(shapeId);
-  };
+  }, []);
 
   // Batch Z-Index operations (for multi-selection)
-  const batchBringToFront = async (shapeIds: string[]): Promise<void> => {
+  const batchBringToFront = useCallback(async (shapeIds: string[]): Promise<void> => {
     return await canvasService.batchBringToFront(shapeIds);
-  };
+  }, []);
 
-  const batchSendToBack = async (shapeIds: string[]): Promise<void> => {
+  const batchSendToBack = useCallback(async (shapeIds: string[]): Promise<void> => {
     return await canvasService.batchSendToBack(shapeIds);
-  };
+  }, []);
 
-  const batchBringForward = async (shapeIds: string[]): Promise<void> => {
+  const batchBringForward = useCallback(async (shapeIds: string[]): Promise<void> => {
     return await canvasService.batchBringForward(shapeIds);
-  };
+  }, []);
 
-  const batchSendBackward = async (shapeIds: string[]): Promise<void> => {
+  const batchSendBackward = useCallback(async (shapeIds: string[]): Promise<void> => {
     return await canvasService.batchSendBackward(shapeIds);
-  };
+  }, []);
 
   // Alignment operations
-  const alignShapes = async (
+  const alignShapes = useCallback(async (
     shapeIds: string[],
     alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom'
   ): Promise<void> => {
     return await canvasService.alignShapes(shapeIds, alignment);
-  };
+  }, []);
 
-  const distributeShapes = async (
+  const distributeShapes = useCallback(async (
     shapeIds: string[],
     direction: 'horizontal' | 'vertical'
   ): Promise<void> => {
     return await canvasService.distributeShapes(shapeIds, direction);
-  };
+  }, []);
 
   // Comment operations
-  const addComment = async (shapeId: string, text: string, userId: string, username: string): Promise<string> => {
+  const addComment = useCallback(async (shapeId: string, text: string, userId: string, username: string): Promise<string> => {
     return await canvasService.addComment(shapeId, text, userId, username);
-  };
+  }, []);
 
-  const addReply = async (commentId: string, userId: string, username: string, text: string): Promise<void> => {
+  const addReply = useCallback(async (commentId: string, userId: string, username: string, text: string): Promise<void> => {
     return await canvasService.addReply(commentId, userId, username, text);
-  };
+  }, []);
 
-  const resolveComment = async (commentId: string, userId: string): Promise<void> => {
+  const resolveComment = useCallback(async (commentId: string, userId: string): Promise<void> => {
     return await canvasService.resolveComment(commentId, userId);
-  };
+  }, []);
 
-  const deleteComment = async (commentId: string, userId: string): Promise<void> => {
+  const deleteComment = useCallback(async (commentId: string, userId: string): Promise<void> => {
     return await canvasService.deleteComment(commentId, userId);
-  };
+  }, []);
 
-  const deleteReply = async (commentId: string, replyIndex: number, userId: string): Promise<void> => {
+  const deleteReply = useCallback(async (commentId: string, replyIndex: number, userId: string): Promise<void> => {
     return await canvasService.deleteReply(commentId, replyIndex, userId);
-  };
+  }, []);
 
-  const markRepliesAsRead = async (commentId: string, userId: string): Promise<void> => {
+  const markRepliesAsRead = useCallback(async (commentId: string, userId: string): Promise<void> => {
     return await canvasService.markRepliesAsRead(commentId, userId);
-  };
+  }, []);
 
   // Text editing functions
-  const enterEdit = (shapeId: string): void => {
+  const enterEdit = useCallback((shapeId: string): void => {
     setEditingTextId(shapeId);
-  };
+  }, []);
 
-  const saveText = async (shapeId: string, text: string): Promise<void> => {
+  const saveText = useCallback(async (shapeId: string, text: string): Promise<void> => {
     try {
       await canvasService.updateShapeText(shapeId, text);
       setEditingTextId(null);
@@ -414,9 +414,9 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
       console.error('❌ Error saving text:', error);
       throw error;
     }
-  };
+  }, []);
 
-  const updateTextFormatting = async (shapeId: string, formatting: {
+  const updateTextFormatting = useCallback(async (shapeId: string, formatting: {
     fontWeight?: 'normal' | 'bold';
     fontStyle?: 'normal' | 'italic';
     textDecoration?: 'none' | 'underline';
@@ -428,15 +428,15 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
       console.error('❌ Error updating text formatting:', error);
       throw error;
     }
-  };
+  }, []);
 
-  const cancelEdit = (): void => {
+  const cancelEdit = useCallback((): void => {
     setEditingTextId(null);
     // Reset cursor to pointer after cancelling text editing
     setActiveTool('select');
-  };
+  }, []);
 
-  const value = {
+  const value = useMemo(() => ({
     selectedColor,
     setSelectedColor,
     textFormattingDefaults,
@@ -504,7 +504,62 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     saveText,
     updateTextFormatting,
     cancelEdit,
-  };
+  }), [
+    selectedColor,
+    textFormattingDefaults,
+    activeTool,
+    selectedShapeId,
+    selectedShapes,
+    lastClickedShapeId,
+    userSelections,
+    isDrawMode,
+    isBombMode,
+    stageScale,
+    stagePosition,
+    clipboard,
+    shapes,
+    createShape,
+    createCircle,
+    createTriangle,
+    createText,
+    updateShape,
+    batchUpdateShapes,
+    resizeShape,
+    resizeCircle,
+    rotateShape,
+    lockShape,
+    unlockShape,
+    deleteShape,
+    duplicateShape,
+    deleteAllShapes,
+    groupShapes,
+    ungroupShapes,
+    bringToFront,
+    sendToBack,
+    bringForward,
+    sendBackward,
+    batchBringToFront,
+    batchSendToBack,
+    batchBringForward,
+    batchSendBackward,
+    alignShapes,
+    distributeShapes,
+    isAlignmentToolbarMinimized,
+    shapesLoading,
+    comments,
+    commentsLoading,
+    addComment,
+    addReply,
+    resolveComment,
+    deleteComment,
+    deleteReply,
+    markRepliesAsRead,
+    editingTextId,
+    enterEdit,
+    saveText,
+    updateTextFormatting,
+    cancelEdit,
+  ]);
 
   return (
     <CanvasContext.Provider value={value}>

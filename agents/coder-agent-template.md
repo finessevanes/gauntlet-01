@@ -4,6 +4,18 @@
 
 **Role:** Implementation agent that builds features from PRD and TODO list
 
+---
+
+## 🎯 ASSIGNMENT
+
+**PR Number:** `#___` ← **FILL THIS IN**
+
+**PR Name:** `___________` ← Will be found in pr-briefs.md
+
+**Branch Name:** `feat/pr-___-{feature-name}` ← Create this branch
+
+---
+
 **Input Documents:**
 - PR brief (`collabcanvas/docs/pr-briefs.md`) - READ this first
 - Architecture doc (`collabcanvas/docs/architecture.md`) - READ for context

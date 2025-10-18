@@ -7,6 +7,21 @@ export default function ColorPalette() {
   return (
     <div style={styles.paletteContainer}>
       <div style={styles.palette}>
+        {/* Current Color Indicator */}
+        <div style={styles.currentColorSection}>
+          <div style={styles.currentColorLabel}>Current:</div>
+          <div style={styles.currentColorDisplay}>
+            <div 
+              style={{
+                ...styles.currentColorSwatch,
+                backgroundColor: selectedColor,
+              }}
+              title={`Selected color: ${selectedColor}`}
+            />
+            <div style={styles.currentColorText}>{selectedColor}</div>
+          </div>
+        </div>
+
         {/* Color grid - 2 rows of 14 colors */}
         <div style={styles.colorGrid}>
           {PAINT_COLORS.map((color) => (
@@ -84,6 +99,42 @@ const styles = {
     cursor: 'pointer',
     boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
     height: '24px',
+  },
+  currentColorSection: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginRight: '12px',
+    padding: '4px 8px',
+    backgroundColor: '#ffffff',
+    border: '1px solid #808080',
+    borderRadius: '2px',
+    boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
+  },
+  currentColorLabel: {
+    fontSize: '11px',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+    color: '#000000',
+    fontWeight: 'bold',
+  },
+  currentColorDisplay: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  currentColorSwatch: {
+    width: '24px',
+    height: '24px',
+    border: '2px solid #000000',
+    borderRadius: '2px',
+    boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
+  },
+  currentColorText: {
+    fontSize: '10px',
+    fontFamily: 'monospace',
+    color: '#000000',
+    fontWeight: 'bold',
+    minWidth: '60px',
   },
 };
 

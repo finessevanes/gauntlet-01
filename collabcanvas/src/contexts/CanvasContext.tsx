@@ -105,6 +105,12 @@ interface CanvasContextType {
   editingTextId: string | null;
   enterEdit: (shapeId: string) => void;
   saveText: (shapeId: string, text: string) => Promise<void>;
+  updateTextFormatting: (shapeId: string, formatting: {
+    fontWeight?: 'normal' | 'bold';
+    fontStyle?: 'normal' | 'italic';
+    textDecoration?: 'none' | 'underline';
+    fontSize?: number;
+  }) => Promise<void>;
   cancelEdit: () => void;
 }
 
@@ -387,6 +393,20 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateTextFormatting = async (shapeId: string, formatting: {
+    fontWeight?: 'normal' | 'bold';
+    fontStyle?: 'normal' | 'italic';
+    textDecoration?: 'none' | 'underline';
+    fontSize?: number;
+  }): Promise<void> => {
+    try {
+      await canvasService.updateTextFormatting(shapeId, formatting);
+    } catch (error) {
+      console.error('❌ Error updating text formatting:', error);
+      throw error;
+    }
+  };
+
   const cancelEdit = (): void => {
     setEditingTextId(null);
     // Reset cursor to pointer after cancelling text editing
@@ -457,6 +477,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     editingTextId,
     enterEdit,
     saveText,
+    updateTextFormatting,
     cancelEdit,
   };
 

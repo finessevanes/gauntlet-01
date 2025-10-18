@@ -179,6 +179,32 @@ class CanvasService {
   }
 
   /**
+   * Update text formatting properties of a shape
+   * Used for bold, italic, underline, and font size changes
+   */
+  async updateTextFormatting(
+    shapeId: string, 
+    formatting: {
+      fontWeight?: 'normal' | 'bold';
+      fontStyle?: 'normal' | 'italic';
+      textDecoration?: 'none' | 'underline';
+      fontSize?: number;
+    }
+  ): Promise<void> {
+    try {
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await updateDoc(shapeRef, {
+        ...formatting,
+        updatedAt: serverTimestamp()
+      });
+      console.log('✅ Text formatting updated:', shapeId, formatting);
+    } catch (error) {
+      console.error('❌ Error updating text formatting:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Batch update multiple shapes in a single atomic operation
    * This ensures all shapes update simultaneously, preventing visual lag for remote users
    */

@@ -176,8 +176,8 @@ export default function ToolPalette({
     });
   }
   
-  // Disable text controls when no text is selected OR when already disabled
-  const textControlsDisabled = !isTextSelected || textFormattingDisabled;
+  // Disable text controls only when user doesn't have permission to edit
+  const textControlsDisabled = textFormattingDisabled;
 
   return (
     <div style={styles.palette}>
@@ -604,6 +604,7 @@ const styles = {
   activeTool: {
     backgroundColor: '#c0c0c0',
     boxShadow: 'inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #ffffff',
+    border: '2px solid #0066cc',
   },
   colorDisplay: {
     marginTop: '8px',

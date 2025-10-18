@@ -322,20 +322,20 @@ export default function CanvasShape({
             
             {/* The actual text - hide when being edited */}
             {editingTextId !== shape.id && (
-              <Text
-                x={padding}
-                y={textY}
-                text={textContent}
-                fontSize={textFontSize}
-                fill={shape.color}
-                fontStyle="normal"
-                fontWeight={shape.fontWeight || 'normal'}
-                textDecoration={shape.textDecoration || 'none'}
-                align="left"
-                verticalAlign="top"
-                opacity={isLockedByOther ? 0.5 : 1}
-                listening={false}
-              />
+            <Text
+              x={padding}
+              y={textY}
+              text={textContent}
+              fontSize={textFontSize}
+              fill={shape.color}
+              fontStyle={shape.fontStyle || 'normal'}
+              fontWeight={shape.fontWeight || 'normal'}
+              textDecoration={shape.textDecoration || 'none'}
+              align="left"
+              verticalAlign="top"
+              opacity={isLockedByOther ? 0.5 : 1}
+              listening={false}
+            />
             )}
           </>
         );

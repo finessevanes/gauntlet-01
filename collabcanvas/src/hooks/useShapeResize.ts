@@ -6,7 +6,10 @@ import {
   MIN_SHAPE_WIDTH,
   MIN_SHAPE_HEIGHT,
   MIN_CIRCLE_RADIUS,
+  MIN_FONT_SIZE,
+  MAX_FONT_SIZE,
 } from '../utils/constants';
+import { calculateTextDimensions } from '../utils/textEditingHelpers';
 
 interface UseShapeResizeParams {
   stageRef: React.RefObject<Konva.Stage | null>;
@@ -113,6 +116,31 @@ export function useShapeResize({
         y: shape.y,
         width: shape.width,
         height: shape.height,
+      });
+    } else if (shape.type === 'text') {
+      // Calculate current text dimensions based on content and font size
+      const textContent = shape.text || '';
+      const textFontSize = shape.fontSize || 16;
+      const fontWeight = shape.fontWeight || 'normal';
+      const textDimensions = calculateTextDimensions(textContent, textFontSize, fontWeight);
+      const padding = 4;
+      const width = textDimensions.width + padding * 2;
+      const height = textDimensions.height + padding * 2;
+      
+      setResizeStart({
+        x: canvasX,
+        y: canvasY,
+        width: width,
+        height: height,
+        aspectRatio: width / height,
+        shapeX: shape.x,
+        shapeY: shape.y,
+      });
+      setPreviewDimensions({
+        x: shape.x,
+        y: shape.y,
+        width: width,
+        height: height,
       });
     }
   };
@@ -472,6 +500,32 @@ export function useShapeResize({
       }
     }
 
+    // For text shapes, calculate new font size based on resize dimensions
+    if (shape.type === 'text') {
+      // Calculate scale factor (use height as primary since text height = font size)
+      const scaleY = newHeight / resizeStart.height;
+      
+      // Calculate new font size
+      const originalFontSize = shape.fontSize || 16;
+      const newFontSize = Math.round(originalFontSize * scaleY);
+      
+      // Clamp to valid range
+      const clampedFontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, newFontSize));
+      
+      // Update preview font size for real-time display
+      setPreviewFontSize(clampedFontSize);
+      
+      // Recalculate actual dimensions based on new font size for accuracy
+      const textContent = shape.text || '';
+      const fontWeight = shape.fontWeight || 'normal';
+      const newTextDimensions = calculateTextDimensions(textContent, clampedFontSize, fontWeight);
+      const padding = 4;
+      
+      // Update preview dimensions to match actual text dimensions at new font size
+      newWidth = newTextDimensions.width + padding * 2;
+      newHeight = newTextDimensions.height + padding * 2;
+    }
+
     // Update preview dimensions
     setPreviewDimensions({
       x: newX,
@@ -562,6 +616,33 @@ export function useShapeResize({
         const newRadius = newWidth / 2;
         resizePromise = resizeCircle(shapeIdToUpdate, newRadius);
         // Circles don't change position during resize (center stays fixed)
+      } else if (shape.type === 'text') {
+        // Handle text resize - update font size
+        if (!previewFontSize) {
+          setIsResizing(false);
+          setActiveHandle(null);
+          setResizeStart(null);
+          setPreviewDimensions(null);
+          return;
+        }
+        
+        // Update font size through formatting
+        const updatePromise = updateShape(shapeIdToUpdate, { fontSize: previewFontSize });
+        const positionPromise = positionChanged 
+          ? updateShape(shapeIdToUpdate, { x: newX, y: newY })
+          : Promise.resolve();
+        
+        await Promise.all([updatePromise, positionPromise]);
+        
+        // Wait for real-time sync
+        setTimeout(() => {
+          setPreviewDimensions(null);
+        }, 100);
+        
+        toast.success('Text resized', { duration: 1000 });
+        
+        console.log('✅ Text resize persisted to Firestore with real-time sync');
+        return;
       } else {
         // Rectangle or triangle resize
         resizePromise = resizeShape(shapeIdToUpdate, newWidth, newHeight);

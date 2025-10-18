@@ -45,6 +45,10 @@ export const MIN_CIRCLE_RADIUS = 5;
 export const MIN_TRIANGLE_WIDTH = 10;
 export const MIN_TRIANGLE_HEIGHT = 10;
 
+// Text constraints
+export const MIN_FONT_SIZE = 8;
+export const MAX_FONT_SIZE = 200;
+
 // Available cursor colors for users
 export const CURSOR_COLORS = [
   '#ef4444', // red

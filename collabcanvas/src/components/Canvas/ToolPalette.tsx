@@ -57,7 +57,8 @@ export default function ToolPalette({
     selectedColor,
     shapes,
     isAlignmentToolbarMinimized,
-    setIsAlignmentToolbarMinimized
+    setIsAlignmentToolbarMinimized,
+    textFormattingDefaults
   } = useCanvasContext();
   
   const [isChanging, setIsChanging] = useState(false);
@@ -154,14 +155,19 @@ export default function ToolPalette({
 
   // Check if a text shape is selected to enable text formatting controls
   const isTextSelected = selectedShape?.type === 'text';
-  const isBold = selectedShape?.fontWeight === 'bold';
-  const isItalic = selectedShape?.fontStyle === 'italic';
-  const isUnderline = selectedShape?.textDecoration === 'underline';
+  const isTextToolActive = activeTool === 'text';
+  
+  // Determine formatting state: use selected shape if available, otherwise use defaults
+  const isBold = isTextSelected ? (selectedShape?.fontWeight === 'bold') : (textFormattingDefaults.fontWeight === 'bold');
+  const isItalic = isTextSelected ? (selectedShape?.fontStyle === 'italic') : (textFormattingDefaults.fontStyle === 'italic');
+  const isUnderline = isTextSelected ? (selectedShape?.textDecoration === 'underline') : (textFormattingDefaults.textDecoration === 'underline');
   
   // Get current font size, ensuring it's a valid number
   let currentFontSize = 16; // default
   if (isTextSelected && selectedShape?.fontSize !== undefined) {
     currentFontSize = selectedShape.fontSize;
+  } else if (isTextToolActive) {
+    currentFontSize = textFormattingDefaults.fontSize;
   }
   
   // Debug: Log the selected shape data
@@ -437,14 +443,14 @@ export default function ToolPalette({
             disabled={textControlsDisabled || isChanging}
             style={{
               ...styles.formatButton,
-              ...(isBold && isTextSelected ? styles.activeFormatButton : {}),
+              ...(isBold && (isTextSelected || isTextToolActive) ? styles.activeFormatButton : {}),
               ...(textControlsDisabled ? styles.disabledButton : {}),
             }}
-            title={isTextSelected ? "Bold" : "Bold (select text first)"}
+            title={isTextSelected ? "Bold" : (textControlsDisabled ? "Bold (select text first)" : "Bold (text tool active)")}
           >
             <span style={{ 
               fontWeight: 'bold',
-              color: isBold && isTextSelected ? '#ffffff' : (textControlsDisabled ? '#a0a0a0' : '#000000')
+              color: isBold && (isTextSelected || isTextToolActive) ? '#ffffff' : (textControlsDisabled ? '#a0a0a0' : '#000000')
             }}>
               B
             </span>
@@ -455,14 +461,14 @@ export default function ToolPalette({
             disabled={textControlsDisabled || isChanging}
             style={{
               ...styles.formatButton,
-              ...(isItalic && isTextSelected ? styles.activeFormatButton : {}),
+              ...(isItalic && (isTextSelected || isTextToolActive) ? styles.activeFormatButton : {}),
               ...(textControlsDisabled ? styles.disabledButton : {}),
             }}
-            title={isTextSelected ? "Italic" : "Italic (select text first)"}
+            title={isTextSelected ? "Italic" : (textControlsDisabled ? "Italic (select text first)" : "Italic (text tool active)")}
           >
             <span style={{ 
               fontStyle: 'italic',
-              color: isItalic && isTextSelected ? '#ffffff' : (textControlsDisabled ? '#a0a0a0' : '#000000')
+              color: isItalic && (isTextSelected || isTextToolActive) ? '#ffffff' : (textControlsDisabled ? '#a0a0a0' : '#000000')
             }}>
               I
             </span>
@@ -473,14 +479,14 @@ export default function ToolPalette({
             disabled={textControlsDisabled || isChanging}
             style={{
               ...styles.formatButton,
-              ...(isUnderline && isTextSelected ? styles.activeFormatButton : {}),
+              ...(isUnderline && (isTextSelected || isTextToolActive) ? styles.activeFormatButton : {}),
               ...(textControlsDisabled ? styles.disabledButton : {}),
             }}
-            title={isTextSelected ? "Underline" : "Underline (select text first)"}
+            title={isTextSelected ? "Underline" : (textControlsDisabled ? "Underline (select text first)" : "Underline (text tool active)")}
           >
             <span style={{ 
               textDecoration: 'underline',
-              color: isUnderline && isTextSelected ? '#ffffff' : (textControlsDisabled ? '#a0a0a0' : '#000000')
+              color: isUnderline && (isTextSelected || isTextToolActive) ? '#ffffff' : (textControlsDisabled ? '#a0a0a0' : '#000000')
             }}>
               U
             </span>
@@ -508,7 +514,7 @@ export default function ToolPalette({
                 ...styles.fontSizeComboInput,
                 ...(textControlsDisabled ? styles.disabledInput : {}),
               }}
-              title={isTextSelected ? "Type custom size (1-500px)" : "Font size (select text first)"}
+              title={isTextSelected ? "Type custom size (1-500px)" : (textControlsDisabled ? "Font size (select text first)" : "Font size (text tool active)")}
               placeholder="16"
             />
             {/* Dropdown for preset sizes */}
@@ -520,7 +526,7 @@ export default function ToolPalette({
                 ...styles.fontSizeComboSelect,
                 ...(textControlsDisabled ? styles.disabledInput : {}),
               }}
-              title={isTextSelected ? "Select preset size" : "Select font size (select text first)"}
+              title={isTextSelected ? "Select preset size" : (textControlsDisabled ? "Select font size (select text first)" : "Select font size (text tool active)")}
             >
               {ALLOWED_FONT_SIZES.map((size) => (
                 <option key={size} value={size}>{size}</option>

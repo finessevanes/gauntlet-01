@@ -535,6 +535,10 @@ class CanvasService {
     y: number; 
     color: string; 
     createdBy: string;
+    fontSize?: number;
+    fontWeight?: 'normal' | 'bold';
+    fontStyle?: 'normal' | 'italic';
+    textDecoration?: 'none' | 'underline';
   }): Promise<string> {
     try {
       // Ensure parent document exists
@@ -550,8 +554,8 @@ class CanvasService {
       
       // Calculate proper dimensions for the "TEXT" placeholder
       const placeholderText = 'TEXT';
-      const placeholderFontSize = 24;
-      const placeholderFontWeight = 'normal';
+      const placeholderFontSize = textData.fontSize || 24;
+      const placeholderFontWeight = textData.fontWeight || 'normal';
       const textDimensions = calculateTextDimensions(placeholderText, placeholderFontSize, placeholderFontWeight);
       const padding = 4;
       const calculatedWidth = textDimensions.width + padding * 2;
@@ -570,6 +574,9 @@ class CanvasService {
         height: calculatedHeight,
         text: placeholderText, // Use the placeholder text variable
         fontSize: placeholderFontSize, // Use the placeholder font size variable
+        fontWeight: textData.fontWeight || 'normal',
+        fontStyle: textData.fontStyle || 'normal',
+        textDecoration: textData.textDecoration || 'none',
         color: textData.color,
         rotation: 0, // Fixed rotation
         groupId: null,

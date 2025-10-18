@@ -10,10 +10,21 @@ import type { Unsubscribe } from 'firebase/firestore';
 
 export type ToolType = 'select' | 'pan' | 'rectangle' | 'circle' | 'triangle' | 'text' | 'bomb';
 
+export interface TextFormattingDefaults {
+  fontSize: number;
+  fontWeight: 'normal' | 'bold';
+  fontStyle: 'normal' | 'italic';
+  textDecoration: 'none' | 'underline';
+}
+
 interface CanvasContextType {
   // Color selection
   selectedColor: string;
   setSelectedColor: (color: string) => void;
+  
+  // Text formatting defaults (for text tool)
+  textFormattingDefaults: TextFormattingDefaults;
+  setTextFormattingDefaults: (defaults: TextFormattingDefaults) => void;
   
   // Tool selection
   activeTool: ToolType;
@@ -119,6 +130,12 @@ const CanvasContext = createContext<CanvasContextType | undefined>(undefined);
 export function CanvasProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_COLOR);
+  const [textFormattingDefaults, setTextFormattingDefaults] = useState<TextFormattingDefaults>({
+    fontSize: 16,
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    textDecoration: 'none'
+  });
   const [activeTool, setActiveTool] = useState<ToolType>('select');
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
   const [selectedShapes, setSelectedShapes] = useState<string[]>([]);
@@ -250,7 +267,13 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   };
 
   const createText = async (textData: { x: number; y: number; color: string; createdBy: string }): Promise<string> => {
-    return await canvasService.createText(textData);
+    return await canvasService.createText({
+      ...textData,
+      fontSize: textFormattingDefaults.fontSize,
+      fontWeight: textFormattingDefaults.fontWeight,
+      fontStyle: textFormattingDefaults.fontStyle,
+      textDecoration: textFormattingDefaults.textDecoration,
+    });
   };
 
   const updateShape = async (shapeId: string, updates: Partial<ShapeData>): Promise<void> => {
@@ -416,6 +439,8 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   const value = {
     selectedColor,
     setSelectedColor,
+    textFormattingDefaults,
+    setTextFormattingDefaults,
     activeTool,
     setActiveTool,
     selectedShapeId,

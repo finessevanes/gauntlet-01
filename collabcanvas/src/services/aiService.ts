@@ -2,6 +2,8 @@ import OpenAI from 'openai';
 import { canvasService } from './canvasService';
 import { getSystemPrompt } from '../utils/aiPrompts';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../utils/constants';
+import { doc, getDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { firestore } from '../firebase';
 
 interface CommandResult {
   success: boolean;
@@ -154,6 +156,80 @@ export class AIService {
     }
   }
 
+  /**
+   * Helper function to arrange shapes in a horizontal row with even spacing
+   */
+  private async arrangeInRow(shapeIds: string[], startX: number = 100, startY: number = 100, spacing: number = 50): Promise<void> {
+    try {
+      // Fetch all shapes
+      const shapeDocs = await Promise.all(
+        shapeIds.map(id => getDoc(doc(firestore, 'canvases/main/shapes', id)))
+      );
+
+      const shapes = shapeDocs
+        .filter(docSnap => docSnap.exists())
+        .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any));
+
+      if (shapes.length === 0) {
+        throw new Error('No valid shapes found to arrange');
+      }
+
+      // Sort shapes by x position (left to right)
+      shapes.sort((a, b) => a.x - b.x);
+
+      // Calculate total width needed
+      let totalWidth = 0;
+      shapes.forEach(shape => {
+        const shapeWidth = shape.width || (shape.radius ? shape.radius * 2 : 100);
+        totalWidth += shapeWidth;
+      });
+      totalWidth += spacing * (shapes.length - 1);
+
+      // Calculate starting position to center the row
+      const rowStartX = startX;
+
+      // Update positions with batch write
+      const batch = writeBatch(firestore);
+      let currentX = rowStartX;
+
+      shapes.forEach((shape) => {
+        const shapeWidth = shape.width || (shape.radius ? shape.radius * 2 : 100);
+        const shapeRef = doc(firestore, 'canvases/main/shapes', shape.id);
+        
+        // Calculate new position
+        let newX = currentX;
+        let newY = startY;
+
+        // For circles, adjust x to account for center positioning
+        if (shape.type === 'circle' && shape.radius) {
+          newX = currentX + shape.radius;
+        }
+
+        // For other shapes, y might need adjustment for center alignment
+        if (shape.type !== 'circle') {
+          newY = startY;
+        } else {
+          newY = startY;
+        }
+
+        batch.update(shapeRef, {
+          x: newX,
+          y: newY,
+          updatedAt: serverTimestamp(),
+        });
+
+        // Move to next position
+        currentX += shapeWidth + spacing;
+      });
+
+      await batch.commit();
+      console.log(`✅ Arranged ${shapes.length} shapes in horizontal row`);
+    } catch (error) {
+      console.error('❌ Error arranging shapes in row:', error);
+      throw error;
+    }
+  }
+
   private async executeSingleTool(call: any, userId: string) {
     const { name, arguments: argsStr } = call.function;
     const args = JSON.parse(argsStr);
@@ -247,6 +323,24 @@ export class AIService {
           const timeB = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : (b.createdAt?.toMillis ? b.createdAt.toMillis() : 0);
           return timeB - timeA; // Descending (last touched first)
         });
+
+      // ADVANCED TOOLS
+      case 'groupShapes':
+        const groupId = await canvasService.groupShapes(args.shapeIds, userId, args.name);
+        // Return group info for success message formatting
+        return { groupId, name: args.name || `Group ${groupId.slice(0, 6)}` };
+        
+      case 'alignShapes':
+        return await canvasService.alignShapes(args.shapeIds, args.alignment);
+        
+      case 'arrangeShapesInRow':
+        return await this.arrangeInRow(args.shapeIds, args.startX, args.startY, args.spacing);
+        
+      case 'bringToFront':
+        return await canvasService.bringToFront(args.shapeId);
+        
+      case 'addComment':
+        return await canvasService.addComment(args.shapeId, args.text, userId, args.username || 'User');
         
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -274,6 +368,7 @@ export class AIService {
     // Single tool messages
     if (toolNames.length === 1) {
       const tool = toolNames[0];
+      const result = actionResults[0];
       switch (tool) {
         case 'createRectangle': return '✓ Created 1 rectangle';
         case 'createCircle': return '✓ Created 1 circle';
@@ -284,14 +379,33 @@ export class AIService {
         case 'rotateShape': return '✓ Rotated shape';
         case 'duplicateShape': return '✓ Duplicated shape';
         case 'deleteShape': return '✓ Deleted shape';
+        case 'groupShapes': {
+          // Get group name from result if available
+          const groupName = result.result?.name || 'shapes';
+          return `✓ Grouped shapes as "${groupName}"`;
+        }
+        case 'alignShapes': return '✓ Aligned shapes';
+        case 'arrangeShapesInRow': return '✓ Arranged shapes in horizontal row';
+        case 'bringToFront': return '✓ Brought shape to front';
+        case 'addComment': return '✓ Added comment';
         default: return '✓ Action completed';
       }
     }
     
-    // Multi-step operations
+    // Multi-step operations - check for semantic pattern creation (creation + grouping)
     const creationCount = toolNames.filter(t => 
       ['createRectangle', 'createCircle', 'createTriangle', 'createText'].includes(t)
     ).length;
+    
+    const hasGrouping = toolNames.includes('groupShapes');
+    
+    // If we created multiple elements AND grouped them, this is a semantic pattern
+    if (creationCount > 1 && hasGrouping) {
+      // Find the groupShapes result to get the group name
+      const groupResult = actionResults.find(r => r.tool === 'groupShapes');
+      const groupName = groupResult?.result?.name || 'elements';
+      return `✓ Created ${groupName} (${creationCount} elements grouped)`;
+    }
     
     if (creationCount > 1) {
       return `✓ Created ${creationCount} elements`;
@@ -465,6 +579,89 @@ export class AIService {
             type: "object",
             properties: {},
             required: []
+          }
+        }
+      },
+      
+      // ADVANCED TOOLS
+      {
+        type: "function" as const,
+        function: {
+          name: "groupShapes",
+          description: "Groups multiple shapes together so they move as one unit. MUST call getCanvasState first to get shapeIds.",
+          parameters: {
+            type: "object",
+            properties: {
+              shapeIds: { type: "array", items: { type: "string" }, description: "Array of shape IDs to group together" },
+              name: { type: "string", description: "Optional name for the group" }
+            },
+            required: ["shapeIds"]
+          }
+        }
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "alignShapes",
+          description: "Aligns multiple shapes along a common edge or center. MUST call getCanvasState first to get shapeIds.",
+          parameters: {
+            type: "object",
+            properties: {
+              shapeIds: { type: "array", items: { type: "string" }, description: "Array of shape IDs to align" },
+              alignment: { 
+                type: "string", 
+                enum: ["left", "center", "right", "top", "middle", "bottom"],
+                description: "Alignment type: left, center, right, top, middle, or bottom"
+              }
+            },
+            required: ["shapeIds", "alignment"]
+          }
+        }
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "arrangeShapesInRow",
+          description: "Arranges multiple shapes in a horizontal row with even spacing. CRITICAL for layout commands. MUST call getCanvasState first to get shapeIds.",
+          parameters: {
+            type: "object",
+            properties: {
+              shapeIds: { type: "array", items: { type: "string" }, description: "Array of shape IDs to arrange in a row" },
+              startX: { type: "number", description: "Starting X position for the row (default 100)" },
+              startY: { type: "number", description: "Y position for all shapes in the row (default 100)" },
+              spacing: { type: "number", description: "Spacing between shapes in pixels (default 50)" }
+            },
+            required: ["shapeIds"]
+          }
+        }
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "bringToFront",
+          description: "Brings a shape to the front (highest z-index). MUST call getCanvasState first to get shapeId.",
+          parameters: {
+            type: "object",
+            properties: {
+              shapeId: { type: "string", description: "ID of the shape to bring to front" }
+            },
+            required: ["shapeId"]
+          }
+        }
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "addComment",
+          description: "Adds a comment to a specific shape for collaboration. MUST call getCanvasState first to get shapeId.",
+          parameters: {
+            type: "object",
+            properties: {
+              shapeId: { type: "string", description: "ID of the shape to comment on" },
+              text: { type: "string", description: "Comment text" },
+              username: { type: "string", description: "Username of the commenter" }
+            },
+            required: ["shapeId", "text"]
           }
         }
       }

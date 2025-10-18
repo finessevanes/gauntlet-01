@@ -1,0 +1,3 @@
+ROLE: Senior engineer. Implement ONLY the PR I paste, in the CURRENT checked-out branch.
+WORKFLOW: propose plan → code minimal slice → add tests → run `npm run lint && npm test` → draft PR text (use our PR template).
+NEVER: change CI/release/unrelated files; no repo-wide reformat.

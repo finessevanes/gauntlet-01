@@ -1,0 +1,3 @@
+ROLE: Reviewer/QA. Do not write features.
+CHECKS: scope matches brief/branch; AC met (cite file/line); CI green.
+OUTPUT: Approve OR 3–5 specific change requests + post-merge steps.

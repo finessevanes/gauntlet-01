@@ -17,6 +17,7 @@ import type { Timestamp, Unsubscribe } from 'firebase/firestore';
 import { firestore } from '../firebase';
 import { MIN_SHAPE_WIDTH, MIN_SHAPE_HEIGHT } from '../utils/constants';
 import { findOverlappingShapesAbove, findOverlappingShapesBelow } from '../utils/overlapDetection';
+import { calculateTextDimensions } from '../utils/textEditingHelpers';
 
 // Shape data types
 export interface ShapeData {
@@ -155,6 +156,50 @@ class CanvasService {
       });
     } catch (error) {
       console.error('❌ Error updating shape:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update text content of a shape
+   * Used specifically for text editing functionality
+   */
+  async updateShapeText(shapeId: string, text: string): Promise<void> {
+    try {
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await updateDoc(shapeRef, {
+        text: text,
+        updatedAt: serverTimestamp()
+      });
+      console.log('✅ Text updated:', shapeId);
+    } catch (error) {
+      console.error('❌ Error updating text:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update text formatting properties of a shape
+   * Used for bold, italic, underline, and font size changes
+   */
+  async updateTextFormatting(
+    shapeId: string, 
+    formatting: {
+      fontWeight?: 'normal' | 'bold';
+      fontStyle?: 'normal' | 'italic';
+      textDecoration?: 'none' | 'underline';
+      fontSize?: number;
+    }
+  ): Promise<void> {
+    try {
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await updateDoc(shapeRef, {
+        ...formatting,
+        updatedAt: serverTimestamp()
+      });
+      console.log('✅ Text formatting updated:', shapeId, formatting);
+    } catch (error) {
+      console.error('❌ Error updating text formatting:', error);
       throw error;
     }
   }
@@ -381,191 +426,6 @@ class CanvasService {
   }
 
   /**
-   * Create a new text shape in Firestore
-   */
-  async createText(
-    text: string,
-    x: number,
-    y: number,
-    color: string,
-    createdBy: string,
-    options?: {
-      fontSize?: number;
-      fontWeight?: 'normal' | 'bold';
-      fontStyle?: 'normal' | 'italic';
-      textDecoration?: 'none' | 'underline';
-    }
-  ): Promise<string> {
-    try {
-      // Ensure parent document exists
-      await this.ensureCanvasDocExists();
-      
-      // Generate a unique ID for the text shape
-      const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
-      
-      // Calculate initial text dimensions
-      const fontSize = options?.fontSize || 16;
-      const padding = 4;
-      const estimatedWidth = text.length * fontSize * 0.6;
-      const estimatedHeight = fontSize * 1.2;
-      const width = estimatedWidth + padding * 2;
-      const height = estimatedHeight + padding * 2;
-      
-      // Auto-increment z-index: new shapes appear on top by default
-      const shapes = await this.getShapes();
-      const maxZIndex = shapes.length > 0 ? Math.max(...shapes.map(s => s.zIndex || 0)) : -1;
-      const zIndex = maxZIndex + 1;
-      
-      const textData: Omit<ShapeData, 'id'> = {
-        type: 'text',
-        text,
-        x,
-        y,
-        width, // Calculate initial width based on text content
-        height, // Calculate initial height based on font size
-        color,
-        fontSize,
-        fontWeight: options?.fontWeight || 'normal',
-        fontStyle: options?.fontStyle || 'normal',
-        textDecoration: options?.textDecoration || 'none',
-        rotation: 0,
-        groupId: null,
-        zIndex,
-        createdBy,
-        createdAt: serverTimestamp() as Timestamp,
-        lockedBy: null,
-        lockedAt: null,
-        updatedAt: serverTimestamp() as Timestamp,
-      };
-
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
-      await setDoc(shapeRef, textData);
-
-      console.log('✅ Text shape created:', shapeId);
-      return shapeId;
-    } catch (error) {
-      console.error('❌ Error creating text shape:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Update text content of a text shape
-   */
-  async updateText(shapeId: string, text: string): Promise<void> {
-    try {
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
-      
-      // Get current shape to retrieve fontSize
-      const shapeSnap = await getDoc(shapeRef);
-      if (!shapeSnap.exists()) {
-        throw new Error('Shape not found');
-      }
-      
-      const currentShape = shapeSnap.data() as ShapeData;
-      const fontSize = currentShape.fontSize || 16;
-      
-      // Recalculate dimensions based on new text
-      const padding = 4;
-      const estimatedWidth = text.length * fontSize * 0.6;
-      const estimatedHeight = fontSize * 1.2;
-      const width = estimatedWidth + padding * 2;
-      const height = estimatedHeight + padding * 2;
-      
-      await updateDoc(shapeRef, {
-        text,
-        width,
-        height,
-        updatedAt: serverTimestamp(),
-      });
-      console.log('✅ Text content updated:', shapeId);
-    } catch (error) {
-      console.error('❌ Error updating text content:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Update font size of a text shape
-   */
-  async updateTextFontSize(shapeId: string, fontSize: number): Promise<void> {
-    try {
-      // Validate font size range (allow any size from 8px to 200px)
-      // This allows both dropdown selections and dynamic resize scaling
-      const MIN_FONT_SIZE = 8;
-      const MAX_FONT_SIZE = 200;
-      
-      if (fontSize < MIN_FONT_SIZE || fontSize > MAX_FONT_SIZE) {
-        throw new Error(`Font size must be between ${MIN_FONT_SIZE}px and ${MAX_FONT_SIZE}px`);
-      }
-
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
-      
-      // Get current shape to retrieve text content
-      const shapeSnap = await getDoc(shapeRef);
-      if (!shapeSnap.exists()) {
-        throw new Error('Shape not found');
-      }
-      
-      const currentShape = shapeSnap.data() as ShapeData;
-      const textContent = currentShape.text || '';
-      
-      // Recalculate dimensions based on new font size
-      const padding = 4;
-      const estimatedWidth = textContent.length * fontSize * 0.6;
-      const estimatedHeight = fontSize * 1.2;
-      const width = estimatedWidth + padding * 2;
-      const height = estimatedHeight + padding * 2;
-      
-      await updateDoc(shapeRef, {
-        fontSize,
-        width,
-        height,
-        updatedAt: serverTimestamp(),
-      });
-      console.log('✅ Font size updated:', shapeId, fontSize);
-    } catch (error) {
-      console.error('❌ Error updating font size:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Update text formatting (bold, italic, underline)
-   */
-  async updateTextFormatting(
-    shapeId: string,
-    formatting: {
-      fontWeight?: 'normal' | 'bold';
-      fontStyle?: 'normal' | 'italic';
-      textDecoration?: 'none' | 'underline';
-    }
-  ): Promise<void> {
-    try {
-      const updates: any = {
-        updatedAt: serverTimestamp(),
-      };
-
-      if (formatting.fontWeight !== undefined) {
-        updates.fontWeight = formatting.fontWeight;
-      }
-      if (formatting.fontStyle !== undefined) {
-        updates.fontStyle = formatting.fontStyle;
-      }
-      if (formatting.textDecoration !== undefined) {
-        updates.textDecoration = formatting.textDecoration;
-      }
-
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
-      await updateDoc(shapeRef, updates);
-      console.log('✅ Text formatting updated:', shapeId, formatting);
-    } catch (error) {
-      console.error('❌ Error updating text formatting:', error);
-      throw error;
-    }
-  }
-
-  /**
    * Create a new circle shape in Firestore
    */
   async createCircle(circleData: { 
@@ -668,6 +528,79 @@ class CanvasService {
   }
 
   /**
+   * Create a new text shape in Firestore
+   */
+  async createText(textData: { 
+    x: number; 
+    y: number; 
+    color: string; 
+    createdBy: string;
+    text?: string;
+    fontSize?: number;
+    fontWeight?: 'normal' | 'bold';
+    fontStyle?: 'normal' | 'italic';
+    textDecoration?: 'none' | 'underline';
+  }): Promise<string> {
+    try {
+      // Ensure parent document exists
+      await this.ensureCanvasDocExists();
+      
+      // Generate a unique ID for the text shape
+      const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
+      
+      // Auto-increment z-index: new shapes appear on top by default
+      const shapes = await this.getShapes();
+      const maxZIndex = shapes.length > 0 ? Math.max(...shapes.map(s => s.zIndex || 0)) : -1;
+      const zIndex = maxZIndex + 1;
+      
+      // Calculate proper dimensions for the actual text content
+      const actualText = textData.text || 'TEXT';
+      const actualFontSize = textData.fontSize || 24;
+      const actualFontWeight = textData.fontWeight || 'normal';
+      const textDimensions = calculateTextDimensions(actualText, actualFontSize, actualFontWeight);
+      const padding = 4;
+      const calculatedWidth = textDimensions.width + padding * 2;
+      const calculatedHeight = textDimensions.height + padding * 2;
+      
+      // For AI-created text, use exact coordinates without offset
+      // For manual text creation, we would apply offset, but AI provides precise positioning
+      const offsetX = textData.x; // Use exact x coordinate from AI
+      const offsetY = textData.y; // Use exact y coordinate from AI
+      
+      const shapeData: Omit<ShapeData, 'id'> = {
+        type: 'text',
+        x: offsetX,
+        y: offsetY,
+        width: calculatedWidth,
+        height: calculatedHeight,
+        text: actualText, // Use the actual text content
+        fontSize: actualFontSize, // Use the actual font size
+        fontWeight: textData.fontWeight || 'normal',
+        fontStyle: textData.fontStyle || 'normal',
+        textDecoration: textData.textDecoration || 'none',
+        color: textData.color,
+        rotation: 0, // Fixed rotation
+        groupId: null,
+        zIndex,
+        createdBy: textData.createdBy,
+        createdAt: serverTimestamp() as Timestamp,
+        lockedBy: null,
+        lockedAt: null,
+        updatedAt: serverTimestamp() as Timestamp,
+      };
+
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await setDoc(shapeRef, shapeData);
+
+      console.log('✅ Text shape created above and to the right of cursor:', shapeId);
+      return shapeId;
+    } catch (error) {
+      console.error('❌ Error creating text shape:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Resize a circle by updating its radius
    */
   async resizeCircle(shapeId: string, radius: number): Promise<void> {
@@ -738,10 +671,18 @@ class CanvasService {
       
       if (originalShape.type === 'text') {
         newShapeInput.text = originalShape.text;
-        newShapeInput.fontSize = originalShape.fontSize;
-        newShapeInput.fontWeight = originalShape.fontWeight;
-        newShapeInput.fontStyle = originalShape.fontStyle;
-        newShapeInput.textDecoration = originalShape.textDecoration;
+        if (originalShape.fontSize !== undefined) {
+          newShapeInput.fontSize = originalShape.fontSize;
+        }
+        if (originalShape.fontWeight !== undefined) {
+          newShapeInput.fontWeight = originalShape.fontWeight;
+        }
+        if (originalShape.fontStyle !== undefined) {
+          newShapeInput.fontStyle = originalShape.fontStyle;
+        }
+        if (originalShape.textDecoration !== undefined) {
+          newShapeInput.textDecoration = originalShape.textDecoration;
+        }
       }
 
       const newShapeId = await this.createShape(newShapeInput);

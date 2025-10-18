@@ -1,7 +1,7 @@
 import { Group, Rect, Circle, Line, Text } from 'react-konva';
 import type Konva from 'konva';
 import type { ShapeData } from '../../services/canvasService';
-import { getFontStyle } from '../../utils/helpers';
+import { calculateTextDimensions } from '../../utils/textEditingHelpers';
 
 interface CanvasShapeProps {
   shape: ShapeData;
@@ -23,11 +23,9 @@ interface CanvasShapeProps {
   hoveredHandle: string | null;
   hoveredRotationHandle: string | null;
   stageScale: number;
-  editingTextId: string | null;
   commentCount: number;
   hasUnreadReplies: boolean;
   onShapeMouseDown: (id: string, event?: MouseEvent | React.MouseEvent) => void;
-  onTextDoubleClick: (id: string) => void;
   onResizeStart: (e: Konva.KonvaEventObject<MouseEvent>, handle: string, shape: ShapeData) => void;
   onRotationStart: (e: Konva.KonvaEventObject<MouseEvent>, shape: ShapeData) => void;
   onDragStart: (e: Konva.KonvaEventObject<DragEvent>, shapeId: string) => void;
@@ -36,6 +34,10 @@ interface CanvasShapeProps {
   setHoveredHandle: (id: string | null) => void;
   setHoveredRotationHandle: (id: string | null) => void;
   onCommentIndicatorClick: (shapeId: string) => void;
+  onTextDoubleClick?: (shapeId: string) => void;
+  editingTextId?: string | null;
+  editingTextContent?: string;
+  editingTextDimensions?: { width: number; height: number } | null;
 }
 
 export default function CanvasShape({
@@ -53,11 +55,9 @@ export default function CanvasShape({
   hoveredHandle,
   hoveredRotationHandle,
   stageScale,
-  editingTextId,
   commentCount,
   hasUnreadReplies,
   onShapeMouseDown,
-  onTextDoubleClick,
   onResizeStart,
   onRotationStart,
   onDragStart,
@@ -66,6 +66,10 @@ export default function CanvasShape({
   setHoveredHandle,
   setHoveredRotationHandle,
   onCommentIndicatorClick,
+  onTextDoubleClick,
+  editingTextId,
+  editingTextContent,
+  editingTextDimensions,
 }: CanvasShapeProps) {
   // Shape is being resized if isResizing is true OR if preview dimensions exist (during transition)
   // For text, we don't use preview dimensions (dimensions are always calculated from fontSize)
@@ -94,18 +98,32 @@ export default function CanvasShape({
     currentY = isBeingResized && previewDimensions ? previewDimensions.y : shape.y;
     currentRadius = isBeingResized && previewDimensions ? previewDimensions.width / 2 : shape.radius;
   } else if (shape.type === 'text') {
-    // ALWAYS calculate text dimensions dynamically from fontSize and content
-    // Use previewFontSize during resize AND during transition (until Firestore updates)
-    const textContent = shape.text || '';
-    const textFontSize = (isSelected && previewFontSize) ? previewFontSize : (shape.fontSize || 16);
-    const estimatedWidth = textContent.length * textFontSize * 0.6;
-    const estimatedHeight = textFontSize * 1.2;
-    const padding = 4;
-    
-    currentX = shape.x;
-    currentY = shape.y;
-    currentWidth = estimatedWidth + padding * 2;
-    currentHeight = estimatedHeight + padding * 2;
+    // Use actual HTML dimensions when available (most accurate)
+    // Fall back to calculated dimensions when not in edit mode
+    if (editingTextId === shape.id && editingTextDimensions) {
+      // Use actual dimensions from HTML input
+      const padding = 4;
+      currentX = shape.x;
+      currentY = shape.y;
+      currentWidth = editingTextDimensions.width + padding * 2;
+      currentHeight = editingTextDimensions.height + padding * 2;
+    } else {
+      // Calculate dimensions dynamically from fontSize and content
+      const textContent = (editingTextId === shape.id && editingTextContent !== undefined) 
+        ? editingTextContent 
+        : (shape.text || '');
+      const textFontSize = (isSelected && previewFontSize) ? previewFontSize : (shape.fontSize || 16);
+      const fontWeight = shape.fontWeight || 'normal';
+      
+      // Use improved text dimension calculation
+      const textDimensions = calculateTextDimensions(textContent, textFontSize, fontWeight);
+      const padding = 4;
+      
+      currentX = shape.x;
+      currentY = shape.y;
+      currentWidth = textDimensions.width + padding * 2;
+      currentHeight = textDimensions.height + padding * 2;
+    }
     
     // If resizing or transitioning, use preview position if available
     if (isSelected && previewDimensions) {
@@ -220,21 +238,31 @@ export default function CanvasShape({
         />
       )}
       {shape.type === 'text' && currentWidth !== undefined && currentHeight !== undefined && (() => {
-        const textContent = shape.text || '';
+        // Use editingTextContent when in edit mode for dynamic border updates
+        const textContent = (editingTextId === shape.id && editingTextContent !== undefined) 
+          ? editingTextContent 
+          : (shape.text || '');
         // Use previewFontSize during resize AND during transition (until Firestore updates)
         const textFontSize = (isSelected && previewFontSize) ? previewFontSize : (shape.fontSize || 16);
         const padding = 4;
         
+        // Calculate text height for proper vertical centering
+        // Use the actual text dimensions for accurate centering
+        const textDimensions = calculateTextDimensions(textContent, textFontSize, shape.fontWeight || 'normal');
+        const textHeight = textDimensions.height;
+        const verticalCenter = currentHeight / 2;
+        const textY = verticalCenter - textHeight / 2;
+        
         return (
           <>
-            {/* Invisible hitbox to make the entire text area draggable - disabled when editing */}
+            {/* Invisible hitbox to make the entire text area draggable */}
             <Rect
               x={0}
               y={0}
               width={currentWidth}
               height={currentHeight}
               fill="transparent"
-              listening={editingTextId !== shape.id}
+              listening={true}
               onMouseEnter={() => {
                 if (activeTool === 'select' && !isLockedByOther) {
                   document.body.style.cursor = 'move';
@@ -243,15 +271,10 @@ export default function CanvasShape({
               onMouseLeave={() => {
                 document.body.style.cursor = '';
               }}
-              onDblClick={(e) => {
-                e.cancelBubble = true;
-                if (activeTool === 'select' || activeTool === 'pan') {
-                  onTextDoubleClick(shape.id);
-                }
-              }}
+              onDblClick={onTextDoubleClick ? () => onTextDoubleClick(shape.id) : undefined}
             />
             
-            {/* Selection box with dotted border (Paint-style) - show when selected but NOT when editing */}
+            {/* Selection box with dotted border (Paint-style) - hide when in edit mode */}
             {isSelected && editingTextId !== shape.id && (
               <Rect
                 x={0}
@@ -266,8 +289,23 @@ export default function CanvasShape({
               />
             )}
             
+            {/* Edit mode indicator - dotted/dashed line when editing */}
+            {editingTextId === shape.id && (
+              <Rect
+                x={0}
+                y={0}
+                width={currentWidth}
+                height={currentHeight}
+                stroke="#007acc"
+                strokeWidth={2}
+                dash={[6, 3]}
+                fill="transparent"
+                listening={false}
+              />
+            )}
+            
             {/* Blue border for multi-selected text */}
-            {isMultiSelected && editingTextId !== shape.id && (
+            {isMultiSelected && (
               <Rect
                 x={0}
                 y={0}
@@ -283,22 +321,22 @@ export default function CanvasShape({
               />
             )}
             
-            {/* The actual text - hide when editing to avoid showing duplicate */}
+            {/* The actual text - hide when being edited */}
             {editingTextId !== shape.id && (
-              <Text
-                x={padding}
-                y={padding}
-                text={textContent}
-                fontSize={textFontSize}
-                fill={shape.color}
-                fontStyle={getFontStyle(shape)}
-                fontWeight={shape.fontWeight || 'normal'}
-                textDecoration={shape.textDecoration || 'none'}
-                align="left"
-                verticalAlign="top"
-                opacity={isLockedByOther ? 0.5 : 1}
-                listening={false}
-              />
+            <Text
+              x={padding}
+              y={textY}
+              text={textContent}
+              fontSize={textFontSize}
+              fill={shape.color}
+              fontStyle={shape.fontStyle || 'normal'}
+              fontWeight={shape.fontWeight || 'normal'}
+              textDecoration={shape.textDecoration || 'none'}
+              align="left"
+              verticalAlign="top"
+              opacity={isLockedByOther ? 0.5 : 1}
+              listening={false}
+            />
             )}
           </>
         );
@@ -346,7 +384,7 @@ export default function CanvasShape({
       )}
 
       {/* Resize handles for rectangles, triangles, and text (8 total: 4 corners + 4 edges) */}
-      {isSelected && isLockedByMe && !isResizing && !isRotating && (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text') && currentWidth !== undefined && currentHeight !== undefined && (
+      {isSelected && isLockedByMe && !isResizing && !isRotating && editingTextId !== shape.id && (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text') && currentWidth !== undefined && currentHeight !== undefined && (
         <Group>
           {(() => {
             // Scale handles inversely with zoom so they appear constant size on screen
@@ -440,7 +478,7 @@ export default function CanvasShape({
       )}
 
       {/* Rotation handle - appears 50px above the top of the shape when locked */}
-      {isSelected && isLockedByMe && !isResizing && !isRotating && (() => {
+      {isSelected && isLockedByMe && !isResizing && !isRotating && editingTextId !== shape.id && (() => {
         // Calculate shape center and rotation handle position based on type
         let centerX: number;
         let centerY: number;

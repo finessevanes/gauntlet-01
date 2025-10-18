@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useEffect } from 'react';
 import PaintTitleBar from './PaintTitleBar';
 import ToolPalette from '../Canvas/ToolPalette';
 import ColorPalette from '../Canvas/ColorPalette';
@@ -22,8 +23,6 @@ export default function AppShell({ children }: AppShellProps) {
     selectedShapes,
     setSelectedShapes,
     lastClickedShapeId,
-    updateTextFormatting,
-    updateTextFontSize,
     deleteShape,
     duplicateShape,
     unlockShape,
@@ -37,7 +36,11 @@ export default function AppShell({ children }: AppShellProps) {
     batchBringToFront,
     batchSendToBack,
     batchBringForward,
-    batchSendBackward
+    batchSendBackward,
+    updateTextFormatting,
+    activeTool,
+    textFormattingDefaults,
+    setTextFormattingDefaults
   } = useCanvasContext();
 
   // Handler to open comment panel for selected shape
@@ -70,65 +73,227 @@ export default function AppShell({ children }: AppShellProps) {
     return 'unlocked';
   };
 
-  // Check if text formatting is disabled (when shape is not locked by current user)
+  // Check if text formatting is disabled
+  // Enable formatting controls when:
+  // 1. Text tool is active (even if no text shape is selected), OR
+  // 2. A text shape is selected AND locked by current user
   const lockStatus = selectedShape ? getShapeLockStatus(selectedShape) : 'unlocked';
-  const textFormattingDisabled = lockStatus !== 'locked-by-me';
+  const isTextToolActive = activeTool === 'text';
+  const isTextShapeSelectedAndLocked = selectedShape?.type === 'text' && lockStatus === 'locked-by-me';
+  
+  const textFormattingDisabled = !isTextToolActive && !isTextShapeSelectedAndLocked;
 
   // Text formatting handlers
   const handleToggleBold = async () => {
-    if (!selectedShapeId || !selectedShape || selectedShape.type !== 'text') return;
-    const newWeight = selectedShape.fontWeight === 'bold' ? 'normal' : 'bold';
-    try {
-      await updateTextFormatting(selectedShapeId, { fontWeight: newWeight });
-    } catch (error) {
-      console.error('❌ Failed to toggle bold:', error);
-      toast.error('Failed to update formatting', {
-        duration: 2000,
+    if (!user) return;
+    
+    // If a text shape is selected, update it
+    if (selectedShapeId) {
+      const selectedShape = shapes.find(s => s.id === selectedShapeId);
+      if (selectedShape && selectedShape.type === 'text') {
+        try {
+          const currentWeight = selectedShape.fontWeight || 'normal';
+          const newWeight = currentWeight === 'bold' ? 'normal' : 'bold';
+          
+          await updateTextFormatting(selectedShapeId, { fontWeight: newWeight });
+          
+          toast.success(`Text ${newWeight === 'bold' ? 'bolded' : 'unbolded'}`, {
+            duration: 1000,
+            position: 'top-center',
+          });
+        } catch (error) {
+          console.error('❌ Error toggling bold:', error);
+          toast.error('Failed to update text formatting', {
+            duration: 2000,
+            position: 'top-center',
+          });
+        }
+        return;
+      }
+    }
+    
+    // If no text shape is selected, update the defaults for new text
+    if (activeTool === 'text') {
+      const newWeight = textFormattingDefaults.fontWeight === 'bold' ? 'normal' : 'bold';
+      setTextFormattingDefaults({
+        ...textFormattingDefaults,
+        fontWeight: newWeight
+      });
+      
+      toast.success(`Text defaults: ${newWeight === 'bold' ? 'bold' : 'normal'}`, {
+        duration: 1000,
         position: 'top-center',
       });
     }
   };
 
   const handleToggleItalic = async () => {
-    if (!selectedShapeId || !selectedShape || selectedShape.type !== 'text') return;
-    const newStyle = selectedShape.fontStyle === 'italic' ? 'normal' : 'italic';
-    try {
-      await updateTextFormatting(selectedShapeId, { fontStyle: newStyle });
-    } catch (error) {
-      console.error('❌ Failed to toggle italic:', error);
-      toast.error('Failed to update formatting', {
-        duration: 2000,
+    if (!user) return;
+    
+    // If a text shape is selected, update it
+    if (selectedShapeId) {
+      const selectedShape = shapes.find(s => s.id === selectedShapeId);
+      if (selectedShape && selectedShape.type === 'text') {
+        try {
+          const currentStyle = selectedShape.fontStyle || 'normal';
+          const newStyle = currentStyle === 'italic' ? 'normal' : 'italic';
+          
+          await updateTextFormatting(selectedShapeId, { fontStyle: newStyle });
+          
+          toast.success(`Text ${newStyle === 'italic' ? 'italicized' : 'unitalicized'}`, {
+            duration: 1000,
+            position: 'top-center',
+          });
+        } catch (error) {
+          console.error('❌ Error toggling italic:', error);
+          toast.error('Failed to update text formatting', {
+            duration: 2000,
+            position: 'top-center',
+          });
+        }
+        return;
+      }
+    }
+    
+    // If no text shape is selected, update the defaults for new text
+    if (activeTool === 'text') {
+      const newStyle = textFormattingDefaults.fontStyle === 'italic' ? 'normal' : 'italic';
+      setTextFormattingDefaults({
+        ...textFormattingDefaults,
+        fontStyle: newStyle
+      });
+      
+      toast.success(`Text defaults: ${newStyle === 'italic' ? 'italic' : 'normal'}`, {
+        duration: 1000,
         position: 'top-center',
       });
     }
   };
 
   const handleToggleUnderline = async () => {
-    if (!selectedShapeId || !selectedShape || selectedShape.type !== 'text') return;
-    const newDecoration = selectedShape.textDecoration === 'underline' ? 'none' : 'underline';
-    try {
-      await updateTextFormatting(selectedShapeId, { textDecoration: newDecoration });
-    } catch (error) {
-      console.error('❌ Failed to toggle underline:', error);
-      toast.error('Failed to update formatting', {
-        duration: 2000,
+    if (!user) return;
+    
+    // If a text shape is selected, update it
+    if (selectedShapeId) {
+      const selectedShape = shapes.find(s => s.id === selectedShapeId);
+      if (selectedShape && selectedShape.type === 'text') {
+        try {
+          const currentDecoration = selectedShape.textDecoration || 'none';
+          const newDecoration = currentDecoration === 'underline' ? 'none' : 'underline';
+          
+          await updateTextFormatting(selectedShapeId, { textDecoration: newDecoration });
+          
+          toast.success(`Text ${newDecoration === 'underline' ? 'underlined' : 'ununderlined'}`, {
+            duration: 1000,
+            position: 'top-center',
+          });
+        } catch (error) {
+          console.error('❌ Error toggling underline:', error);
+          toast.error('Failed to update text formatting', {
+            duration: 2000,
+            position: 'top-center',
+          });
+        }
+        return;
+      }
+    }
+    
+    // If no text shape is selected, update the defaults for new text
+    if (activeTool === 'text') {
+      const newDecoration = textFormattingDefaults.textDecoration === 'underline' ? 'none' : 'underline';
+      setTextFormattingDefaults({
+        ...textFormattingDefaults,
+        textDecoration: newDecoration
+      });
+      
+      toast.success(`Text defaults: ${newDecoration === 'underline' ? 'underlined' : 'normal'}`, {
+        duration: 1000,
         position: 'top-center',
       });
     }
   };
 
   const handleChangeFontSize = async (fontSize: number) => {
-    if (!selectedShapeId || !selectedShape || selectedShape.type !== 'text') return;
-    try {
-      await updateTextFontSize(selectedShapeId, fontSize);
-    } catch (error) {
-      console.error('❌ Failed to change font size:', error);
-      toast.error('Failed to update font size', {
-        duration: 2000,
+    if (!user) return;
+    
+    // If a text shape is selected, update it
+    if (selectedShapeId) {
+      const selectedShape = shapes.find(s => s.id === selectedShapeId);
+      if (selectedShape && selectedShape.type === 'text') {
+        try {
+          await updateTextFormatting(selectedShapeId, { fontSize });
+          
+          toast.success(`Font size changed to ${fontSize}px`, {
+            duration: 1000,
+            position: 'top-center',
+          });
+        } catch (error) {
+          console.error('❌ Error changing font size:', error);
+          toast.error('Failed to update font size', {
+            duration: 2000,
+            position: 'top-center',
+          });
+        }
+        return;
+      }
+    }
+    
+    // If no text shape is selected, update the defaults for new text
+    if (activeTool === 'text') {
+      setTextFormattingDefaults({
+        ...textFormattingDefaults,
+        fontSize
+      });
+      
+      toast.success(`Text defaults: ${fontSize}px`, {
+        duration: 1000,
         position: 'top-center',
       });
     }
   };
+
+  // Keyboard shortcuts for text formatting
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle shortcuts when a text shape is selected and not in edit mode
+      if (!selectedShapeId || !user) return;
+      
+      const selectedShape = shapes.find(s => s.id === selectedShapeId);
+      if (!selectedShape || selectedShape.type !== 'text') return;
+      
+      // Check if we're in text editing mode (don't interfere with text input)
+      const isEditingText = document.querySelector('input[type="text"]:focus') || 
+                           document.querySelector('textarea:focus') ||
+                           document.querySelector('[contenteditable="true"]:focus');
+      if (isEditingText) return;
+      
+      // Check for Ctrl/Cmd + B (Bold)
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'b') {
+        event.preventDefault();
+        handleToggleBold();
+        return;
+      }
+      
+      // Check for Ctrl/Cmd + I (Italic)
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'i') {
+        event.preventDefault();
+        handleToggleItalic();
+        return;
+      }
+      
+      // Check for Ctrl/Cmd + U (Underline)
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'u') {
+        event.preventDefault();
+        handleToggleUnderline();
+        return;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedShapeId, user, shapes, handleToggleBold, handleToggleItalic, handleToggleUnderline]);
 
   // Shape action handlers
   const handleDelete = async () => {

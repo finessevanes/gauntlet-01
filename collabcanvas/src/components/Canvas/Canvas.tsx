@@ -5,14 +5,15 @@ import { useCursors } from '../../hooks/useCursors';
 import { useAuth } from '../../hooks/useAuth';
 import { useShapeResize } from '../../hooks/useShapeResize';
 import CursorLayer from '../Collaboration/CursorLayer';
-import TextInput from './TextInput';
 import CanvasShape from './CanvasShape';
 import CanvasPreview from './CanvasPreview';
 import CanvasTooltips from './CanvasTooltips';
 import AlignmentToolbar from './AlignmentToolbar';
 import { CommentPanel } from './CommentPanel';
+import TextEditorOverlay from './TextEditorOverlay';
 import { getShapeLockStatus, getCursorStyle } from './canvasHelpers';
 import { selectionService } from '../../services/selectionService';
+import { calculateTextDimensions } from '../../utils/textEditingHelpers';
 import toast from 'react-hot-toast';
 import { 
   CANVAS_WIDTH, 
@@ -45,7 +46,6 @@ export default function Canvas() {
     createCircle,
     createTriangle,
     createText,
-    updateText,
     updateShape,
     batchUpdateShapes,
     resizeShape,
@@ -56,7 +56,6 @@ export default function Canvas() {
     deleteShape,
     duplicateShape,
     deleteAllShapes,
-    updateTextFontSize,
     selectedShapeId,
     setSelectedShapeId,
     selectedShapes,
@@ -64,8 +63,6 @@ export default function Canvas() {
     lastClickedShapeId,
     setLastClickedShapeId,
     userSelections,
-    editingTextId,
-    setEditingTextId,
     shapesLoading,
     clipboard,
     setClipboard,
@@ -87,7 +84,10 @@ export default function Canvas() {
     resolveComment,
     deleteComment,
     deleteReply,
-    markRepliesAsRead
+    markRepliesAsRead,
+    editingTextId,
+    enterEdit,
+    saveText,
   } = useCanvasContext();
   
   const stageRef = useRef<Konva.Stage>(null);
@@ -129,10 +129,42 @@ export default function Canvas() {
   // Rotation handle hover state
   const [hoveredRotationHandle, setHoveredRotationHandle] = useState<string | null>(null);
   
-  // Text input state
-  const [textInputVisible, setTextInputVisible] = useState(false);
-  const [textInputPosition, setTextInputPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const textInputClosedTimeRef = useRef<number>(0);
+  // Text editing state - track current text content for dynamic border
+  const [editingTextContent, setEditingTextContent] = useState<string>('');
+  const [editingTextDimensions, setEditingTextDimensions] = useState<{ width: number; height: number } | null>(null);
+  
+  // Handle text content changes during editing
+  const handleEditingTextChange = (text: string) => {
+    setEditingTextContent(text);
+  };
+  
+  // Handle dimension changes from HTML input
+  const handleEditingDimensionsChange = (dimensions: { width: number; height: number }) => {
+    setEditingTextDimensions(dimensions);
+  };
+  
+  // Reset editing text content when entering edit mode
+  const handleEnterEdit = (shapeId: string) => {
+    const shape = shapes.find(s => s.id === shapeId);
+    if (shape && shape.type === 'text') {
+      setEditingTextContent(shape.text || '');
+      setEditingTextDimensions(null); // Reset dimensions
+    }
+    enterEdit(shapeId);
+  };
+  
+  // Handle saving text and reset editing content
+  const handleSaveText = async (text: string) => {
+    if (!editingTextId) return;
+    try {
+      await saveText(editingTextId, text);
+      setEditingTextContent(''); // Reset editing content after saving
+      setEditingTextDimensions(null); // Reset dimensions after saving
+    } catch (error) {
+      console.error('Error saving text:', error);
+      throw error;
+    }
+  };
   
   // Rotation state management
   const [isRotating, setIsRotating] = useState(false);
@@ -172,15 +204,7 @@ export default function Canvas() {
     resizeCircle,
     updateShape,
     unlockShape,
-    updateTextFontSize,
   });
-
-  // Track when text input is closed for cooldown
-  useEffect(() => {
-    if (!textInputVisible) {
-      textInputClosedTimeRef.current = Date.now();
-    }
-  }, [textInputVisible, editingTextId]);
 
   // Deselect and unlock when selected shape is deleted/changed externally
   useEffect(() => {
@@ -250,50 +274,24 @@ export default function Canvas() {
     return () => window.removeEventListener('openCommentPanel', handleOpenCommentPanel);
   }, []);
 
-  // Space key handler for temporary panning
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Enable panning when Space is pressed (but not when typing in text input)
-      if (e.key === ' ' && !textInputVisible && !editingTextId) {
-        e.preventDefault(); // Prevent page scrolling
-        setIsSpacePressed(true);
-      }
-    };
 
-    const handleKeyUp = (e: KeyboardEvent) => {
-      // Disable panning when Space is released
-      if (e.key === ' ') {
-        setIsSpacePressed(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [textInputVisible, editingTextId]);
-
-  // Keyboard shortcuts for delete, duplicate, and clear selection
+  // Combined keyboard handler for space bar and all shortcuts
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
+      // Space key handling for panning
+      if (e.key === ' ') {
+        e.preventDefault(); // Prevent page scrolling
+        setIsSpacePressed(true);
+        return; // Don't process other shortcuts when space is pressed
+      }
+
       // Debug: Log all keydown events to diagnose issues
       if (e.key === 'Delete' || e.key === 'Backspace') {
         console.log('🔑 DELETE KEY PRESSED', {
           selectedShapes: selectedShapes.length,
           selectedShapeId,
-          textInputVisible,
-          editingTextId,
           isMarqueeActive,
         });
-      }
-      
-      // Don't trigger shortcuts when typing in text input
-      if (textInputVisible || editingTextId) {
-        console.log('⏭️ Skipping keyboard shortcut - text input active');
-        return;
       }
       
       // Don't trigger shortcuts when comment panel is open
@@ -305,6 +303,12 @@ export default function Canvas() {
       // Don't trigger shortcuts during marquee selection
       if (isMarqueeActive) {
         console.log('⏭️ Skipping keyboard shortcut - marquee active');
+        return;
+      }
+      
+      // Don't trigger shortcuts when text editing is active
+      if (editingTextId) {
+        console.log('⏭️ Skipping keyboard shortcut - text editing active');
         return;
       }
       
@@ -461,20 +465,34 @@ export default function Canvas() {
                 createdBy: user.uid,
               });
             } else if (shape.type === 'text') {
-              return await createText(
-                shape.text || 'Text',
-                newX,
-                newY,
-                shape.color,
-                user.uid,
-                {
-                  width: shape.width,
-                  height: shape.height,
-                  fontSize: shape.fontSize || 16,
-                  rotation: shape.rotation || 0,
-                }
-              );
+              // Handle text shapes with proper undefined filtering
+              const textShapeData: any = {
+                type: 'text',
+                x: newX,
+                y: newY,
+                width: shape.width,
+                height: shape.height,
+                color: shape.color,
+                rotation: shape.rotation || 0,
+                text: shape.text,
+                fontSize: shape.fontSize,
+                createdBy: user.uid,
+              };
+              
+              // Only add font properties if they are defined
+              if (shape.fontWeight !== undefined) {
+                textShapeData.fontWeight = shape.fontWeight;
+              }
+              if (shape.fontStyle !== undefined) {
+                textShapeData.fontStyle = shape.fontStyle;
+              }
+              if (shape.textDecoration !== undefined) {
+                textShapeData.textDecoration = shape.textDecoration;
+              }
+              
+              return await createText(textShapeData);
             }
+            return null;
           });
           
           const newShapeIds = await Promise.all(pastePromises);
@@ -504,6 +522,11 @@ export default function Canvas() {
 
       // Arrow keys - Nudge shapes (10px default, 1px with Shift)
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        // Don't intercept arrow keys if user is typing in an input field
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) {
+          return;
+        }
+        
         e.preventDefault();
         
         const NUDGE_AMOUNT = 10;
@@ -785,6 +808,12 @@ export default function Canvas() {
 
       // Delete key - batch delete or single delete
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Don't delete shapes if user is typing in an input field
+        const activeElement = document.activeElement;
+        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+          return; // Let the input handle the key
+        }
+        
         e.preventDefault();
         
         // Check if we have multiple shapes selected
@@ -900,54 +929,45 @@ export default function Canvas() {
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      // Disable panning when Space is released
+      if (e.key === ' ') {
+        setIsSpacePressed(false);
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
     
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
     };
   }, [
     selectedShapeId, 
     selectedShapes, 
     user, 
-    textInputVisible, 
-    editingTextId, 
     isMarqueeActive,
     openCommentPanelShapeId,
-    deleteShape, 
-    duplicateShape,
+    editingTextId,
     shapes,
     clipboard,
-    setClipboard,
-    createShape,
-    createCircle,
-    createTriangle,
-    createText,
-    groupShapes,
-    ungroupShapes,
-    batchUpdateShapes,
-    updateShape,
-    bringForward,
-    sendBackward,
-    bringToFront,
-    sendToBack,
-    batchBringForward,
-    batchSendBackward,
-    batchBringToFront,
-    batchSendToBack,
-    setStageScale,
-    setStagePosition,
-    setSelectedShapes,
-    lastClickedShapeId,
-    setLastClickedShapeId
+    lastClickedShapeId
   ]);
 
   // Helper: Deselect shape and unlock
   const handleDeselectShape = async () => {
     if (selectedShapeId) {
-      try {
-        await unlockShape(selectedShapeId);
-      } catch (error) {
-        console.error('Failed to unlock shape:', error);
+      // Check if the shape still exists before trying to unlock it
+      const shapeStillExists = shapes.find(s => s.id === selectedShapeId);
+      if (shapeStillExists) {
+        try {
+          await unlockShape(selectedShapeId);
+        } catch (error) {
+          console.error('Failed to unlock shape:', error);
+        }
+      } else {
+        console.log('⚠️ Shape no longer exists, skipping unlock:', selectedShapeId);
       }
       
       setSelectedShapeId(null);
@@ -1094,54 +1114,6 @@ export default function Canvas() {
     }
   };
 
-  // Helper: Handle text double-click for editing
-  const handleTextDoubleClick = async (shapeId: string) => {
-    if (!user) return;
-    
-    const shape = shapes.find(s => s.id === shapeId);
-    if (!shape || shape.type !== 'text') return;
-    
-    // Check if text is locked by another user
-    if (shape.lockedBy && shape.lockedBy !== user.uid) {
-      const lockStatus = getShapeLockStatus(shape, user, selectedShapeId);
-      if (lockStatus === 'locked-by-other') {
-        toast.error('Text is locked by another user', {
-          duration: 2000,
-          position: 'top-center',
-        });
-        return;
-      }
-    }
-    
-    // Lock the shape if not already locked
-    if (selectedShapeId !== shapeId) {
-      // Deselect current shape first
-      if (selectedShapeId) {
-        await handleDeselectShape();
-      }
-      
-      // Select and lock the text
-      setSelectedShapeId(shapeId);
-      const result = await lockShape(shapeId, user.uid);
-      
-      if (!result.success) {
-        setSelectedShapeId(null);
-        const username = result.lockedByUsername || 'another user';
-        toast.error(`Text locked by ${username}`, {
-          duration: 2000,
-          position: 'top-center',
-        });
-        return;
-      }
-    }
-    
-    // Enter edit mode
-    setEditingTextId(shapeId);
-    setTextInputPosition({ x: shape.x, y: shape.y });
-    setTextInputVisible(true);
-  };
-
-
   // Track previous mode when switching to bomb mode
   useEffect(() => {
     if (isBombMode) {
@@ -1185,96 +1157,8 @@ export default function Canvas() {
     }, 800);
   };
 
-  // Text input handlers
-  const handleTextSave = async (text: string) => {
-    if (!user) return;
-    
-    if (!text.trim()) {
-      toast.error('Text cannot be empty', {
-        duration: 2000,
-        position: 'top-center',
-      });
-      return;
-    }
-
-    try {
-      const textId = await createText(
-        text,
-        textInputPosition.x,
-        textInputPosition.y,
-        selectedColor,
-        user.uid
-      );
-      setTextInputVisible(false);
-      
-      // Select and lock the newly created text so user can see resize handles
-      setSelectedShapeId(textId);
-      await lockShape(textId, user.uid);
-      
-      toast.success('Text created!', {
-        duration: 1000,
-        position: 'top-center',
-      });
-    } catch (error) {
-      console.error('❌ Failed to create text:', error);
-      toast.error('Failed to create text', {
-        duration: 2000,
-        position: 'top-center',
-      });
-    }
-  };
-
-  const handleTextCancel = () => {
-    setTextInputVisible(false);
-  };
-
-  // Handle text edit save
-  const handleTextEditSave = async (text: string) => {
-    if (!user || !editingTextId) return;
-    
-    if (!text.trim()) {
-      toast.error('Text cannot be empty', {
-        duration: 2000,
-        position: 'top-center',
-      });
-      return;
-    }
-
-    try {
-      await updateText(editingTextId, text.trim());
-      
-      // Unlock the shape after editing
-      await unlockShape(editingTextId);
-      setSelectedShapeId(null);
-      
-      setTextInputVisible(false);
-      setEditingTextId(null);
-      toast.success('Text updated!', {
-        duration: 1000,
-        position: 'top-center',
-      });
-    } catch (error) {
-      console.error('❌ Failed to update text:', error);
-      toast.error('Failed to update text', {
-        duration: 2000,
-        position: 'top-center',
-      });
-    }
-  };
-
-  // Handle text edit cancel
-  const handleTextEditCancel = async () => {
-    if (editingTextId) {
-      // Unlock the shape when canceling edit
-      await unlockShape(editingTextId);
-      setSelectedShapeId(null);
-    }
-    setTextInputVisible(false);
-    setEditingTextId(null);
-  };
-
   // Drawing handlers: Click-and-drag to create rectangles
-  const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+  const handleMouseDown = async (e: Konva.KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current;
     if (!stage) return;
 
@@ -1303,17 +1187,27 @@ export default function Canvas() {
         return;
       }
 
-      // Handle text tool - show text input at click position
-      if (activeTool === 'text') {
-        // Don't create new text input if one is already visible
-        if (textInputVisible) return;
-        
-        // Don't immediately create a new input after closing one (cooldown)
-        const timeSinceClose = Date.now() - textInputClosedTimeRef.current;
-        if (timeSinceClose < 200) return;
-        
-        setTextInputPosition({ x, y });
-        setTextInputVisible(true);
+      // Handle text tool - create text at click position
+      if (activeTool === 'text' && user) {
+        try {
+          const newTextId = await createText({
+            x,
+            y,
+            color: selectedColor,
+            createdBy: user.uid,
+          });
+          
+          // Auto-enter edit mode for newly created text
+          handleEnterEdit(newTextId);
+          
+          toast.success('Text created', {
+            duration: 1000,
+            position: 'top-center',
+          });
+        } catch (error) {
+          console.error('❌ Failed to create text:', error);
+          toast.error('Failed to create text');
+        }
         return;
       }
 
@@ -1855,11 +1749,13 @@ export default function Canvas() {
       // For text, calculate dimensions dynamically then convert center to top-left
       const textContent = shape.text || '';
       const textFontSize = shape.fontSize || 16;
-      const estimatedWidth = textContent.length * textFontSize * 0.6;
-      const estimatedHeight = textFontSize * 1.2;
+      const fontWeight = shape.fontWeight || 'normal';
+      
+      // Use improved text dimension calculation
+      const textDimensions = calculateTextDimensions(textContent, textFontSize, fontWeight);
       const padding = 4;
-      const width = estimatedWidth + padding * 2;
-      const height = estimatedHeight + padding * 2;
+      const width = textDimensions.width + padding * 2;
+      const height = textDimensions.height + padding * 2;
       
       newX = centerX - width / 2;
       newY = centerY - height / 2;
@@ -2297,6 +2193,20 @@ export default function Canvas() {
       shapeY = shape.y - shape.radius;
       shapeWidth = shape.radius * 2;
       shapeHeight = shape.radius * 2;
+    } else if (shape.type === 'text') {
+      // For text shapes, use dynamic dimension calculation to match CanvasShape.tsx
+      const textContent = shape.text || '';
+      const textFontSize = shape.fontSize || 16;
+      const fontWeight = shape.fontWeight || 'normal';
+      
+      // Use the same text dimension calculation as CanvasShape.tsx
+      const textDimensions = calculateTextDimensions(textContent, textFontSize, fontWeight);
+      const padding = 4;
+      
+      shapeX = shape.x;
+      shapeY = shape.y;
+      shapeWidth = textDimensions.width + padding * 2;
+      shapeHeight = textDimensions.height + padding * 2;
     }
 
     // Apply stage transforms
@@ -2436,11 +2346,9 @@ export default function Canvas() {
                 hoveredHandle={hoveredHandle}
                 hoveredRotationHandle={hoveredRotationHandle}
                 stageScale={stageScale}
-                editingTextId={editingTextId}
                 commentCount={commentCount}
                 hasUnreadReplies={hasUnreadReplies}
                 onShapeMouseDown={handleShapeMouseDown}
-                onTextDoubleClick={handleTextDoubleClick}
                 onResizeStart={handleResizeStart}
                 onRotationStart={handleRotationStart}
                 onDragStart={handleShapeDragStart}
@@ -2449,6 +2357,10 @@ export default function Canvas() {
                 setHoveredHandle={setHoveredHandle}
                 setHoveredRotationHandle={setHoveredRotationHandle}
                 onCommentIndicatorClick={handleCommentIndicatorClick}
+                onTextDoubleClick={handleEnterEdit}
+                editingTextId={editingTextId}
+                editingTextContent={editingTextContent}
+                editingTextDimensions={editingTextDimensions}
               />
             );
           })}
@@ -2518,49 +2430,6 @@ export default function Canvas() {
         <CursorLayer cursors={cursors} />
       </Stage>
 
-      {/* Text Input Overlay */}
-      {textInputVisible && (() => {
-        // Check if we're editing an existing text
-        if (editingTextId) {
-          const shape = shapes.find(s => s.id === editingTextId);
-          if (shape && shape.type === 'text') {
-            return (
-              <TextInput
-                initialText={shape.text}
-                x={textInputPosition.x}
-                y={textInputPosition.y}
-                width={shape.width}
-                height={shape.height}
-                fontSize={shape.fontSize || 16}
-                color={shape.color}
-                rotation={shape.rotation || 0}
-                onSave={handleTextEditSave}
-                onCancel={handleTextEditCancel}
-                stageScale={stageScale}
-                stagePosition={stagePosition}
-              />
-            );
-          }
-        }
-        
-        // Creating new text
-        return (
-          <TextInput
-            initialText="Text"
-            x={textInputPosition.x}
-            y={textInputPosition.y}
-            fontSize={16}
-            color={selectedColor}
-            rotation={0}
-            onSave={handleTextSave}
-            onCancel={handleTextCancel}
-            stageScale={stageScale}
-            stagePosition={stagePosition}
-          />
-        );
-      })()}
-
-
       {/* Comment Panel */}
       {openCommentPanelShapeId && (() => {
         const shape = shapes.find(s => s.id === openCommentPanelShapeId);
@@ -2579,6 +2448,28 @@ export default function Canvas() {
             onResolve={handleResolveComment}
             onDelete={handleDeleteComment}
             onDeleteReply={handleDeleteReply}
+          />
+        );
+      })()}
+
+      {/* Text Editor Overlay - for in-place text editing */}
+      {editingTextId && (() => {
+        const shape = shapes.find(s => s.id === editingTextId);
+        if (!shape || shape.type !== 'text') return null;
+
+        // Calculate position for the overlay
+        const { screenX, screenY } = getShapeScreenPosition(shape);
+        
+        return (
+          <TextEditorOverlay
+            shapeId={editingTextId}
+            initialText={shape.text || ''}
+            position={{ x: screenX, y: screenY }}
+            fontSize={shape.fontSize || 16}
+            color={shape.color}
+            onSave={handleSaveText}
+            onTextChange={handleEditingTextChange}
+            onDimensionsChange={handleEditingDimensionsChange}
           />
         );
       })()}

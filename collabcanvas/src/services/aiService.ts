@@ -195,19 +195,17 @@ export class AIService {
         
       case 'createText':
         this.validatePosition(args.x, args.y, 'text');
-        return await canvasService.createText(
-          args.text,
-          args.x,
-          args.y,
-          args.color || '#000000',
-          userId,
-          {
-            fontSize: args.fontSize || 16,
-            fontWeight: args.fontWeight || 'normal',
-            fontStyle: args.fontStyle || 'normal',
-            textDecoration: args.textDecoration || 'none'
-          }
-        );
+        return await canvasService.createText({
+          x: args.x,
+          y: args.y,
+          color: args.color,
+          createdBy: userId,
+          text: args.text,
+          fontSize: args.fontSize || 24,
+          fontWeight: args.fontWeight || 'normal',
+          fontStyle: args.fontStyle || 'normal',
+          textDecoration: args.textDecoration || 'none'
+        });
       
       // MANIPULATION TOOLS
       case 'moveShape':
@@ -280,7 +278,7 @@ export class AIService {
         case 'createRectangle': return '✓ Created 1 rectangle';
         case 'createCircle': return '✓ Created 1 circle';
         case 'createTriangle': return '✓ Created 1 triangle';
-        case 'createText': return '✓ Created text layer';
+        case 'createText': return '✓ Created 1 text element';
         case 'moveShape': return '✓ Moved shape to new position';
         case 'resizeShape': return '✓ Resized shape';
         case 'rotateShape': return '✓ Rotated shape';
@@ -361,32 +359,20 @@ export class AIService {
         type: "function" as const,
         function: {
           name: "createText",
-          description: "Creates a text layer at specified position with optional fontSize, color, and formatting.",
+          description: "Creates a text element on the canvas at specified position with given text content and styling.",
           parameters: {
             type: "object",
             properties: {
-              text: { type: "string", description: "Text content to display" },
-              x: { type: "number", description: "X position in pixels" },
-              y: { type: "number", description: "Y position in pixels" },
-              fontSize: { type: "number", description: "Font size in pixels (default 16)" },
-              color: { type: "string", description: "Text color hex code (default #000000)" },
-              fontWeight: { 
-                type: "string", 
-                enum: ["normal", "bold"], 
-                description: "Font weight (default normal)" 
-              },
-              fontStyle: { 
-                type: "string", 
-                enum: ["normal", "italic"], 
-                description: "Font style (default normal)" 
-              },
-              textDecoration: { 
-                type: "string", 
-                enum: ["none", "underline"], 
-                description: "Text decoration (default none)" 
-              }
+              x: { type: "number", description: "X position in pixels (0-5000)" },
+              y: { type: "number", description: "Y position in pixels (0-5000)" },
+              color: { type: "string", description: "Hex color code like #000000" },
+              text: { type: "string", description: "The text content to display" },
+              fontSize: { type: "number", description: "Font size in pixels (default 24)" },
+              fontWeight: { type: "string", description: "Font weight: 'normal' or 'bold'" },
+              fontStyle: { type: "string", description: "Font style: 'normal' or 'italic'" },
+              textDecoration: { type: "string", description: "Text decoration: 'none' or 'underline'" }
             },
-            required: ["text", "x", "y"]
+            required: ["x", "y", "color", "text"]
           }
         }
       },

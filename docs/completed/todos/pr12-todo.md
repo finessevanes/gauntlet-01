@@ -1,4 +1,4 @@
-# PR #2A: AI Manipulation Tools - Todo Checklist
+# PR #12: AI Manipulation Tools - Todo Checklist
 
 **Timeline:** 25 minutes  
 **Depends On:** PR #1 must be complete and tested

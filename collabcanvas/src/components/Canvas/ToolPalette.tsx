@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useCanvasContext } from '../../contexts/CanvasContext';
-import { ALLOWED_FONT_SIZES } from '../../utils/helpers';
 import type { ShapeData } from '../../services/canvasService';
+
+// Text formatting constants (for legacy text shapes)
+const ALLOWED_FONT_SIZES = [12, 14, 16, 18, 20, 24, 32, 48];
 
 interface Tool {
   id: string;
@@ -55,10 +57,13 @@ export default function ToolPalette({
     selectedColor,
     shapes,
     isAlignmentToolbarMinimized,
-    setIsAlignmentToolbarMinimized
+    setIsAlignmentToolbarMinimized,
+    textFormattingDefaults
   } = useCanvasContext();
   
   const [isChanging, setIsChanging] = useState(false);
+  const [localFontSize, setLocalFontSize] = useState<number | null>(null);
+  const [lastSavedFontSize, setLastSavedFontSize] = useState<number>(16);
 
   const tools: Tool[] = [
     { id: 'select', icon: '➤', name: 'Select / Move Objects', active: activeTool === 'select' },
@@ -112,21 +117,66 @@ export default function ToolPalette({
     }
   };
 
-  const handleFontSizeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFontSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Update local state to allow continuous typing without losing focus
+    const value = e.target.value;
+    if (value === '') {
+      setLocalFontSize(null);
+    } else {
+      const size = parseInt(value, 10);
+      if (!isNaN(size)) {
+        setLocalFontSize(size);
+      }
+    }
+  };
+
+  const handleFontSizeBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
     if (!onChangeFontSize || textControlsDisabled || isChanging) return;
     const size = parseInt(e.target.value, 10);
     
     // Validate: must be a number between 1 and 500
     if (isNaN(size) || size < 1 || size > 500) {
+      // Reset to current font size if invalid
+      setLocalFontSize(null);
       return;
     }
     
     setIsChanging(true);
     try {
       await onChangeFontSize(size);
+      setLastSavedFontSize(size); // Save the last valid size
+      setLocalFontSize(null); // Reset local state after successful update
     } finally {
       setTimeout(() => setIsChanging(false), 100);
     }
+  };
+
+  const handleFontSizeKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow normal typing (backspace, delete, arrow keys, etc.)
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // Trigger the same logic as blur
+      const target = e.target as HTMLInputElement;
+      const size = parseInt(target.value, 10);
+      
+      if (!onChangeFontSize || textControlsDisabled || isChanging) return;
+      
+      // Validate: must be a number between 1 and 500
+      if (isNaN(size) || size < 1 || size > 500) {
+        setLocalFontSize(null);
+        return;
+      }
+      
+      setIsChanging(true);
+      try {
+        await onChangeFontSize(size);
+        setLastSavedFontSize(size); // Save the last valid size
+        setLocalFontSize(null);
+      } finally {
+        setTimeout(() => setIsChanging(false), 100);
+      }
+    }
+    // Don't prevent default for other keys (backspace, delete, etc.)
   };
 
   const handleFontSizeSelect = async (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -145,6 +195,7 @@ export default function ToolPalette({
     setIsChanging(true);
     try {
       await onChangeFontSize(size);
+      setLastSavedFontSize(size); // Save the last valid size
     } finally {
       setTimeout(() => setIsChanging(false), 100);
     }
@@ -152,15 +203,29 @@ export default function ToolPalette({
 
   // Check if a text shape is selected to enable text formatting controls
   const isTextSelected = selectedShape?.type === 'text';
-  const isBold = selectedShape?.fontWeight === 'bold';
-  const isItalic = selectedShape?.fontStyle === 'italic';
-  const isUnderline = selectedShape?.textDecoration === 'underline';
+  const isTextToolActive = activeTool === 'text';
+  
+  // Determine formatting state: use selected shape if available, otherwise use defaults
+  const isBold = isTextSelected ? (selectedShape?.fontWeight === 'bold') : (textFormattingDefaults.fontWeight === 'bold');
+  const isItalic = isTextSelected ? (selectedShape?.fontStyle === 'italic') : (textFormattingDefaults.fontStyle === 'italic');
+  const isUnderline = isTextSelected ? (selectedShape?.textDecoration === 'underline') : (textFormattingDefaults.textDecoration === 'underline');
   
   // Get current font size, ensuring it's a valid number
-  let currentFontSize = 16; // default
-  if (isTextSelected && selectedShape?.fontSize !== undefined) {
-    currentFontSize = selectedShape.fontSize;
-  }
+  const currentFontSize = useMemo(() => {
+    if (isTextSelected && selectedShape?.fontSize !== undefined) {
+      return selectedShape.fontSize;
+    } else if (isTextToolActive) {
+      return textFormattingDefaults.fontSize;
+    }
+    return 16; // default
+  }, [isTextSelected, selectedShape?.fontSize, isTextToolActive, textFormattingDefaults.fontSize]);
+  
+  // Update last saved font size when current font size changes (e.g., when selecting different text)
+  useEffect(() => {
+    if (currentFontSize && currentFontSize !== lastSavedFontSize) {
+      setLastSavedFontSize(currentFontSize);
+    }
+  }, [currentFontSize, lastSavedFontSize]);
   
   // Debug: Log the selected shape data
   if (isTextSelected) {
@@ -174,8 +239,8 @@ export default function ToolPalette({
     });
   }
   
-  // Disable text controls when no text is selected OR when already disabled
-  const textControlsDisabled = !isTextSelected || textFormattingDisabled;
+  // Disable text controls only when user doesn't have permission to edit
+  const textControlsDisabled = textFormattingDisabled;
 
   return (
     <div style={styles.palette}>
@@ -435,14 +500,14 @@ export default function ToolPalette({
             disabled={textControlsDisabled || isChanging}
             style={{
               ...styles.formatButton,
-              ...(isBold && isTextSelected ? styles.activeFormatButton : {}),
+              ...(isBold && (isTextSelected || isTextToolActive) ? styles.activeFormatButton : {}),
               ...(textControlsDisabled ? styles.disabledButton : {}),
             }}
-            title={isTextSelected ? "Bold" : "Bold (select text first)"}
+            title={isTextSelected ? "Bold" : (textControlsDisabled ? "Bold (select text first)" : "Bold (text tool active)")}
           >
             <span style={{ 
               fontWeight: 'bold',
-              color: isBold && isTextSelected ? '#ffffff' : (textControlsDisabled ? '#a0a0a0' : '#000000')
+              color: isBold && (isTextSelected || isTextToolActive) ? '#ffffff' : (textControlsDisabled ? '#a0a0a0' : '#000000')
             }}>
               B
             </span>
@@ -453,14 +518,14 @@ export default function ToolPalette({
             disabled={textControlsDisabled || isChanging}
             style={{
               ...styles.formatButton,
-              ...(isItalic && isTextSelected ? styles.activeFormatButton : {}),
+              ...(isItalic && (isTextSelected || isTextToolActive) ? styles.activeFormatButton : {}),
               ...(textControlsDisabled ? styles.disabledButton : {}),
             }}
-            title={isTextSelected ? "Italic" : "Italic (select text first)"}
+            title={isTextSelected ? "Italic" : (textControlsDisabled ? "Italic (select text first)" : "Italic (text tool active)")}
           >
             <span style={{ 
               fontStyle: 'italic',
-              color: isItalic && isTextSelected ? '#ffffff' : (textControlsDisabled ? '#a0a0a0' : '#000000')
+              color: isItalic && (isTextSelected || isTextToolActive) ? '#ffffff' : (textControlsDisabled ? '#a0a0a0' : '#000000')
             }}>
               I
             </span>
@@ -471,14 +536,14 @@ export default function ToolPalette({
             disabled={textControlsDisabled || isChanging}
             style={{
               ...styles.formatButton,
-              ...(isUnderline && isTextSelected ? styles.activeFormatButton : {}),
+              ...(isUnderline && (isTextSelected || isTextToolActive) ? styles.activeFormatButton : {}),
               ...(textControlsDisabled ? styles.disabledButton : {}),
             }}
-            title={isTextSelected ? "Underline" : "Underline (select text first)"}
+            title={isTextSelected ? "Underline" : (textControlsDisabled ? "Underline (select text first)" : "Underline (text tool active)")}
           >
             <span style={{ 
               textDecoration: 'underline',
-              color: isUnderline && isTextSelected ? '#ffffff' : (textControlsDisabled ? '#a0a0a0' : '#000000')
+              color: isUnderline && (isTextSelected || isTextToolActive) ? '#ffffff' : (textControlsDisabled ? '#a0a0a0' : '#000000')
             }}>
               U
             </span>
@@ -497,8 +562,10 @@ export default function ToolPalette({
             {/* Large input field for current size and custom entry */}
             <input
               type="number"
-              value={currentFontSize}
+              value={localFontSize !== null ? localFontSize : currentFontSize}
               onChange={handleFontSizeChange}
+              onBlur={handleFontSizeBlur}
+              onKeyDown={handleFontSizeKeyDown}
               disabled={textControlsDisabled || isChanging}
               min={1}
               max={500}
@@ -506,8 +573,8 @@ export default function ToolPalette({
                 ...styles.fontSizeComboInput,
                 ...(textControlsDisabled ? styles.disabledInput : {}),
               }}
-              title={isTextSelected ? "Type custom size (1-500px)" : "Font size (select text first)"}
-              placeholder="16"
+              title={isTextSelected ? "Type custom size (1-500px)" : (textControlsDisabled ? "Font size (select text first)" : "Font size (text tool active)")}
+              placeholder={currentFontSize.toString()}
             />
             {/* Dropdown for preset sizes */}
             <select
@@ -518,7 +585,7 @@ export default function ToolPalette({
                 ...styles.fontSizeComboSelect,
                 ...(textControlsDisabled ? styles.disabledInput : {}),
               }}
-              title={isTextSelected ? "Select preset size" : "Select font size (select text first)"}
+              title={isTextSelected ? "Select preset size" : (textControlsDisabled ? "Select font size (select text first)" : "Select font size (text tool active)")}
             >
               {ALLOWED_FONT_SIZES.map((size) => (
                 <option key={size} value={size}>{size}</option>
@@ -602,6 +669,7 @@ const styles = {
   activeTool: {
     backgroundColor: '#c0c0c0',
     boxShadow: 'inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #ffffff',
+    border: '2px solid #0066cc',
   },
   colorDisplay: {
     marginTop: '8px',

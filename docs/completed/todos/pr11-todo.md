@@ -1,4 +1,4 @@
-# PR #1: AI Service Foundation + Creation Tools - TODO List
+# PR #11: AI Service CORE + Creation Tools - TODO List
 
 **Goal:** Build the AI infrastructure that can execute natural language commands to create shapes on the canvas.
 

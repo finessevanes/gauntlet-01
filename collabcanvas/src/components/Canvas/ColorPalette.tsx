@@ -1,22 +1,155 @@
 import { useCanvasContext } from '../../contexts/CanvasContext';
 import { PAINT_COLORS } from '../../utils/constants';
+import toast from 'react-hot-toast';
+import { useMemo } from 'react';
 
 export default function ColorPalette() {
-  const { selectedColor, setSelectedColor } = useCanvasContext();
+  const { 
+    selectedColor, 
+    setSelectedColor, 
+    selectedShapeId, 
+    selectedShapes, 
+    shapes, 
+    updateShape, 
+    batchUpdateShapes,
+    editingTextId 
+  } = useCanvasContext();
+
+  // Check if any shapes are selected (either single selection or multi-selection)
+  const hasSelectedShapes = () => {
+    // Check if any text is being edited
+    if (editingTextId) {
+      const editingShape = shapes.find(s => s.id === editingTextId);
+      return editingShape?.type === 'text';
+    }
+    
+    // Check single selection
+    if (selectedShapeId) {
+      return true; // Any shape type can be selected
+    }
+    
+    // Check multi-selection
+    if (selectedShapes.length > 0) {
+      return true; // Any shapes can be selected
+    }
+    
+    return false;
+  };
+
+  // Get the current color to display - either selected shape color or default selected color
+  // Use useMemo to recalculate when shapes, selections, or editing state changes
+  const currentDisplayColor = useMemo(() => {
+    if (editingTextId) {
+      const editingShape = shapes.find(s => s.id === editingTextId);
+      if (editingShape?.type === 'text') {
+        return editingShape.color;
+      }
+    }
+    
+    if (selectedShapeId) {
+      const selectedShape = shapes.find(s => s.id === selectedShapeId);
+      if (selectedShape) {
+        return selectedShape.color; // Any shape type has a color
+      }
+    }
+    
+    if (selectedShapes.length > 0) {
+      const selectedShapesData = shapes.filter(s => selectedShapes.includes(s.id));
+      if (selectedShapesData.length > 0) {
+        // If multiple shapes, use the first one's color
+        return selectedShapesData[0].color;
+      }
+    }
+    
+    return selectedColor;
+  }, [shapes, selectedShapeId, selectedShapes, editingTextId, selectedColor]);
+
+  // Handle color selection
+  const handleColorSelect = async (color: string) => {
+    const hasShapesSelected = hasSelectedShapes();
+    
+    if (hasShapesSelected) {
+      // Apply color to selected shapes
+      try {
+        if (editingTextId) {
+          // Text is being edited - update the editing text
+          const editingShape = shapes.find(s => s.id === editingTextId);
+          if (editingShape?.type === 'text') {
+            await updateShape(editingTextId, { color });
+            toast.success('Text color changed', {
+              duration: 1000,
+              position: 'top-center',
+            });
+          }
+        } else if (selectedShapeId) {
+          // Single shape selected
+          const selectedShape = shapes.find(s => s.id === selectedShapeId);
+          if (selectedShape) {
+            await updateShape(selectedShapeId, { color });
+            const shapeType = selectedShape.type === 'text' ? 'text' : 'shape';
+            toast.success(`${shapeType.charAt(0).toUpperCase() + shapeType.slice(1)} color changed`, {
+              duration: 1000,
+              position: 'top-center',
+            });
+          }
+        } else if (selectedShapes.length > 0) {
+          // Multiple shapes selected - update all selected shapes
+          const selectedShapesData = shapes.filter(s => selectedShapes.includes(s.id));
+          
+          if (selectedShapesData.length > 0) {
+            const updates = selectedShapesData.map(shape => ({
+              shapeId: shape.id,
+              updates: { color }
+            }));
+            
+            await batchUpdateShapes(updates);
+            toast.success(`Changed color of ${selectedShapesData.length} shape${selectedShapesData.length > 1 ? 's' : ''}`, {
+              duration: 1000,
+              position: 'top-center',
+            });
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error changing shape color:', error);
+        toast.error('Failed to change shape color', {
+          duration: 2000,
+          position: 'top-center',
+        });
+      }
+    } else {
+      // No shapes selected - just update the selected color for new shapes
+      setSelectedColor(color);
+    }
+  };
 
   return (
     <div style={styles.paletteContainer}>
       <div style={styles.palette}>
+        {/* Current Color Indicator */}
+        <div style={styles.currentColorSection}>
+          <div style={styles.currentColorLabel}>Current:</div>
+          <div style={styles.currentColorDisplay}>
+            <div 
+              style={{
+                ...styles.currentColorSwatch,
+                backgroundColor: currentDisplayColor,
+              }}
+              title={`Selected color: ${currentDisplayColor}`}
+            />
+            <div style={styles.currentColorText}>{currentDisplayColor}</div>
+          </div>
+        </div>
+
         {/* Color grid - 2 rows of 14 colors */}
         <div style={styles.colorGrid}>
           {PAINT_COLORS.map((color) => (
             <button
               key={color}
-              onClick={() => setSelectedColor(color)}
+              onClick={() => handleColorSelect(color)}
               style={{
                 ...styles.colorSwatch,
                 backgroundColor: color,
-                ...(selectedColor === color ? styles.activeColor : {}),
+                ...(currentDisplayColor === color ? styles.activeColor : {}),
               }}
               title={color}
               aria-label={`Select color ${color}`}
@@ -84,6 +217,42 @@ const styles = {
     cursor: 'pointer',
     boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
     height: '24px',
+  },
+  currentColorSection: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginRight: '12px',
+    padding: '4px 8px',
+    backgroundColor: '#ffffff',
+    border: '1px solid #808080',
+    borderRadius: '2px',
+    boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
+  },
+  currentColorLabel: {
+    fontSize: '11px',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+    color: '#000000',
+    fontWeight: 'bold',
+  },
+  currentColorDisplay: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  currentColorSwatch: {
+    width: '24px',
+    height: '24px',
+    border: '2px solid #000000',
+    borderRadius: '2px',
+    boxShadow: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #ffffff',
+  },
+  currentColorText: {
+    fontSize: '10px',
+    fontFamily: 'monospace',
+    color: '#000000',
+    fontWeight: 'bold',
+    minWidth: '60px',
   },
 };
 

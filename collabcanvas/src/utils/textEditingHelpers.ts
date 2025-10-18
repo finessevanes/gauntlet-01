@@ -109,8 +109,6 @@ export const calculateTextDimensions = (
   let lineHeight = fontSize * 1.2; // Use 1.2 line height multiplier for better text rendering
   
   if (context) {
-    // Get actual text metrics for more accurate height
-    const metrics = context.measureText(text);
     // Use the font size as the baseline height, but account for descenders
     lineHeight = Math.max(fontSize, fontSize * 1.2);
   }

@@ -535,6 +535,7 @@ class CanvasService {
     y: number; 
     color: string; 
     createdBy: string;
+    text?: string;
     fontSize?: number;
     fontWeight?: 'normal' | 'bold';
     fontStyle?: 'normal' | 'italic';
@@ -552,11 +553,11 @@ class CanvasService {
       const maxZIndex = shapes.length > 0 ? Math.max(...shapes.map(s => s.zIndex || 0)) : -1;
       const zIndex = maxZIndex + 1;
       
-      // Calculate proper dimensions for the "TEXT" placeholder
-      const placeholderText = 'TEXT';
-      const placeholderFontSize = textData.fontSize || 24;
-      const placeholderFontWeight = textData.fontWeight || 'normal';
-      const textDimensions = calculateTextDimensions(placeholderText, placeholderFontSize, placeholderFontWeight);
+      // Calculate proper dimensions for the actual text content
+      const actualText = textData.text || 'TEXT';
+      const actualFontSize = textData.fontSize || 24;
+      const actualFontWeight = textData.fontWeight || 'normal';
+      const textDimensions = calculateTextDimensions(actualText, actualFontSize, actualFontWeight);
       const padding = 4;
       const calculatedWidth = textDimensions.width + padding * 2;
       const calculatedHeight = textDimensions.height + padding * 2;
@@ -572,8 +573,8 @@ class CanvasService {
         y: offsetY,
         width: calculatedWidth,
         height: calculatedHeight,
-        text: placeholderText, // Use the placeholder text variable
-        fontSize: placeholderFontSize, // Use the placeholder font size variable
+        text: actualText, // Use the actual text content
+        fontSize: actualFontSize, // Use the actual font size
         fontWeight: textData.fontWeight || 'normal',
         fontStyle: textData.fontStyle || 'normal',
         textDecoration: textData.textDecoration || 'none',

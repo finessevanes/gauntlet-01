@@ -194,8 +194,18 @@ export class AIService {
         });
         
       case 'createText':
-        // Text creation is not supported in this version
-        throw new Error('Text creation is not supported. Please use rectangle, circle, or triangle shapes instead.');
+        this.validatePosition(args.x, args.y, 'text');
+        return await canvasService.createText({
+          x: args.x,
+          y: args.y,
+          color: args.color,
+          createdBy: userId,
+          text: args.text,
+          fontSize: args.fontSize || 24,
+          fontWeight: args.fontWeight || 'normal',
+          fontStyle: args.fontStyle || 'normal',
+          textDecoration: args.textDecoration || 'none'
+        });
       
       // MANIPULATION TOOLS
       case 'moveShape':
@@ -268,6 +278,7 @@ export class AIService {
         case 'createRectangle': return '✓ Created 1 rectangle';
         case 'createCircle': return '✓ Created 1 circle';
         case 'createTriangle': return '✓ Created 1 triangle';
+        case 'createText': return '✓ Created 1 text element';
         case 'moveShape': return '✓ Moved shape to new position';
         case 'resizeShape': return '✓ Resized shape';
         case 'rotateShape': return '✓ Rotated shape';
@@ -279,7 +290,7 @@ export class AIService {
     
     // Multi-step operations
     const creationCount = toolNames.filter(t => 
-      ['createRectangle', 'createCircle', 'createTriangle'].includes(t)
+      ['createRectangle', 'createCircle', 'createTriangle', 'createText'].includes(t)
     ).length;
     
     if (creationCount > 1) {
@@ -344,7 +355,27 @@ export class AIService {
           }
         }
       },
-      // Note: createText is removed - text layer support is being rebuilt with Konva native implementation
+      {
+        type: "function" as const,
+        function: {
+          name: "createText",
+          description: "Creates a text element on the canvas at specified position with given text content and styling.",
+          parameters: {
+            type: "object",
+            properties: {
+              x: { type: "number", description: "X position in pixels (0-5000)" },
+              y: { type: "number", description: "Y position in pixels (0-5000)" },
+              color: { type: "string", description: "Hex color code like #000000" },
+              text: { type: "string", description: "The text content to display" },
+              fontSize: { type: "number", description: "Font size in pixels (default 24)" },
+              fontWeight: { type: "string", description: "Font weight: 'normal' or 'bold'" },
+              fontStyle: { type: "string", description: "Font style: 'normal' or 'italic'" },
+              textDecoration: { type: "string", description: "Text decoration: 'none' or 'underline'" }
+            },
+            required: ["x", "y", "color", "text"]
+          }
+        }
+      },
       
       // MANIPULATION TOOLS
       {

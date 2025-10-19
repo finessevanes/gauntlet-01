@@ -66,8 +66,8 @@ A collaborative MS Paint-style app (2000s aesthetic) where users create postcard
 - [x] Live cursors
 
 ### Paint Tools (Missing)
-- [ ] Pencil tool (free-form drawing)
-- [ ] Spray paint tool (clouds, textures)
+- [x] Pencil tool (free-form drawing)
+- [x] Spray paint tool (clouds, textures)
 - [ ] Fill bucket tool (flood fill)
 - [ ] Line tool
 - [ ] Stroke width selector (1px, 3px, 5px, 8px)
@@ -156,8 +156,8 @@ A collaborative MS Paint-style app (2000s aesthetic) where users create postcard
 ## 🚀 PR Roadmap
 
 ### Phase 1: Paint Tools (MVP Drawing)
-1. PR #1: Pencil tool
-2. PR #2: Spray paint tool
+1. [x] PR #1: Pencil tool
+2. [x] PR #2: Spray paint tool
 3. PR #3: Fill bucket tool
 
 ### Phase 2: AI Features (Core Requirement) ← **FOCUS FOR SCHOOL DEMO**

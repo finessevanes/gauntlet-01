@@ -17,8 +17,9 @@
 **Once you have your PR number, follow these steps:**
 1. Read `collabcanvas/docs/pr-briefs.md` - find your PR #
 2. Create comprehensive PRD
-3. Create detailed TODO breakdown
-4. Review and finalize
+3. **Check YOLO** - if `false`, stop and await feedback
+4. Create detailed TODO breakdown (after approval or if YOLO is `true`)
+5. Review and finalize
 
 ---
 
@@ -40,6 +41,10 @@
 ---
 
 ## Workflow Steps
+
+> **⚠️ IMPORTANT:** Check your YOLO setting in the agent prompt!
+> - **YOLO: false** → Create PRD → Stop for user feedback → Create TODO after approval
+> - **YOLO: true** → Create both PRD and TODO without stopping
 
 ### Step 1: Read and Understand
 
@@ -175,6 +180,21 @@ Identify 3-5 risks:
 
 ---
 
+### Step 2.5: Check YOLO Mode
+
+**🛑 STOP HERE if YOLO: false!**
+
+If **YOLO: false** in your agent prompt:
+1. Present the completed PRD to the user
+2. Wait for their review and feedback
+3. Make any requested changes
+4. Only proceed to Step 3 after receiving explicit approval
+
+If **YOLO: true**:
+- Continue directly to Step 3 without stopping
+
+---
+
 ### Step 3: Create TODO
 
 **File:** `collabcanvas/docs/todos/pr-{number}-todo.md`
@@ -282,8 +302,22 @@ Identify 3-5 risks:
 
 ### Step 5: Handoff
 
-**When complete:**
-1. Notify user that PRD and TODO are ready
+**Handoff depends on YOLO setting:**
+
+#### If YOLO: false
+You already presented the PRD in Step 2.5 and received feedback. Now:
+
+1. Notify user that TODO is complete
+2. Provide file paths:
+   - `collabcanvas/docs/prds/pr-{number}-prd.md` (already reviewed)
+   - `collabcanvas/docs/todos/pr-{number}-todo.md` (new)
+3. Summarize the TODO breakdown
+4. Wait for final approval before handing off to Building Agent
+
+#### If YOLO: true
+This is the first time presenting both documents. Now:
+
+1. Notify user that PRD and TODO are both ready
 2. Provide file paths:
    - `collabcanvas/docs/prds/pr-{number}-prd.md`
    - `collabcanvas/docs/todos/pr-{number}-todo.md`
@@ -291,6 +325,7 @@ Identify 3-5 risks:
    - Main deliverables
    - Estimated complexity
    - Key risks to watch for
+   - TODO task breakdown
 4. Wait for user approval before implementation starts
 
 **User will review and may ask for:**
@@ -298,6 +333,7 @@ Identify 3-5 risks:
 - Additional details
 - Scope adjustments
 - Risk mitigation strategies
+- TODO reorganization
 
 ---
 
@@ -376,6 +412,7 @@ in real-time within 100ms with matching color and stroke width.
 - ✅ Test plan covers happy path, edge cases, multi-user, performance
 - ✅ Risks are identified with mitigations
 - ✅ Definition of Done is comprehensive
+- ✅ **If YOLO: false** → User has reviewed and approved PRD
 
 **TODO is complete when:**
 - ✅ All PRD requirements broken into tasks
@@ -385,6 +422,7 @@ in real-time within 100ms with matching color and stroke width.
 - ✅ Testing tasks included for every feature
 - ✅ Documentation tasks included
 - ✅ Setup and cleanup tasks included
+- ✅ User has reviewed and approved final deliverables
 
 ---
 
@@ -402,6 +440,11 @@ in real-time within 100ms with matching color and stroke width.
 
 ❌ **Forgetting tests:** No test tasks → ✅ "Write integration test, write service test, write utils test"
 
+❌ **Ignoring YOLO:** Creating both docs when YOLO: false → ✅ Check YOLO, stop after PRD if false
+
 ---
 
-**Remember:** A great PRD + TODO sets up the coder agent for success. Take your time, be thorough, and think through edge cases!
+**Remember:** 
+- A great PRD + TODO sets up the coder agent for success
+- Always check your YOLO setting and follow the correct workflow
+- Take your time, be thorough, and think through edge cases!

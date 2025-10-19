@@ -6,13 +6,13 @@ Your instructions are in the attached file `agents/planning-agent-template.md`. 
 
 Your assignment: PR #___ - ___________.
 
+**YOLO:** `false`
+
 Key reminders:
 - You have full access to read files in the codebase
-- Create PRD document at `collabcanvas/docs/prds/pr-{number}-prd.md`
-- Create TODO document at `collabcanvas/docs/todos/pr-{number}-todo.md`
 - Use the templates: `agents/prd-template.md` and `agents/todo-template.md`
 - Be thorough - these docs will be used by the Building Agent
-- Work autonomously until complete - don't ask for permission at each step
+- Respect the YOLO mode setting above
 
 Start by reading your instruction file, then begin Step 1 (read PR brief).
 

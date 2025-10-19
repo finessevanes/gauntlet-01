@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import type { Comment } from '../services/canvasService';
+import type { CommentData } from '../services/canvasService';
 
 interface UseCommentPanelProps {
   user: { uid: string; displayName?: string | null; email?: string | null } | null;
@@ -10,7 +10,7 @@ interface UseCommentPanelProps {
   deleteComment: (commentId: string, userId: string) => Promise<void>;
   deleteReply: (commentId: string, replyIndex: number, userId: string) => Promise<void>;
   markRepliesAsRead: (commentId: string, userId: string) => Promise<void>;
-  comments: Comment[];
+  comments: CommentData[];
 }
 
 export function useCommentPanel(props: UseCommentPanelProps) {

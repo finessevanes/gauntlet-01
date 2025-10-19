@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import type Konva from 'konva';
 import { 
   CANVAS_WIDTH, 
   CANVAS_HEIGHT, 

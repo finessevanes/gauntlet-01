@@ -27,10 +27,10 @@ interface UseKeyboardShortcutsProps {
   ungroupShapes: (groupId: string) => Promise<void>;
   batchUpdateShapes: (updates: Array<{ shapeId: string; updates: Partial<ShapeData> }>) => Promise<void>;
   updateShape: (shapeId: string, updates: Partial<ShapeData>) => Promise<void>;
-  createShape: (data: Omit<ShapeData, 'id' | 'createdAt' | 'zIndex'>) => Promise<string>;
-  createCircle: (data: Omit<ShapeData, 'id' | 'createdAt' | 'zIndex' | 'type'>) => Promise<string>;
-  createTriangle: (data: Omit<ShapeData, 'id' | 'createdAt' | 'zIndex' | 'type'>) => Promise<string>;
-  createText: (data: Omit<ShapeData, 'id' | 'createdAt' | 'zIndex' | 'type'>) => Promise<string>;
+  createShape: (data: Omit<ShapeData, 'id' | 'createdAt' | 'updatedAt' | 'lockedBy' | 'lockedAt' | 'groupId' | 'zIndex'> & { groupId?: string | null; zIndex?: number }) => Promise<string>;
+  createCircle: (circleData: { x: number; y: number; radius: number; color: string; createdBy: string }) => Promise<string>;
+  createTriangle: (triangleData: { x: number; y: number; width: number; height: number; color: string; createdBy: string }) => Promise<string>;
+  createText: (textData: { x: number; y: number; color: string; createdBy: string }) => Promise<string>;
   lockShape: (shapeId: string, userId: string) => Promise<{ success: boolean; lockedByUsername?: string }>;
   batchBringToFront: (shapeIds: string[]) => Promise<void>;
   batchSendToBack: (shapeIds: string[]) => Promise<void>;

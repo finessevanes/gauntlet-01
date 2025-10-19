@@ -2,7 +2,6 @@ import { useState } from 'react';
 import type Konva from 'konva';
 import type { ShapeData } from '../services/canvasService';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../utils/constants';
-import { calculateTextDimensions } from '../utils/textEditingHelpers';
 
 interface UseMultiShapeDragProps {
   stageRef: React.RefObject<Konva.Stage | null>;

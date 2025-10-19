@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import toast from 'react-hot-toast';
 import type Konva from 'konva';
 import type { ShapeData } from '../services/canvasService';
@@ -29,7 +28,6 @@ export function useShapeInteraction(props: UseShapeInteractionProps) {
     setSelectedShapeId,
     selectedShapes,
     setSelectedShapes,
-    lastClickedShapeId,
     setLastClickedShapeId,
     userSelections,
     lockShape,

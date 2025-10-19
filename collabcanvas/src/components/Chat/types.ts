@@ -9,6 +9,16 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
+/**
+ * Input for saving messages to Firestore (before document creation)
+ */
+export interface ChatMessageInput {
+  canvasId: string;
+  userId: string;
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface ChatPanelProps {
   isOpen: boolean;
   onClose: () => void;

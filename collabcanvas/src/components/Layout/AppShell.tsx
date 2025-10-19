@@ -12,6 +12,7 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../../utils/constants';
 import { useCanvasContext } from '../../contexts/CanvasContext';
 import { useAuth } from '../../hooks/useAuth';
 import { AIService } from '../../services/aiService';
+import { saveMessage, loadChatHistory } from '../../services/chatService';
 import toast from 'react-hot-toast';
 
 interface AppShellProps {
@@ -33,17 +34,44 @@ export default function AppShell({ children }: AppShellProps) {
     aiServiceRef.current = new AIService();
   }
   
-  // Add welcome message on first render
+  // Load chat history from Firestore when user is authenticated
   useEffect(() => {
-    if (chatMessages.length === 0) {
-      setChatMessages([{
-        id: 'welcome',
-        role: 'assistant',
-        content: "Hi! I'm Clippy, your canvas assistant. How can I help you today?",
-        timestamp: new Date()
-      }]);
-    }
-  }, []);
+    const loadHistory = async () => {
+      if (!user?.uid) return;
+      
+      setIsChatLoading(true);
+      try {
+        const canvasId = 'main'; // TODO: Get from routing in PR #12
+        const history = await loadChatHistory(canvasId, user.uid);
+        
+        // If history is empty, show welcome message
+        if (history.length === 0) {
+          setChatMessages([{
+            id: 'welcome',
+            role: 'assistant',
+            content: "Hi! I'm Clippy, your canvas assistant. How can I help you today?",
+            timestamp: new Date()
+          }]);
+        } else {
+          // Load chat history from Firestore
+          setChatMessages(history);
+        }
+      } catch (error) {
+        console.error('Failed to load chat history:', error);
+        // Show error message in chat
+        setChatMessages([{
+          id: 'error',
+          role: 'assistant',
+          content: "⚠️ Couldn't load chat history. Starting fresh!",
+          timestamp: new Date()
+        }]);
+      } finally {
+        setIsChatLoading(false);
+      }
+    };
+    
+    loadHistory();
+  }, [user?.uid]);
   
   // Handle sending messages to AI
   const handleSendMessage = async (content: string) => {
@@ -83,6 +111,23 @@ export default function AppShell({ children }: AppShellProps) {
     };
     setChatMessages(prev => [...prev, userMessage]);
     
+    // Save user message to Firestore
+    try {
+      const canvasId = 'main'; // TODO: Get from routing in PR #12
+      await saveMessage({
+        canvasId,
+        userId: user.uid,
+        role: 'user',
+        content: trimmedContent
+      });
+    } catch (error) {
+      console.error('Failed to save user message:', error);
+      toast.error('⚠️ Message not saved. Check your connection.', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+    
     // Set loading state
     setIsChatLoading(true);
     
@@ -107,6 +152,19 @@ export default function AppShell({ children }: AppShellProps) {
       };
       setChatMessages(prev => [...prev, aiMessage]);
       
+      // Save AI response to Firestore
+      try {
+        const canvasId = 'main'; // TODO: Get from routing in PR #12
+        await saveMessage({
+          canvasId,
+          userId: user.uid,
+          role: 'assistant',
+          content: result.message
+        });
+      } catch (error) {
+        console.error('Failed to save AI response:', error);
+      }
+      
     } catch (error: any) {
       console.error('AI error:', error);
       
@@ -127,6 +185,19 @@ export default function AppShell({ children }: AppShellProps) {
         timestamp: new Date()
       };
       setChatMessages(prev => [...prev, errorMessage]);
+      
+      // Save error message to Firestore
+      try {
+        const canvasId = 'main'; // TODO: Get from routing in PR #12
+        await saveMessage({
+          canvasId,
+          userId: user.uid,
+          role: 'assistant',
+          content: errorContent
+        });
+      } catch (saveError) {
+        console.error('Failed to save error message:', saveError);
+      }
       
     } finally {
       // Always clear loading state

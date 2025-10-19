@@ -31,6 +31,7 @@ Your assignment: PR #___ - ___________.
 Key reminders:
 - You have full access to read/write files in the codebase
 - PRD and TODO have already been created by Planning Agent - READ them first
+- CHECK OFF EVERY ACTION **AFTER** ITS BEEN COMPLETED
 - Create feature code (components, services, utils)
 - Create all test files (integration, service unit, utils unit)
 - Run tests to verify everything works

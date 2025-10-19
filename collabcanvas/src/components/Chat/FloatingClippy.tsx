@@ -30,27 +30,24 @@ const FloatingClippy: React.FC<FloatingClippyProps> = ({ isVisible, onDismiss, m
   const clippyRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Get only assistant messages for display
-  const assistantMessages = messages.filter(msg => msg.role === 'assistant');
-  const currentMessage = assistantMessages[currentMessageIndex];
+  // Show all messages (user + assistant) for full chat history
+  // For chat persistence, users need to see their own messages too
+  const allMessages = messages;
+  const currentMessage = allMessages[currentMessageIndex];
 
-  // Auto-cycle through messages
+  // Auto-cycle through messages (disabled for now to show latest message)
   useEffect(() => {
-    if (!isVisible || isMinimized || assistantMessages.length <= 1) return;
+    // Disabled auto-cycling - users should see latest message by default
+    // Can re-enable if needed
+    return;
+  }, [isVisible, isMinimized, allMessages.length]);
 
-    const interval = setInterval(() => {
-      setCurrentMessageIndex((prev) => (prev + 1) % assistantMessages.length);
-    }, 8000); // Change message every 8 seconds
-
-    return () => clearInterval(interval);
-  }, [isVisible, isMinimized, assistantMessages.length]);
-
-  // Reset to first message when new messages arrive
+  // Always show the latest message when new messages arrive
   useEffect(() => {
-    if (assistantMessages.length > 0) {
-      setCurrentMessageIndex(assistantMessages.length - 1);
+    if (allMessages.length > 0) {
+      setCurrentMessageIndex(allMessages.length - 1);
     }
-  }, [assistantMessages.length]);
+  }, [allMessages.length]);
 
   // Handle mouse down on Clippy to start dragging
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -172,13 +169,19 @@ const FloatingClippy: React.FC<FloatingClippyProps> = ({ isVisible, onDismiss, m
           ) : currentMessage ? (
             <div className="clippy-speech-bubble">
               <div className="speech-bubble-content">
+                {/* Show who sent the message */}
+                {currentMessage.role === 'user' && (
+                  <div style={{ fontWeight: 'bold', marginBottom: '4px', color: '#666' }}>
+                    You:
+                  </div>
+                )}
                 {currentMessage.content}
               </div>
               
               {/* Navigation dots if multiple messages */}
-              {assistantMessages.length > 1 && (
+              {allMessages.length > 1 && (
                 <div className="message-dots">
-                  {assistantMessages.map((_, index) => (
+                  {allMessages.map((msg, index) => (
                     <button
                       key={index}
                       className={`dot ${index === currentMessageIndex ? 'active' : ''}`}
@@ -186,7 +189,8 @@ const FloatingClippy: React.FC<FloatingClippyProps> = ({ isVisible, onDismiss, m
                         e.stopPropagation();
                         setCurrentMessageIndex(index);
                       }}
-                      aria-label={`Go to message ${index + 1}`}
+                      aria-label={`Go to message ${index + 1} (${msg.role})`}
+                      title={msg.role === 'user' ? 'Your message' : 'Clippy\'s response'}
                     />
                   ))}
                 </div>

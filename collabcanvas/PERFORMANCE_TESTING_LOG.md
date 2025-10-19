@@ -237,3 +237,79 @@ Test #6: 973ms (6X worse, 1.6X worse than Test #5)
 - Stop here
 
 **Recommendation**: Revert to Test #5 (611ms) and accept it, or proceed with Zustand migration as last resort.
+
+---
+
+## Test #7: DEVELOP BRANCH BASELINE (WINNER! 🏆)
+**File**: `develop-1127.png`
+- **Scripting**: 2,748ms over 15.4s (~178ms/sec)
+- **INP**: 76ms (**BEST PERFORMANCE**)
+- **Status**: ✅ **EXCELLENT** - Better than all optimization attempts
+- **Key Differences from critical/performance-issues**:
+  - ❌ NO spray paint tool
+  - ❌ NO pencil/path tool
+  - ❌ NO memo() on components
+  - ❌ NO useCallback on handlers
+  - ❌ NO useMemo for shape metadata
+  - ❌ NO UserSelectionsContext separation
+  - ✅ Simple shapes only (Rect, Circle, Triangle, Text)
+  - ✅ Minimal state updates (2-5/sec instead of 30-60/sec)
+  - ✅ ~100 components instead of 500+
+
+**Results Comparison**:
+- From baseline Test #0 (165ms) → 76ms = **2.2X BETTER** ✅✅✅
+- From Test #5 (611ms) → 76ms = **8X BETTER** ✅✅✅
+- From Test #6 (973ms) → 76ms = **12.8X BETTER** ✅✅✅
+
+**Analysis**: 
+- ✅ **Develop branch is FASTER than original baseline!**
+- ✅ **All optimization attempts made performance worse**
+- ✅ **The spray/pencil tools are the root cause**
+- ✅ **Simpler architecture = better performance**
+- 💡 **Key insight**: The tools themselves (spray + pencil) are architecturally incompatible with React's rendering model
+
+**Critical Finding**: The critical/performance-issues branch is not just failing to optimize - the **new features themselves** (spray and pencil tools) are the performance problem:
+
+1. **Spray tool creates 50-100 Circle components** per spray shape
+2. **Pencil tool triggers 60-120 state updates/second** during drawing
+3. **Spray interval runs at 30fps** continuously updating state
+4. **Each "optimization" added overhead** without addressing root cause
+
+**The Real Problem**: React Context + 30-60 updates/second + 500+ components = **architectural mismatch**
+
+---
+
+## Updated Final Assessment
+
+**Performance Progression:**
+```
+Baseline:   165ms INP
+    ↓
+Test #1:    332ms (2X worse)
+    ↓
+Test #2:    259ms (1.6X worse)
+    ↓
+Test #3:    2518ms (15X worse - disaster)
+    ↓
+Test #4:    2518ms (still broken)
+    ↓
+Test #5:    611ms (3.7X worse, recovered from disaster)
+    ↓
+Test #6:    973ms (6X worse, 1.6X worse than Test #5)
+    ↓
+DEVELOP:    76ms ✅ (2.2X BETTER than baseline!)
+```
+
+**Conclusion**: 
+- ❌ Every "optimization" made performance worse
+- ✅ Develop branch (no spray/pencil) is fastest
+- 🎯 **Root cause**: The new tools (spray/pencil) are architecturally wrong
+- 💡 **Solution**: Revert to develop, redesign tools with Canvas API
+
+**Recommendation Updated**: 
+1. ✅ **REVERT TO DEVELOP IMMEDIATELY** (get back to 76ms)
+2. ⏭️ Redesign spray/pencil tools using Canvas API (not React components)
+3. ⏭️ Only commit shapes to React on tool completion
+4. ⏭️ Consider Zustand if Context still causes issues
+
+**Status**: ❌ **DO NOT MERGE critical/performance-issues branch**

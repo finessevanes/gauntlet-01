@@ -52,13 +52,13 @@
 
 - [ ] Create `src/components/Chat/TypingIndicator.tsx`
   - Pure presentation component (no props needed)
-  - Displays "Clippy is typing..." text
+  - Displays "Clippy is thinking..." text
   - Shows Clippy avatar (32x32px)
   - Test Gate: Component renders without errors
 
 - [ ] Add three animated dots
   - Use three `<span>` elements with class `dot`
-  - Add dots after "Clippy is typing" text
+  - Add dots after "Clippy is thinking" text
   - Test Gate: Three dots visible in component
 
 - [ ] Create `src/components/Chat/TypingIndicator.css`
@@ -87,45 +87,37 @@
 - [ ] Add accessibility attributes
   - Add `role="status"`
   - Add `aria-live="polite"`
-  - Add `aria-label="Clippy is typing"`
-  - Test Gate: Screen reader announces "Clippy is typing"
+  - Add `aria-label="Clippy is thinking"`
+  - Test Gate: Screen reader announces "Clippy is thinking"
 
 ---
 
-## 4. Update ChatPanel Component
+## 4. Verify FloatingClippy Component
 
-### 4.1 Remove Disabled State
+### 4.1 Verify Input Already Functional
 
-- [ ] Open `src/components/Chat/ChatPanel.tsx`
+- [ ] Open `src/components/Chat/FloatingClippy.tsx`
   - Test Gate: File opens successfully
 
-- [ ] Remove `disabled` attribute from input field
-  - Line: `<input ... disabled />`
-  - Change to: `<input ... />`
-  - Test Gate: Input field is no longer disabled, accepts text
+- [ ] Verify input field is not disabled
+  - Input should already accept text
+  - Test Gate: Input field is functional, accepts text
 
-- [ ] Remove `disabled` attribute from Send button
-  - Line: `<button ... disabled>`
-  - Change to: `<button ... disabled={isDisabledCondition}>`
-  - Test Gate: Send button is no longer always disabled
+- [ ] Verify Send button has conditional disabling
+  - Send button should be enabled when input is valid
+  - Should be disabled when loading or input is empty
+  - Test Gate: Send button works correctly
 
-- [ ] Update input placeholder
-  - Old: `"Coming soon in PR #10..."`
-  - New: `"Ask Clippy anything..."`
-  - Test Gate: Placeholder text updated correctly
+- [ ] Verify input placeholder
+  - Should be: `"Ask Clippy anything..."`
+  - Test Gate: Placeholder text is correct
 
-- [ ] Remove hint text below input
-  - Old: `<div className="chat-input-hint">💡 Tip: Chat functionality will be connected in PR #10</div>`
-  - Remove this entire element
-  - Test Gate: Hint text no longer visible
+### 4.2 Verify Props Already Exist
 
-### 4.2 Add New Props
-
-- [ ] Add props to ChatPanel component signature
-  - Add: `onSendMessage: (content: string) => void`
-  - Add: `isLoading: boolean`
-  - Update interface import from `types.ts`
-  - Test Gate: Props accessible in component, no TypeScript errors
+- [ ] Verify FloatingClippy component props
+  - Should have: `onSendMessage: (content: string) => void`
+  - Should have: `isLoading: boolean`
+  - Test Gate: Props exist in component signature, no TypeScript errors
 
 - [ ] Add local state for input value
   - Add: `const [inputValue, setInputValue] = useState('')`
@@ -174,15 +166,16 @@
   - In handleSubmit, check if `isLoading === true` and return early
   - Test Gate: Cannot send message while AI is processing
 
-### 4.5 Render Typing Indicator
+### 4.3 Verify Typing Indicator Integration
 
-- [ ] Import TypingIndicator component
-  - Add: `import TypingIndicator from './TypingIndicator'`
-  - Test Gate: Import successful, no errors
+- [ ] Verify TypingIndicator import exists
+  - Should have: `import TypingIndicator from './TypingIndicator'`
+  - Test Gate: Import exists
 
-- [ ] Render typing indicator conditionally
-  - In message list section, after messages but before `messageEndRef`
-  - Add: `{isLoading && <TypingIndicator />}`
+- [ ] Verify typing indicator is rendered conditionally
+  - Should render when `isLoading` is true
+  - Should be in speech bubble area
+  - Confirm: `{isLoading && <TypingIndicator />}` or similar logic exists
   - Test Gate: Typing indicator appears when `isLoading === true`, hidden when `false`
 
 ---
@@ -192,8 +185,8 @@
 ### 5.1 Setup State in AppShell
 
 - [ ] Open `src/components/Layout/AppShell.tsx`
-  - Locate where `ChatPanel` is rendered
-  - Test Gate: File opens, ChatPanel usage found
+  - Locate where `FloatingClippy` is rendered
+  - Test Gate: File opens, FloatingClippy usage found
 
 - [ ] Add messages state
   - Add: `const [messages, setMessages] = useState<ChatMessage[]>([])`
@@ -309,17 +302,17 @@
 
 ### 5.4 Wire Chat to AppShell
 
-- [ ] Pass props to ChatPanel
-  - Update `<ChatPanel />` usage
+- [ ] Pass props to FloatingClippy
+  - Update `<FloatingClippy />` usage
   - Add: `messages={messages}`
   - Add: `onSendMessage={handleSendMessage}`
   - Add: `isLoading={isLoading}`
   - Test Gate: All props passed correctly
 
-- [ ] Verify ChatPanel renders
+- [ ] Verify FloatingClippy renders
   - Check no TypeScript errors
   - Check no console errors
-  - Test Gate: ChatPanel renders with new props
+  - Test Gate: FloatingClippy renders with new props
 
 ---
 
@@ -436,7 +429,7 @@
 - [ ] Test screen reader (if possible)
   - Use screen reader or inspect aria attributes
   - Verify: Typing indicator has `role="status"` and `aria-live="polite"`
-  - Verify: Typing indicator announced as "Clippy is typing"
+  - Verify: Typing indicator announced as "Clippy is thinking"
   - Verify: AI responses announced
   - Test Gate: Gate 4.3 and 4.4 from PRD pass
 
@@ -644,9 +637,9 @@
 ## Copyable Checklist (for PR description)
 
 - [ ] Branch created: `feature/pr-10-chat-ai-connection`
-- [ ] TypeScript interfaces updated (`types.ts`)
+- [ ] TypeScript interfaces updated if needed (`types.ts`)
 - [ ] TypingIndicator component created with animated dots
-- [ ] ChatPanel component updated (disabled state removed, send functionality added)
+- [ ] FloatingClippy component verified/updated to show typing indicator when loading
 - [ ] Chat AI logic implemented in AppShell (messages state, isLoading, handleSendMessage)
 - [ ] AIService.executeCommand() integrated successfully
 - [ ] 30-second timeout implemented

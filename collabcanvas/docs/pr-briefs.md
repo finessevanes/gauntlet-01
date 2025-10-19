@@ -118,7 +118,7 @@ This document provides high-level briefs for all planned Pull Requests. These br
 
 ### PR #10: Chat Functionality & AI Connection
 
-**Brief:** Connect the chat UI to the existing `testAI()` function, making the chat interface fully functional. This PR implements the message input field with send functionality, wires the input to call `testAI()` function, displays AI responses in the chat UI, adds typing indicators ("Clippy is typing..." with animated dots), implements loading states during API calls, and creates error handling UI (Clippy looking confused with error messages). This is the critical PR that makes AI chat work end-to-end in the application.
+**Brief:** Connect the chat UI to the existing `testAI()` function, making the chat interface fully functional. This PR implements the message input field with send functionality, wires the input to call `testAI()` function, displays AI responses in the chat UI, adds typing indicators ("Clippy is thinking..." with animated dots), implements loading states during API calls, and creates error handling UI (Clippy looking confused with error messages). This is the critical PR that makes AI chat work end-to-end in the application.
 
 **Dependencies:** PR #8, PR #9
 

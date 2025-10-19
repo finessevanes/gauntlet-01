@@ -72,7 +72,7 @@ Connect the existing Clippy-style chat UI (PR #9) to the functional AI backend (
 
 ## 5. Users & Stories
 
-- **As a Canvas User:** I want to type a message to Clippy and press Enter to send, see "Clippy is typing...", and receive AI responses clearly displayed
+- **As a Canvas User:** I want to type a message to Clippy and press Enter to send, see "Clippy is thinking...", and receive AI responses clearly displayed
 - **As a Developer:** I want to reuse the existing `testAI()` function and have clear error boundaries
 - **As a Product Owner:** I want immediate user feedback (typing indicators) so users don't think the app is frozen
 
@@ -85,7 +85,7 @@ Connect the existing Clippy-style chat UI (PR #9) to the functional AI backend (
 2. User presses Enter or clicks Send
 3. User message appears immediately (white bubble, right-aligned)
 4. Input clears and refocuses
-5. Typing indicator appears: "Clippy is typing..." with animated dots
+5. Typing indicator appears: "Clippy is thinking..." with animated dots
 6. AI processes request via `AIService.executeCommand()`
 7. AI response appears (yellow bubble, left-aligned with Clippy avatar)
 8. Typing indicator disappears
@@ -111,7 +111,7 @@ Connect the existing Clippy-style chat UI (PR #9) to the functional AI backend (
 - **`Cmd/Ctrl + K`** — Open chat panel (already in PR #9)
 
 ### Accessibility
-- Screen reader announces "Clippy is typing" and AI responses
+- Screen reader announces "Clippy is thinking" and AI responses
 - Error messages have `role="alert"`
 - Focus remains in input field after sending
 - Input: `aria-label="Message input"`
@@ -124,9 +124,8 @@ Connect the existing Clippy-style chat UI (PR #9) to the functional AI backend (
 ### MUST-HAVE Requirements
 
 #### REQ-1: Enable Message Input
-- Remove `disabled` attribute from input field and Send button in `ChatPanel.tsx`
-- Update placeholder to: "Ask Clippy anything..."
-- Remove "Coming soon" hint text
+- Message input and Send button already functional in `FloatingClippy.tsx`
+- Placeholder already set to: "Ask Clippy anything..."
 - **Gate:** Input field accepts text; Send button is clickable
 
 #### REQ-2: Message Input Validation
@@ -158,7 +157,7 @@ Connect the existing Clippy-style chat UI (PR #9) to the functional AI backend (
 #### REQ-6: Typing Indicator
 - Create `TypingIndicator.tsx` component
 - Display when `isLoading === true`
-- Text: "Clippy is typing..." with 3 animated dots
+- Text: "Clippy is thinking..." with 3 animated dots
 - Yellow bubble styling, Clippy avatar visible
 - Render above input area, below last message
 - **Gate:** Typing indicator appears within 100ms, disappears when response arrives
@@ -249,12 +248,12 @@ async executeCommand(prompt: string, userId: string): Promise<CommandResult>
 ## 9. UI Components to Create/Modify
 
 ### New Components
-1. **`src/components/Chat/TypingIndicator.tsx`** — "Clippy is typing..." with animated dots
+1. **`src/components/Chat/TypingIndicator.tsx`** — "Clippy is thinking..." with animated dots
 2. **`src/components/Chat/TypingIndicator.css`** — Dot animation keyframes
 
 ### Modified Components
-3. **`src/components/Chat/ChatPanel.tsx`** — Remove disabled state, add `onSendMessage` and `isLoading` props, render typing indicator
-4. **`src/components/Chat/types.ts`** — Update `ChatPanelProps` interface
+3. **`src/components/Chat/FloatingClippy.tsx`** — Render typing indicator conditionally when `isLoading` prop is true
+4. **`src/components/Chat/types.ts`** — Update types if needed
 5. **`src/components/Layout/AppShell.tsx`** — Add chat AI logic: `messages` state, `isLoading` state, `handleSendMessage` function, AI service integration, error handling
 6. **Optional: `src/hooks/useChatAI.ts`** — Extract chat logic into custom hook for cleaner code
 
@@ -299,7 +298,7 @@ async executeCommand(prompt: string, userId: string): Promise<CommandResult>
 - [ ] Canvas remains responsive while AI processing
 
 ### Accessibility (3 gates)
-- [ ] Screen reader announces "Clippy is typing" and AI responses
+- [ ] Screen reader announces "Clippy is thinking" and AI responses
 - [ ] Tab key navigates between input and Send button
 - [ ] Error messages announced with `role="alert"`
 
@@ -310,8 +309,7 @@ async executeCommand(prompt: string, userId: string): Promise<CommandResult>
 ## 11. Definition of Done
 
 - [ ] `TypingIndicator.tsx` component created with animated dots
-- [ ] `ChatPanel.tsx` modified (disabled state removed, send functionality added)
-- [ ] `types.ts` updated with new props
+- [ ] `FloatingClippy.tsx` modified to render typing indicator when loading
 - [ ] Chat AI logic implemented (AppShell or useChatAI hook)
 - [ ] `AIService.executeCommand()` integrated successfully
 - [ ] User can send messages and receive AI responses

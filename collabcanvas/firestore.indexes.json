@@ -1,13 +1,23 @@
 {
   "indexes": [
     {
-      "collectionGroup": "chatMessages",
+      "collectionGroup": "canvases",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "canvasId",
-          "order": "ASCENDING"
+          "fieldPath": "collaboratorIds",
+          "arrayConfig": "CONTAINS"
         },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "chatMessages",
+      "queryScope": "COLLECTION",
+      "fields": [
         {
           "fieldPath": "userId",
           "order": "ASCENDING"
@@ -21,4 +31,3 @@
   ],
   "fieldOverrides": []
 }
-

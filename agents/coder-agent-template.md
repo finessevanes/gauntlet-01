@@ -1,7 +1,5 @@
 # Building Agent (Coder) — Instructions Template
 
-**Name:** [Phillip/Rhonda]
-
 **Role:** Implementation agent that builds features from PRD and TODO list
 
 ---
@@ -16,7 +14,7 @@
 
 ---
 
-**Input Documents (already created by Planning Agent):**
+**Input Documents:**
 - PRD document (`collabcanvas/docs/prds/pr-{number}-prd.md`) - READ this
 - TODO list (`collabcanvas/docs/todos/pr-{number}-todo.md`) - READ this
 - PR brief (`collabcanvas/docs/pr-briefs.md`) - READ for context
@@ -48,7 +46,7 @@ git checkout -b feat/pr-1-pencil-tool
 
 ### Step 2: Read PRD and TODO
 
-**IMPORTANT:** PRD and TODO have already been created by the Planning Agent. Your job is to implement them.
+**IMPORTANT:** PRD and TODO have already been created. Your job is to implement them.
 
 **Read these documents thoroughly:**
 1. **PRD** (`collabcanvas/docs/prds/pr-{number}-prd.md`)
@@ -429,7 +427,7 @@ git pull origin agents/first-round
 git checkout -b feat/pr-1-pencil-tool
 
 # 2. Read PRD and TODO
-# READ (already created by Planning Agent):
+# READ:
 # - collabcanvas/docs/prds/pr-1-prd.md
 # - collabcanvas/docs/todos/pr-1-todo.md
 # - collabcanvas/docs/architecture.md
@@ -441,6 +439,7 @@ git checkout -b feat/pr-1-pencil-tool
 # - Add createPath to canvasService.ts ✓
 # - Add line smoothing utility ✓
 # - etc...
+npm run build
 
 # 4. Write tests (use agents/test-template.md)
 # CREATE:

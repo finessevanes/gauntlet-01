@@ -88,7 +88,7 @@ export default function CanvasShape({
   let currentHeight: number | undefined;
   let currentRadius: number | undefined;
   
-  if (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'path') {
+  if (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'path' || shape.type === 'spray') {
     currentX = isBeingResized && previewDimensions ? previewDimensions.x : shape.x;
     currentY = isBeingResized && previewDimensions ? previewDimensions.y : shape.y;
     currentWidth = isBeingResized && previewDimensions ? previewDimensions.width : shape.width;
@@ -257,6 +257,34 @@ export default function CanvasShape({
             document.body.style.cursor = '';
           }}
         />
+      )}
+      {shape.type === 'spray' && shape.particles && (
+        <>
+          {shape.particles.map((particle, index) => (
+            <Circle
+              key={`${shape.id}-particle-${index}`}
+              x={particle.x}
+              y={particle.y}
+              radius={particle.size}
+              fill={shape.color}
+              opacity={isLockedByOther ? 0.5 : 1}
+              shadowColor={isMultiSelected ? '#60a5fa' : undefined}
+              shadowBlur={isMultiSelected ? 5 : 0}
+              shadowOpacity={isMultiSelected ? 0.3 : 0}
+              listening={index === 0} // Only first particle handles mouse events
+              onMouseEnter={() => {
+                if (index === 0 && activeTool === 'select' && !isLockedByOther) {
+                  document.body.style.cursor = 'move';
+                }
+              }}
+              onMouseLeave={() => {
+                if (index === 0) {
+                  document.body.style.cursor = '';
+                }
+              }}
+            />
+          ))}
+        </>
       )}
       {shape.type === 'text' && currentWidth !== undefined && currentHeight !== undefined && (() => {
         // Use editingTextContent when in edit mode for dynamic border updates

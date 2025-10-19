@@ -24,8 +24,12 @@ import {
   MIN_CIRCLE_RADIUS,
   MIN_TRIANGLE_WIDTH,
   MIN_TRIANGLE_HEIGHT,
-  DEFAULT_STROKE_WIDTH
+  DEFAULT_STROKE_WIDTH,
+  DEFAULT_SPRAY_RADIUS,
+  DEFAULT_PARTICLE_SIZE,
+  DEFAULT_SPRAY_DENSITY
 } from '../../utils/constants';
+import { generateSprayParticles } from '../../utils/sprayHelpers';
 import type Konva from 'konva';
 import type { ShapeData } from '../../services/canvasService';
 
@@ -47,6 +51,7 @@ export default function Canvas() {
     createCircle,
     createTriangle,
     createPath,
+    createSpray,
     createText,
     updateShape,
     batchUpdateShapes,
@@ -118,6 +123,12 @@ export default function Canvas() {
   } | null>(null);
   const [previewPath, setPreviewPath] = useState<number[] | null>(null);
   const [isDrawingPath, setIsDrawingPath] = useState(false);
+
+  // Spray paint tool state
+  const [isSpraying, setIsSpraying] = useState(false);
+  const [currentSprayParticles, setCurrentSprayParticles] = useState<Array<{x: number, y: number, size: number}>>([]);
+  const lastSprayTimeRef = useRef(0);
+  const sprayIntervalRef = useRef<number | null>(null);
 
   // Marquee selection state
   const [marqueeStart, setMarqueeStart] = useState<{ x: number; y: number } | null>(null);
@@ -1222,6 +1233,38 @@ export default function Canvas() {
         return;
       }
 
+      // Handle spray paint tool - start spraying particles
+      if (activeTool === 'spray') {
+        setIsSpraying(true);
+        const particles = generateSprayParticles(x, y, DEFAULT_SPRAY_RADIUS, DEFAULT_SPRAY_DENSITY, DEFAULT_PARTICLE_SIZE);
+        setCurrentSprayParticles(particles);
+        lastSprayTimeRef.current = Date.now();
+        
+        // Set up interval for continuous spraying
+        sprayIntervalRef.current = window.setInterval(() => {
+          const stage = stageRef.current;
+          if (!stage) return;
+          
+          const pointerPosition = stage.getPointerPosition();
+          if (!pointerPosition) return;
+          
+          const transform = stage.getAbsoluteTransform().copy().invert();
+          const canvasPos = transform.point(pointerPosition);
+          
+          const newParticles = generateSprayParticles(
+            canvasPos.x,
+            canvasPos.y,
+            DEFAULT_SPRAY_RADIUS,
+            DEFAULT_SPRAY_DENSITY,
+            DEFAULT_PARTICLE_SIZE
+          );
+          
+          setCurrentSprayParticles(prev => [...prev, ...newParticles]);
+        }, 33); // ~30 FPS
+        
+        return;
+      }
+
       // Handle select tool - start marquee selection or clear selection
       if (activeTool === 'select') {
         // Check if Shift is held
@@ -1370,6 +1413,35 @@ export default function Canvas() {
   };
 
   const handleMouseUp = async () => {
+    // Handle spray paint creation
+    if (isSpraying && currentSprayParticles.length > 0 && user) {
+      // Clear the spray interval
+      if (sprayIntervalRef.current) {
+        clearInterval(sprayIntervalRef.current);
+        sprayIntervalRef.current = null;
+      }
+
+      // Save spray to Firestore
+      try {
+        await createSpray({
+          particles: currentSprayParticles,
+          color: selectedColor,
+          sprayRadius: DEFAULT_SPRAY_RADIUS,
+          particleSize: DEFAULT_PARTICLE_SIZE,
+          createdBy: user.uid
+        });
+        console.log('✅ Spray created successfully');
+      } catch (error) {
+        console.error('❌ Error creating spray:', error);
+        toast.error('Failed to create spray');
+      }
+
+      // Reset spray state
+      setIsSpraying(false);
+      setCurrentSprayParticles([]);
+      return;
+    }
+
     // Handle path creation from pencil tool
     if (isDrawingPath && previewPath && user) {
       // Minimum 2 points (4 numbers) to create a path
@@ -2445,6 +2517,7 @@ export default function Canvas() {
             previewCircle={previewCircle}
             previewTriangle={previewTriangle}
             previewPath={previewPath}
+            previewSprayParticles={isSpraying ? currentSprayParticles : null}
             activeTool={activeTool}
             selectedColor={selectedColor}
           />

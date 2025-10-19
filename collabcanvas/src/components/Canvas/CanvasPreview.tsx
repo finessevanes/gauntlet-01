@@ -20,6 +20,7 @@ interface CanvasPreviewProps {
     height: number;
   } | null;
   previewPath?: number[] | null;
+  previewSprayParticles?: Array<{x: number, y: number, size: number}> | null;
   activeTool: string;
   selectedColor: string;
 }
@@ -29,6 +30,7 @@ export default function CanvasPreview({
   previewCircle,
   previewTriangle,
   previewPath,
+  previewSprayParticles,
   activeTool,
   selectedColor,
 }: CanvasPreviewProps) {
@@ -90,6 +92,23 @@ export default function CanvasPreview({
           opacity={0.7}
           listening={false}
         />
+      )}
+
+      {/* Preview spray particles while spraying */}
+      {previewSprayParticles && activeTool === 'spray' && previewSprayParticles.length > 0 && (
+        <>
+          {previewSprayParticles.map((particle, index) => (
+            <Circle
+              key={`preview-particle-${index}`}
+              x={particle.x}
+              y={particle.y}
+              radius={particle.size}
+              fill={selectedColor}
+              opacity={0.7}
+              listening={false}
+            />
+          ))}
+        </>
       )}
     </>
   );

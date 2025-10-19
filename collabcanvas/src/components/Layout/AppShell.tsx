@@ -5,7 +5,7 @@ import ToolPalette from '../Canvas/ToolPalette';
 import ColorPalette from '../Canvas/ColorPalette';
 import StatusBar from './StatusBar';
 import PerformancePanel from '../PerformancePanel';
-import ChatPanel from '../Chat/ChatPanel';
+import FloatingClippy from '../Chat/FloatingClippy';
 import ChatTriggerButton from '../Chat/ChatTriggerButton';
 import type { ChatMessage } from '../Chat/types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../../utils/constants';
@@ -721,9 +721,9 @@ export default function AppShell({ children }: AppShellProps) {
       
       {/* Chat UI Components */}
       <ChatTriggerButton onClick={() => setIsChatOpen(true)} />
-      <ChatPanel
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
+      <FloatingClippy
+        isVisible={isChatOpen}
+        onDismiss={() => setIsChatOpen(false)}
         messages={chatMessages}
       />
     </div>

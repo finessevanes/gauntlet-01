@@ -5,17 +5,17 @@ import './ChatPanel.css';
 /**
  * Chat Trigger Button (FAB - Floating Action Button)
  * Always visible in bottom-right corner
- * Opens the chat panel when clicked
+ * Shows Clippy assistant when clicked
  */
 const ChatTriggerButton: React.FC<ChatTriggerButtonProps> = ({ onClick }) => {
   return (
     <button
       className="chat-trigger-button"
       onClick={onClick}
-      aria-label="Open chat with Clippy"
-      title="Chat with Clippy (Cmd/Ctrl + K)"
+      aria-label="Show Clippy assistant"
+      title="Show Clippy (Cmd/Ctrl + K)"
     >
-      📎 Chat with Clippy
+      📎 Ask Clippy
     </button>
   );
 };

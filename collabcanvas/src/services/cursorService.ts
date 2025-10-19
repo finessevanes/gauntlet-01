@@ -1,5 +1,6 @@
 import { database } from '../firebase';
 import { ref, set, onValue, off, remove } from 'firebase/database';
+import { requirementsMonitor } from '../utils/performanceRequirements';
 
 export interface Cursor {
   x: number;
@@ -26,6 +27,8 @@ class CursorService {
     username: string,
     color: string
   ): Promise<void> {
+    const startTime = Date.now();
+    
     try {
       const cursorRef = ref(database, `${this.cursorsPath}/${userId}/cursor`);
       
@@ -36,6 +39,11 @@ class CursorService {
         color,
         timestamp: Date.now(),
       });
+      
+      // Track cursor sync latency for performance requirements
+      const latency = Date.now() - startTime;
+      requirementsMonitor.trackCursorSync(latency);
+      
     } catch (error) {
       console.error('❌ [Cursor] Failed to update cursor position:', error);
       throw error;

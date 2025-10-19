@@ -18,6 +18,7 @@ import { firestore } from '../firebase';
 import { MIN_SHAPE_WIDTH, MIN_SHAPE_HEIGHT } from '../utils/constants';
 import { findOverlappingShapesAbove, findOverlappingShapesBelow } from '../utils/overlapDetection';
 import { calculateTextDimensions } from '../utils/textEditingHelpers';
+import { requirementsMonitor } from '../utils/performanceRequirements';
 
 // Shape data types
 export interface ShapeData {
@@ -107,6 +108,8 @@ class CanvasService {
    * Create a new shape in Firestore
    */
   async createShape(shapeInput: ShapeCreateInput): Promise<string> {
+    const startTime = Date.now();
+    
     try {
       // Ensure parent document exists
       await this.ensureCanvasDocExists();
@@ -136,7 +139,11 @@ class CanvasService {
       const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
       await setDoc(shapeRef, shapeData);
 
-      console.log(`✅ Shape created with zIndex: ${zIndex}`);
+      // Track object sync latency for performance requirements
+      const latency = Date.now() - startTime;
+      requirementsMonitor.trackObjectSync(latency);
+
+      console.log(`✅ Shape created with zIndex: ${zIndex} (${latency}ms)`);
       return shapeId;
     } catch (error) {
       console.error('❌ Error creating shape:', error);
@@ -148,12 +155,19 @@ class CanvasService {
    * Update an existing shape
    */
   async updateShape(shapeId: string, updates: ShapeUpdateInput): Promise<void> {
+    const startTime = Date.now();
+    
     try {
       const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
       await updateDoc(shapeRef, {
         ...updates,
         updatedAt: serverTimestamp(),
       });
+      
+      // Track object sync latency for performance requirements
+      const latency = Date.now() - startTime;
+      requirementsMonitor.trackObjectSync(latency);
+      
     } catch (error) {
       console.error('❌ Error updating shape:', error);
       throw error;
@@ -209,6 +223,8 @@ class CanvasService {
    * This ensures all shapes update simultaneously, preventing visual lag for remote users
    */
   async batchUpdateShapes(updates: Array<{ shapeId: string; updates: ShapeUpdateInput }>): Promise<void> {
+    const startTime = Date.now();
+    
     try {
       const batch = writeBatch(firestore);
       
@@ -221,7 +237,12 @@ class CanvasService {
       }
       
       await batch.commit();
-      console.log(`✅ Batch updated ${updates.length} shapes atomically`);
+      
+      // Track object sync latency for performance requirements
+      const latency = Date.now() - startTime;
+      requirementsMonitor.trackObjectSync(latency);
+      
+      console.log(`✅ Batch updated ${updates.length} shapes atomically (${latency}ms)`);
     } catch (error) {
       console.error('❌ Error batch updating shapes:', error);
       throw error;

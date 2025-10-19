@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, Profiler } from 'react';
+import type { ProfilerOnRenderCallback } from 'react';
 import { useAuth } from './hooks/useAuth';
 import Login from './components/Auth/Login';
 import Signup from './components/Auth/Signup';
@@ -11,6 +12,39 @@ import './App.css';
 function App() {
   const { user, userProfile, loading } = useAuth();
   const [showLogin, setShowLogin] = useState(true);
+
+  // Profiler callback to track Canvas render performance
+  const handleCanvasProfiler: ProfilerOnRenderCallback = (
+    _id,
+    phase,
+    actualDuration,
+    _baseDuration
+  ) => {
+    // Log performance data (React Profiler already measured it for us)
+    // Disabled to reduce console noise
+    // if (process.env.NODE_ENV === 'development') {
+    //   console.log(`⚛️ ${id} ${phase}:`, {
+    //     actualDuration: actualDuration.toFixed(2) + 'ms',
+    //     baseDuration: baseDuration.toFixed(2) + 'ms',
+    //     renderType: phase === 'mount' ? 'Initial Render' : 'Re-render',
+    //   });
+    // }
+
+    // Emit user-friendly event for the retro performance panel
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('user-action', {
+          detail: {
+            action: phase === 'mount' 
+              ? 'Screen loaded for the first time (full initialization)' 
+              : `Screen refreshed with your changes (${actualDuration.toFixed(1)}ms total)`,
+            duration: actualDuration,
+            icon: '⚛️',
+          },
+        })
+      );
+    }
+  };
 
   // Show loading state while checking authentication
   if (loading) {
@@ -36,7 +70,9 @@ function App() {
     <ErrorBoundary>
       <CanvasProvider>
         <AppShell>
-          <Canvas />
+          <Profiler id="Canvas" onRender={handleCanvasProfiler}>
+            <Canvas />
+          </Profiler>
         </AppShell>
       </CanvasProvider>
     </ErrorBoundary>

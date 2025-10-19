@@ -119,18 +119,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ isOpen, onClose, messages }) => {
             title="Chat functionality will be connected in the next PR"
             aria-label="Send message (coming soon)"
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M2 21L23 12L2 3V10L17 12L2 14V21Z"
-                fill="currentColor"
-              />
-            </svg>
+            Send
           </button>
         </div>
         <div className="chat-input-hint">

@@ -9,6 +9,7 @@ interface FloatingClippyProps {
   onDismiss: () => void;
   messages: ChatMessage[];
   onSendMessage: (content: string) => void;
+  onDeleteMessage: (messageId: string) => void;
   isLoading: boolean;
 }
 
@@ -20,7 +21,7 @@ interface FloatingClippyProps {
  * - Can be minimized or dismissed
  * - AI-powered message sending
  */
-const FloatingClippy: React.FC<FloatingClippyProps> = ({ isVisible, onDismiss, messages, onSendMessage, isLoading }) => {
+const FloatingClippy: React.FC<FloatingClippyProps> = ({ isVisible, onDismiss, messages, onSendMessage, onDeleteMessage, isLoading }) => {
   const [position, setPosition] = useState({ x: window.innerWidth - 300, y: window.innerHeight - 400 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -30,27 +31,24 @@ const FloatingClippy: React.FC<FloatingClippyProps> = ({ isVisible, onDismiss, m
   const clippyRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Get only assistant messages for display
-  const assistantMessages = messages.filter(msg => msg.role === 'assistant');
-  const currentMessage = assistantMessages[currentMessageIndex];
+  // Show all messages (user + assistant) for full chat history
+  // For chat persistence, users need to see their own messages too
+  const allMessages = messages;
+  const currentMessage = allMessages[currentMessageIndex];
 
-  // Auto-cycle through messages
+  // Auto-cycle through messages (disabled for now to show latest message)
   useEffect(() => {
-    if (!isVisible || isMinimized || assistantMessages.length <= 1) return;
+    // Disabled auto-cycling - users should see latest message by default
+    // Can re-enable if needed
+    return;
+  }, [isVisible, isMinimized, allMessages.length]);
 
-    const interval = setInterval(() => {
-      setCurrentMessageIndex((prev) => (prev + 1) % assistantMessages.length);
-    }, 8000); // Change message every 8 seconds
-
-    return () => clearInterval(interval);
-  }, [isVisible, isMinimized, assistantMessages.length]);
-
-  // Reset to first message when new messages arrive
+  // Always show the latest message when new messages arrive
   useEffect(() => {
-    if (assistantMessages.length > 0) {
-      setCurrentMessageIndex(assistantMessages.length - 1);
+    if (allMessages.length > 0) {
+      setCurrentMessageIndex(allMessages.length - 1);
     }
-  }, [assistantMessages.length]);
+  }, [allMessages.length]);
 
   // Handle mouse down on Clippy to start dragging
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -171,14 +169,58 @@ const FloatingClippy: React.FC<FloatingClippyProps> = ({ isVisible, onDismiss, m
             </div>
           ) : currentMessage ? (
             <div className="clippy-speech-bubble">
-              <div className="speech-bubble-content">
+              <div className="speech-bubble-content" style={{ position: 'relative' }}>
+                {/* Delete button (X) in top-right corner */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteMessage(currentMessage.id);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: '4px',
+                    right: '4px',
+                    background: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '18px',
+                    height: '18px',
+                    fontSize: '12px',
+                    lineHeight: '1',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0',
+                    fontWeight: 'bold',
+                    transition: 'background 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.target as HTMLButtonElement).style.background = '#b91c1c';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.target as HTMLButtonElement).style.background = '#dc2626';
+                  }}
+                  aria-label="Delete message"
+                  title="Delete this message"
+                >
+                  ×
+                </button>
+                
+                {/* Show who sent the message */}
+                {currentMessage.role === 'user' && (
+                  <div style={{ fontWeight: 'bold', marginBottom: '4px', color: '#666' }}>
+                    You:
+                  </div>
+                )}
                 {currentMessage.content}
               </div>
               
               {/* Navigation dots if multiple messages */}
-              {assistantMessages.length > 1 && (
+              {allMessages.length > 1 && (
                 <div className="message-dots">
-                  {assistantMessages.map((_, index) => (
+                  {allMessages.map((msg, index) => (
                     <button
                       key={index}
                       className={`dot ${index === currentMessageIndex ? 'active' : ''}`}
@@ -186,7 +228,8 @@ const FloatingClippy: React.FC<FloatingClippyProps> = ({ isVisible, onDismiss, m
                         e.stopPropagation();
                         setCurrentMessageIndex(index);
                       }}
-                      aria-label={`Go to message ${index + 1}`}
+                      aria-label={`Go to message ${index + 1} (${msg.role})`}
+                      title={msg.role === 'user' ? 'Your message' : 'Clippy\'s response'}
                     />
                   ))}
                 </div>

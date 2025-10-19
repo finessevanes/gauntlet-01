@@ -12,6 +12,7 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../../utils/constants';
 import { useCanvasContext } from '../../contexts/CanvasContext';
 import { useAuth } from '../../hooks/useAuth';
 import { AIService } from '../../services/aiService';
+import { saveMessage, loadChatHistory, deleteMessage } from '../../services/chatService';
 import toast from 'react-hot-toast';
 
 interface AppShellProps {
@@ -33,17 +34,44 @@ export default function AppShell({ children }: AppShellProps) {
     aiServiceRef.current = new AIService();
   }
   
-  // Add welcome message on first render
+  // Load chat history from Firestore when user is authenticated
   useEffect(() => {
-    if (chatMessages.length === 0) {
-      setChatMessages([{
-        id: 'welcome',
-        role: 'assistant',
-        content: "Hi! I'm Clippy, your canvas assistant. How can I help you today?",
-        timestamp: new Date()
-      }]);
-    }
-  }, []);
+    const loadHistory = async () => {
+      if (!user?.uid) return;
+      
+      setIsChatLoading(true);
+      try {
+        const canvasId = 'main'; // TODO: Get from routing in PR #12
+        const history = await loadChatHistory(canvasId, user.uid);
+        
+        // If history is empty, show welcome message
+        if (history.length === 0) {
+          setChatMessages([{
+            id: 'welcome',
+            role: 'assistant',
+            content: "Hi! I'm Clippy, your canvas assistant. How can I help you today?",
+            timestamp: new Date()
+          }]);
+        } else {
+          // Load chat history from Firestore
+          setChatMessages(history);
+        }
+      } catch (error) {
+        console.error('Failed to load chat history:', error);
+        // Show error message in chat
+        setChatMessages([{
+          id: 'error',
+          role: 'assistant',
+          content: "⚠️ Couldn't load chat history. Starting fresh!",
+          timestamp: new Date()
+        }]);
+      } finally {
+        setIsChatLoading(false);
+      }
+    };
+    
+    loadHistory();
+  }, [user?.uid]);
   
   // Handle sending messages to AI
   const handleSendMessage = async (content: string) => {
@@ -83,6 +111,23 @@ export default function AppShell({ children }: AppShellProps) {
     };
     setChatMessages(prev => [...prev, userMessage]);
     
+    // Save user message to Firestore
+    try {
+      const canvasId = 'main'; // TODO: Get from routing in PR #12
+      await saveMessage({
+        canvasId,
+        userId: user.uid,
+        role: 'user',
+        content: trimmedContent
+      });
+    } catch (error) {
+      console.error('Failed to save user message:', error);
+      toast.error('⚠️ Message not saved. Check your connection.', {
+        duration: 2000,
+        position: 'top-center',
+      });
+    }
+    
     // Set loading state
     setIsChatLoading(true);
     
@@ -107,6 +152,19 @@ export default function AppShell({ children }: AppShellProps) {
       };
       setChatMessages(prev => [...prev, aiMessage]);
       
+      // Save AI response to Firestore
+      try {
+        const canvasId = 'main'; // TODO: Get from routing in PR #12
+        await saveMessage({
+          canvasId,
+          userId: user.uid,
+          role: 'assistant',
+          content: result.message
+        });
+      } catch (error) {
+        console.error('Failed to save AI response:', error);
+      }
+      
     } catch (error: any) {
       console.error('AI error:', error);
       
@@ -128,9 +186,54 @@ export default function AppShell({ children }: AppShellProps) {
       };
       setChatMessages(prev => [...prev, errorMessage]);
       
+      // Save error message to Firestore
+      try {
+        const canvasId = 'main'; // TODO: Get from routing in PR #12
+        await saveMessage({
+          canvasId,
+          userId: user.uid,
+          role: 'assistant',
+          content: errorContent
+        });
+      } catch (saveError) {
+        console.error('Failed to save error message:', saveError);
+      }
+      
     } finally {
       // Always clear loading state
       setIsChatLoading(false);
+    }
+  };
+  
+  // Handle deleting a chat message
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!user?.uid) return;
+    
+    try {
+      // Optimistically remove from UI
+      setChatMessages(prev => prev.filter(msg => msg.id !== messageId));
+      
+      // Delete from Firestore
+      await deleteMessage(messageId);
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+      
+      // Reload messages on error to restore state
+      if (user?.uid) {
+        const canvasId = 'main';
+        const history = await loadChatHistory(canvasId, user.uid);
+        setChatMessages(history.length > 0 ? history : [{
+          id: 'welcome',
+          role: 'assistant',
+          content: "Hi! I'm Clippy, your canvas assistant. How can I help you today?",
+          timestamp: new Date()
+        }]);
+      }
+      
+      toast.error('Failed to delete message', {
+        duration: 2000,
+        position: 'top-center',
+      });
     }
   };
   
@@ -215,11 +318,6 @@ export default function AppShell({ children }: AppShellProps) {
           const newWeight = currentWeight === 'bold' ? 'normal' : 'bold';
           
           await updateTextFormatting(selectedShapeId, { fontWeight: newWeight });
-          
-          toast.success(`Text ${newWeight === 'bold' ? 'bolded' : 'unbolded'}`, {
-            duration: 1000,
-            position: 'top-center',
-          });
         } catch (error) {
           console.error('❌ Error toggling bold:', error);
           toast.error('Failed to update text formatting', {
@@ -238,11 +336,6 @@ export default function AppShell({ children }: AppShellProps) {
         ...textFormattingDefaults,
         fontWeight: newWeight
       });
-      
-      toast.success(`Text defaults: ${newWeight === 'bold' ? 'bold' : 'normal'}`, {
-        duration: 1000,
-        position: 'top-center',
-      });
     }
   };
 
@@ -258,11 +351,6 @@ export default function AppShell({ children }: AppShellProps) {
           const newStyle = currentStyle === 'italic' ? 'normal' : 'italic';
           
           await updateTextFormatting(selectedShapeId, { fontStyle: newStyle });
-          
-          toast.success(`Text ${newStyle === 'italic' ? 'italicized' : 'unitalicized'}`, {
-            duration: 1000,
-            position: 'top-center',
-          });
         } catch (error) {
           console.error('❌ Error toggling italic:', error);
           toast.error('Failed to update text formatting', {
@@ -281,11 +369,6 @@ export default function AppShell({ children }: AppShellProps) {
         ...textFormattingDefaults,
         fontStyle: newStyle
       });
-      
-      toast.success(`Text defaults: ${newStyle === 'italic' ? 'italic' : 'normal'}`, {
-        duration: 1000,
-        position: 'top-center',
-      });
     }
   };
 
@@ -301,11 +384,6 @@ export default function AppShell({ children }: AppShellProps) {
           const newDecoration = currentDecoration === 'underline' ? 'none' : 'underline';
           
           await updateTextFormatting(selectedShapeId, { textDecoration: newDecoration });
-          
-          toast.success(`Text ${newDecoration === 'underline' ? 'underlined' : 'ununderlined'}`, {
-            duration: 1000,
-            position: 'top-center',
-          });
         } catch (error) {
           console.error('❌ Error toggling underline:', error);
           toast.error('Failed to update text formatting', {
@@ -324,11 +402,6 @@ export default function AppShell({ children }: AppShellProps) {
         ...textFormattingDefaults,
         textDecoration: newDecoration
       });
-      
-      toast.success(`Text defaults: ${newDecoration === 'underline' ? 'underlined' : 'normal'}`, {
-        duration: 1000,
-        position: 'top-center',
-      });
     }
   };
 
@@ -341,11 +414,6 @@ export default function AppShell({ children }: AppShellProps) {
       if (selectedShape && selectedShape.type === 'text') {
         try {
           await updateTextFormatting(selectedShapeId, { fontSize });
-          
-          toast.success(`Font size changed to ${fontSize}px`, {
-            duration: 1000,
-            position: 'top-center',
-          });
         } catch (error) {
           console.error('❌ Error changing font size:', error);
           toast.error('Failed to update font size', {
@@ -362,11 +430,6 @@ export default function AppShell({ children }: AppShellProps) {
       setTextFormattingDefaults({
         ...textFormattingDefaults,
         fontSize
-      });
-      
-      toast.success(`Text defaults: ${fontSize}px`, {
-        duration: 1000,
-        position: 'top-center',
       });
     }
   };
@@ -430,11 +493,6 @@ export default function AppShell({ children }: AppShellProps) {
         
         // Clear selection after delete
         setSelectedShapes([]);
-        
-        toast.success(`${selectedShapes.length} shape${selectedShapes.length > 1 ? 's' : ''} deleted`, {
-          duration: 1500,
-          position: 'top-center',
-        });
       } catch (error) {
         console.error('❌ BATCH DELETE ERROR (Button):', error);
         toast.error('Failed to delete shapes', {
@@ -450,10 +508,6 @@ export default function AppShell({ children }: AppShellProps) {
       try {
         await deleteShape(selectedShapeId);
         setSelectedShapeId(null);
-        toast.success('Shape deleted', {
-          duration: 1000,
-          position: 'top-center',
-        });
       } catch (error) {
         console.error('❌ Failed to delete shape:', error);
         toast.error('Failed to delete shape', {
@@ -479,11 +533,6 @@ export default function AppShell({ children }: AppShellProps) {
         
         // Clear original selection and select only the duplicates
         setSelectedShapes(newShapeIds);
-        
-        toast.success(`${selectedShapes.length} shape${selectedShapes.length > 1 ? 's' : ''} duplicated`, {
-          duration: 1500,
-          position: 'top-center',
-        });
       } catch (error) {
         console.error('❌ BATCH DUPLICATE ERROR (Button):', error);
         toast.error('Failed to duplicate shapes', {
@@ -506,11 +555,6 @@ export default function AppShell({ children }: AppShellProps) {
         // Select and lock the new shape immediately
         setSelectedShapeId(newShapeId);
         await lockShape(newShapeId, user.uid);
-        
-        toast.success('Shape duplicated', {
-          duration: 1000,
-          position: 'top-center',
-        });
       } catch (error) {
         console.error('❌ Failed to duplicate shape:', error);
         toast.error('Failed to duplicate shape', {
@@ -528,10 +572,6 @@ export default function AppShell({ children }: AppShellProps) {
     try {
       const groupId = await groupShapes(selectedShapes, user.uid);
       console.log('✅ Group created:', groupId);
-      toast.success(`${selectedShapes.length} shapes grouped`, {
-        duration: 1500,
-        position: 'top-center',
-      });
     } catch (error) {
       console.error('❌ Failed to group shapes:', error);
       toast.error('Failed to group shapes', {
@@ -566,11 +606,6 @@ export default function AppShell({ children }: AppShellProps) {
         // Fallback: clear selection if last clicked shape isn't available
         setSelectedShapes([]);
       }
-      
-      toast.success('Shapes ungrouped', {
-        duration: 1500,
-        position: 'top-center',
-      });
     } catch (error) {
       console.error('❌ Failed to ungroup shapes:', error);
       toast.error('Failed to ungroup shapes', {
@@ -610,15 +645,6 @@ export default function AppShell({ children }: AppShellProps) {
       } else {
         await bringToFront(targetIds[0]);
       }
-      
-      const message = targetIds.length > 1 
-        ? `${targetIds.length} shapes brought to front`
-        : 'Brought to front';
-      
-      toast.success(message, {
-        duration: 1000,
-        position: 'top-center',
-      });
     } catch (error) {
       console.error('❌ Failed to bring to front:', error);
       toast.error('Failed to bring to front', {
@@ -657,15 +683,6 @@ export default function AppShell({ children }: AppShellProps) {
       } else {
         await sendToBack(targetIds[0]);
       }
-      
-      const message = targetIds.length > 1 
-        ? `${targetIds.length} shapes sent to back`
-        : 'Sent to back';
-      
-      toast.success(message, {
-        duration: 1000,
-        position: 'top-center',
-      });
     } catch (error) {
       console.error('❌ Failed to send to back:', error);
       toast.error('Failed to send to back', {
@@ -704,15 +721,6 @@ export default function AppShell({ children }: AppShellProps) {
       } else {
         await bringForward(targetIds[0]);
       }
-      
-      const message = targetIds.length > 1 
-        ? `${targetIds.length} shapes brought forward`
-        : 'Brought forward';
-      
-      toast.success(message, {
-        duration: 1000,
-        position: 'top-center',
-      });
     } catch (error) {
       console.error('❌ Failed to bring forward:', error);
       toast.error('Failed to bring forward', {
@@ -751,15 +759,6 @@ export default function AppShell({ children }: AppShellProps) {
       } else {
         await sendBackward(targetIds[0]);
       }
-      
-      const message = targetIds.length > 1 
-        ? `${targetIds.length} shapes sent backward`
-        : 'Sent backward';
-      
-      toast.success(message, {
-        duration: 1000,
-        position: 'top-center',
-      });
     } catch (error) {
       console.error('❌ Failed to send backward:', error);
       toast.error('Failed to send backward', {
@@ -816,6 +815,7 @@ export default function AppShell({ children }: AppShellProps) {
         onDismiss={() => setIsChatOpen(false)}
         messages={chatMessages}
         onSendMessage={handleSendMessage}
+        onDeleteMessage={handleDeleteMessage}
         isLoading={isChatLoading}
       />
     </div>

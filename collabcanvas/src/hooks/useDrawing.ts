@@ -82,10 +82,6 @@ export function useDrawing(props: UseDrawingProps) {
         createdBy: user.uid,
       }).then((newTextId) => {
         enterEdit(newTextId);
-        toast.success('Text created', {
-          duration: 1000,
-          position: 'top-center',
-        });
       }).catch((error) => {
         console.error('❌ Failed to create text:', error);
         toast.error('Failed to create text');

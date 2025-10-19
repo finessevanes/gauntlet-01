@@ -46,6 +46,27 @@ service cloud.firestore {
       allow delete: if request.auth != null && 
                        resource.data.userId == request.auth.uid;
     }
+    
+    // Chat messages collection - private per user
+    match /chatMessages/{messageId} {
+      // Users can only read their own messages
+      allow read: if request.auth != null 
+        && resource.data.userId == request.auth.uid;
+      
+      // Users can only create messages for themselves
+      allow create: if request.auth != null 
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.canvasId is string
+        && request.resource.data.role in ['user', 'assistant']
+        && request.resource.data.content is string;
+      
+      // Users can delete their own messages
+      allow delete: if request.auth != null 
+        && resource.data.userId == request.auth.uid;
+      
+      // No updates (messages cannot be edited)
+      allow update: if false;
+    }
   }
 }
 

@@ -78,21 +78,12 @@ export default function ColorToolbar() {
           const editingShape = shapes.find(s => s.id === editingTextId);
           if (editingShape?.type === 'text') {
             await updateShape(editingTextId, { color });
-            toast.success('Text color changed', {
-              duration: 1000,
-              position: 'top-center',
-            });
           }
         } else if (selectedShapeId) {
           // Single shape selected
           const selectedShape = shapes.find(s => s.id === selectedShapeId);
           if (selectedShape) {
             await updateShape(selectedShapeId, { color });
-            const shapeType = selectedShape.type === 'text' ? 'text' : 'shape';
-            toast.success(`${shapeType.charAt(0).toUpperCase() + shapeType.slice(1)} color changed`, {
-              duration: 1000,
-              position: 'top-center',
-            });
           }
         } else if (selectedShapes.length > 0) {
           // Multiple shapes selected - update all selected shapes
@@ -105,10 +96,6 @@ export default function ColorToolbar() {
             }));
             
             await batchUpdateShapes(updates);
-            toast.success(`Changed color of ${selectedShapesData.length} shape${selectedShapesData.length > 1 ? 's' : ''}`, {
-              duration: 1000,
-              position: 'top-center',
-            });
           }
         }
       } catch (error) {

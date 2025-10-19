@@ -1,28 +1,34 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { ChatMessage } from './types';
 import ClippyAvatar from './ClippyAvatar';
+import TypingIndicator from './TypingIndicator';
 import './FloatingClippy.css';
 
 interface FloatingClippyProps {
   isVisible: boolean;
   onDismiss: () => void;
   messages: ChatMessage[];
+  onSendMessage: (content: string) => void;
+  isLoading: boolean;
 }
 
 /**
  * Floating Clippy Component
- * Classic Microsoft Office assistant experience
+ * Classic Microsoft Office assistant experience with AI integration
  * - Draggable Clippy character
  * - Speech bubbles that point to Clippy
  * - Can be minimized or dismissed
+ * - AI-powered message sending
  */
-const FloatingClippy: React.FC<FloatingClippyProps> = ({ isVisible, onDismiss, messages }) => {
+const FloatingClippy: React.FC<FloatingClippyProps> = ({ isVisible, onDismiss, messages, onSendMessage, isLoading }) => {
   const [position, setPosition] = useState({ x: window.innerWidth - 300, y: window.innerHeight - 400 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isMinimized, setIsMinimized] = useState(false);
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
+  const [inputValue, setInputValue] = useState('');
   const clippyRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Get only assistant messages for display
   const assistantMessages = messages.filter(msg => msg.role === 'assistant');
@@ -48,7 +54,14 @@ const FloatingClippy: React.FC<FloatingClippyProps> = ({ isVisible, onDismiss, m
 
   // Handle mouse down on Clippy to start dragging
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.target instanceof HTMLButtonElement) return; // Don't drag when clicking buttons
+    // Don't drag when clicking buttons or input fields
+    if (
+      e.target instanceof HTMLButtonElement ||
+      e.target instanceof HTMLInputElement ||
+      (e.target as HTMLElement).closest('.clippy-input-area')
+    ) {
+      return;
+    }
     
     setIsDragging(true);
     const rect = clippyRef.current?.getBoundingClientRect();
@@ -108,6 +121,30 @@ const FloatingClippy: React.FC<FloatingClippyProps> = ({ isVisible, onDismiss, m
     };
   }, [isVisible, onDismiss]);
 
+  // Input validation
+  const isInputValid = inputValue.trim().length > 0 && inputValue.length <= 500;
+
+  // Handle message submission
+  const handleSubmit = () => {
+    if (!inputValue.trim() || isLoading || inputValue.length > 500) {
+      return;
+    }
+
+    onSendMessage(inputValue.trim());
+    setInputValue('');
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
+  // Handle Enter key to send
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
   if (!isVisible) return null;
 
   return (
@@ -122,49 +159,66 @@ const FloatingClippy: React.FC<FloatingClippyProps> = ({ isVisible, onDismiss, m
       role="dialog"
       aria-label="Clippy assistant"
     >
-      {/* Speech Bubble - Only show when not minimized and there are messages */}
-      {!isMinimized && currentMessage && (
-        <div className="clippy-speech-bubble">
-          <div className="speech-bubble-content">
-            {currentMessage.content}
-          </div>
-          
-          {/* Navigation dots if multiple messages */}
-          {assistantMessages.length > 1 && (
-            <div className="message-dots">
-              {assistantMessages.map((_, index) => (
-                <button
-                  key={index}
-                  className={`dot ${index === currentMessageIndex ? 'active' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCurrentMessageIndex(index);
-                  }}
-                  aria-label={`Go to message ${index + 1}`}
-                />
-              ))}
+      {/* Speech Bubble - Show typing indicator or message */}
+      {!isMinimized && (
+        <>
+          {isLoading ? (
+            <div className="clippy-speech-bubble">
+              <div className="speech-bubble-content">
+                <TypingIndicator />
+              </div>
+              <div className="speech-bubble-tail" />
             </div>
-          )}
+          ) : currentMessage ? (
+            <div className="clippy-speech-bubble">
+              <div className="speech-bubble-content">
+                {currentMessage.content}
+              </div>
+              
+              {/* Navigation dots if multiple messages */}
+              {assistantMessages.length > 1 && (
+                <div className="message-dots">
+                  {assistantMessages.map((_, index) => (
+                    <button
+                      key={index}
+                      className={`dot ${index === currentMessageIndex ? 'active' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentMessageIndex(index);
+                      }}
+                      aria-label={`Go to message ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
 
-          {/* Speech bubble tail (triangle pointing down to Clippy) */}
-          <div className="speech-bubble-tail" />
-        </div>
+              {/* Speech bubble tail (triangle pointing down to Clippy) */}
+              <div className="speech-bubble-tail" />
+            </div>
+          ) : null}
+        </>
       )}
 
       {/* Input Area - Show when not minimized */}
       {!isMinimized && (
         <div className="clippy-input-area" onClick={(e) => e.stopPropagation()}>
           <input
+            ref={inputRef}
             type="text"
             className="clippy-input"
-            placeholder="Coming soon in PR #10..."
-            disabled
-            aria-label="Ask Clippy a question (coming soon)"
+            placeholder="Ask Clippy anything..."
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isLoading}
+            aria-label="Ask Clippy a question"
+            maxLength={500}
           />
           <button
             className="clippy-send-button"
-            disabled
-            aria-label="Send question (coming soon)"
+            onClick={handleSubmit}
+            disabled={!isInputValid || isLoading}
+            aria-label="Send question"
           >
             ➤
           </button>
@@ -202,12 +256,6 @@ const FloatingClippy: React.FC<FloatingClippyProps> = ({ isVisible, onDismiss, m
         </div>
       </div>
 
-      {/* Drag hint when not dragging */}
-      {!isDragging && !isMinimized && (
-        <div className="drag-hint">
-          💡 Drag me anywhere!
-        </div>
-      )}
     </div>
   );
 };

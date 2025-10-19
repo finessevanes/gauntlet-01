@@ -519,7 +519,7 @@ Items explicitly deferred for future PRs:
 - [ ] **Real-time sync:** Chat messages sync across multiple users in same canvas
 - [ ] **Message editing/deletion:** Users can edit or delete their messages
 - [ ] **Rich text formatting:** Markdown rendering, code blocks, etc.
-- [ ] **Typing indicators:** Show "Clippy is typing..." animation
+- [ ] **Typing indicators:** Show "Clippy is thinking..." animation
 - [ ] **Message reactions:** Emoji reactions to messages
 - [ ] **Mobile responsive design:** Chat panel adapts to mobile screens
 - [ ] **Dark mode:** Dark theme for chat panel

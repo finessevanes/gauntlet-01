@@ -200,7 +200,7 @@ A collaborative MS Paint-style canvas with a working AI chat interface. Users ca
 - Font: System font, clean and readable
 
 **Interaction:**
-- Typing indicator: "Clippy is typing..." with animated dots
+- Typing indicator: "Clippy is thinking..." with animated dots
 - Error state: Clippy looking confused with error message
 - Empty state: Clippy greeting message on first load
 

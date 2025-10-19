@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import PaintTitleBar from './PaintTitleBar';
 import ToolPalette from '../Canvas/ToolPalette';
 import ColorPalette from '../Canvas/ColorPalette';
@@ -11,6 +11,7 @@ import type { ChatMessage } from '../Chat/types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../../utils/constants';
 import { useCanvasContext } from '../../contexts/CanvasContext';
 import { useAuth } from '../../hooks/useAuth';
+import { AIService } from '../../services/aiService';
 import toast from 'react-hot-toast';
 
 interface AppShellProps {
@@ -22,27 +23,116 @@ export default function AppShell({ children }: AppShellProps) {
   const [isPerformancePanelOpen, setIsPerformancePanelOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   
-  // Mock chat messages for UI demonstration (PR #10 will add real AI backend)
-  const [chatMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: 'Hi! I\'m Clippy, your canvas assistant. How can I help you today?',
-      timestamp: new Date(Date.now() - 60000),
-    },
-    {
-      id: '2',
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  
+  // AI Service instance
+  const aiServiceRef = useRef<AIService | null>(null);
+  if (!aiServiceRef.current) {
+    aiServiceRef.current = new AIService();
+  }
+  
+  // Add welcome message on first render
+  useEffect(() => {
+    if (chatMessages.length === 0) {
+      setChatMessages([{
+        id: 'welcome',
+        role: 'assistant',
+        content: "Hi! I'm Clippy, your canvas assistant. How can I help you today?",
+        timestamp: new Date()
+      }]);
+    }
+  }, []);
+  
+  // Handle sending messages to AI
+  const handleSendMessage = async (content: string) => {
+    // Validate user authentication
+    if (!user || !user.uid) {
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: '⚠️ You need to be logged in to chat with Clippy.',
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+      return;
+    }
+    
+    // Validate message content
+    const trimmedContent = content.trim();
+    if (!trimmedContent) return;
+    
+    if (trimmedContent.length > 500) {
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: '⚠️ That message is too long! Please keep it under 500 characters.',
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+      return;
+    }
+    
+    // Create user message (optimistic UI)
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
       role: 'user',
-      content: 'Hello Clippy! Can you help me organize my shapes?',
-      timestamp: new Date(Date.now() - 45000),
-    },
-    {
-      id: '3',
-      role: 'assistant',
-      content: 'Of course! I can help you arrange shapes in rows, columns, or grids. I can also help with alignment, distribution, and grouping. What would you like to do?',
-      timestamp: new Date(Date.now() - 30000),
-    },
-  ]);
+      content: trimmedContent,
+      timestamp: new Date()
+    };
+    setChatMessages(prev => [...prev, userMessage]);
+    
+    // Set loading state
+    setIsChatLoading(true);
+    
+    try {
+      // Create timeout promise (30 seconds)
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('TIMEOUT')), 30000);
+      });
+      
+      // Call AI service with timeout
+      const result = await Promise.race([
+        aiServiceRef.current!.executeCommand(trimmedContent, user.uid),
+        timeoutPromise
+      ]);
+      
+      // Create AI response message
+      const aiMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: result.message,
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, aiMessage]);
+      
+    } catch (error: any) {
+      console.error('AI error:', error);
+      
+      // Determine error message
+      let errorContent: string;
+      if (error.message === 'TIMEOUT') {
+        errorContent = "⚠️ That's taking longer than expected. Please try again.";
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        errorContent = "⚠️ Oops! I'm having trouble connecting right now. Please try again in a moment.";
+      } else {
+        errorContent = "⚠️ Something went wrong. Please try again.";
+      }
+      
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: errorContent,
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+      
+    } finally {
+      // Always clear loading state
+      setIsChatLoading(false);
+    }
+  };
   
   const { 
     stageScale, 
@@ -725,6 +815,8 @@ export default function AppShell({ children }: AppShellProps) {
         isVisible={isChatOpen}
         onDismiss={() => setIsChatOpen(false)}
         messages={chatMessages}
+        onSendMessage={handleSendMessage}
+        isLoading={isChatLoading}
       />
     </div>
   );

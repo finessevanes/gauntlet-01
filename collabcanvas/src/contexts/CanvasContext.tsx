@@ -18,6 +18,10 @@ export interface TextFormattingDefaults {
 }
 
 interface CanvasContextType {
+  // Canvas selection (NEW - PR #12)
+  currentCanvasId: string | null;
+  setCurrentCanvasId: (id: string | null) => void;
+  
   // Color selection
   selectedColor: string;
   setSelectedColor: (color: string) => void;
@@ -129,6 +133,10 @@ const CanvasContext = createContext<CanvasContextType | undefined>(undefined);
 
 export function CanvasProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  
+  // NEW: Multi-canvas support (PR #12)
+  const [currentCanvasId, setCurrentCanvasId] = useState<string | null>(null);
+  
   const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_COLOR);
   const [textFormattingDefaults, setTextFormattingDefaults] = useState<TextFormattingDefaults>({
     fontSize: 16,
@@ -153,9 +161,9 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
 
-  // Subscribe to real-time shape updates
+  // Subscribe to real-time shape updates (canvas-scoped)
   useEffect(() => {
-    if (!user) {
+    if (!user || !currentCanvasId) {
       setShapes([]);
       setShapesLoading(false);
       return;
@@ -163,20 +171,20 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
 
     setShapesLoading(true);
 
-    const unsubscribe: Unsubscribe = canvasService.subscribeToShapes((updatedShapes) => {
+    const unsubscribe: Unsubscribe = canvasService.subscribeToShapes(currentCanvasId, (updatedShapes) => {
       setShapes(updatedShapes);
       setShapesLoading(false);
     });
 
-    // Cleanup subscription on unmount or user change
+    // Cleanup subscription on unmount or canvas change
     return () => {
       unsubscribe();
     };
-  }, [user]);
+  }, [user, currentCanvasId]);
 
-  // Subscribe to real-time comment updates
+  // Subscribe to real-time comment updates (canvas-scoped)
   useEffect(() => {
-    if (!user) {
+    if (!user || !currentCanvasId) {
       setComments([]);
       setCommentsLoading(false);
       return;
@@ -184,16 +192,16 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
 
     setCommentsLoading(true);
 
-    const unsubscribe: Unsubscribe = canvasService.subscribeToComments((updatedComments) => {
+    const unsubscribe: Unsubscribe = canvasService.subscribeToComments(currentCanvasId, (updatedComments) => {
       setComments(updatedComments);
       setCommentsLoading(false);
     });
 
-    // Cleanup subscription on unmount or user change
+    // Cleanup subscription on unmount or canvas change
     return () => {
       unsubscribe();
     };
-  }, [user]);
+  }, [user, currentCanvasId]);
 
   // Subscribe to other users' selections for locking visibility
   useEffect(() => {
@@ -234,158 +242,189 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error('❌ Failed to sync selection to Firestore:', error);
-        console.error('   Error details:', error);
       }
     };
 
     syncSelection();
   }, [user, selectedShapes]);
 
-  // Shape operations
+  // Shape operations (now canvas-scoped)
   const createShape = useCallback(async (shapeInput: ShapeCreateInput): Promise<string> => {
-    return await canvasService.createShape(shapeInput);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.createShape(currentCanvasId, shapeInput);
+  }, [currentCanvasId]);
 
   const createCircle = useCallback(async (circleData: { x: number; y: number; radius: number; color: string; createdBy: string }): Promise<string> => {
-    return await canvasService.createCircle(circleData);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.createCircle(currentCanvasId, circleData);
+  }, [currentCanvasId]);
 
   const createTriangle = useCallback(async (triangleData: { x: number; y: number; width: number; height: number; color: string; createdBy: string }): Promise<string> => {
-    return await canvasService.createTriangle(triangleData);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.createTriangle(currentCanvasId, triangleData);
+  }, [currentCanvasId]);
 
   const createText = useCallback(async (textData: { x: number; y: number; color: string; createdBy: string }): Promise<string> => {
-    return await canvasService.createText({
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.createText(currentCanvasId, {
       ...textData,
       fontSize: textFormattingDefaults.fontSize,
       fontWeight: textFormattingDefaults.fontWeight,
       fontStyle: textFormattingDefaults.fontStyle,
       textDecoration: textFormattingDefaults.textDecoration,
     });
-  }, [textFormattingDefaults]);
+  }, [currentCanvasId, textFormattingDefaults]);
 
   const updateShape = useCallback(async (shapeId: string, updates: Partial<ShapeData>): Promise<void> => {
-    return await canvasService.updateShape(shapeId, updates);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.updateShape(currentCanvasId, shapeId, updates);
+  }, [currentCanvasId]);
 
   const batchUpdateShapes = useCallback(async (updates: Array<{ shapeId: string; updates: Partial<ShapeData> }>): Promise<void> => {
-    return await canvasService.batchUpdateShapes(updates);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.batchUpdateShapes(currentCanvasId, updates);
+  }, [currentCanvasId]);
 
   const resizeShape = useCallback(async (shapeId: string, width: number, height: number): Promise<void> => {
-    return await canvasService.resizeShape(shapeId, width, height);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.resizeShape(currentCanvasId, shapeId, width, height);
+  }, [currentCanvasId]);
 
   const resizeCircle = useCallback(async (shapeId: string, radius: number) => {
-    return await canvasService.resizeCircle(shapeId, radius);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.resizeCircle(currentCanvasId, shapeId, radius);
+  }, [currentCanvasId]);
 
   const rotateShape = useCallback(async (shapeId: string, rotation: number): Promise<void> => {
-    return await canvasService.rotateShape(shapeId, rotation);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.rotateShape(currentCanvasId, shapeId, rotation);
+  }, [currentCanvasId]);
 
   const lockShape = useCallback(async (shapeId: string, userId: string): Promise<{ success: boolean; lockedByUsername?: string }> => {
-    return await canvasService.lockShape(shapeId, userId);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.lockShape(currentCanvasId, shapeId, userId);
+  }, [currentCanvasId]);
 
   const unlockShape = useCallback(async (shapeId: string): Promise<void> => {
-    return await canvasService.unlockShape(shapeId);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.unlockShape(currentCanvasId, shapeId);
+  }, [currentCanvasId]);
 
   const deleteShape = useCallback(async (shapeId: string): Promise<void> => {
-    return await canvasService.deleteShape(shapeId);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.deleteShape(currentCanvasId, shapeId);
+  }, [currentCanvasId]);
 
   const duplicateShape = useCallback(async (shapeId: string, userId: string): Promise<string> => {
-    return await canvasService.duplicateShape(shapeId, userId);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.duplicateShape(currentCanvasId, shapeId, userId);
+  }, [currentCanvasId]);
 
   const deleteAllShapes = useCallback(async (): Promise<void> => {
-    return await canvasService.deleteAllShapes();
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.deleteAllShapes(currentCanvasId);
+  }, [currentCanvasId]);
 
   // Grouping operations
   const groupShapes = useCallback(async (shapeIds: string[], userId: string, name?: string): Promise<string> => {
-    return await canvasService.groupShapes(shapeIds, userId, name);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.groupShapes(currentCanvasId, shapeIds, userId, name);
+  }, [currentCanvasId]);
 
   const ungroupShapes = useCallback(async (groupId: string): Promise<void> => {
-    return await canvasService.ungroupShapes(groupId);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.ungroupShapes(currentCanvasId, groupId);
+  }, [currentCanvasId]);
 
   // Z-Index operations
   const bringToFront = useCallback(async (shapeId: string): Promise<void> => {
-    return await canvasService.bringToFront(shapeId);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.bringToFront(currentCanvasId, shapeId);
+  }, [currentCanvasId]);
 
   const sendToBack = useCallback(async (shapeId: string): Promise<void> => {
-    return await canvasService.sendToBack(shapeId);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.sendToBack(currentCanvasId, shapeId);
+  }, [currentCanvasId]);
 
   const bringForward = useCallback(async (shapeId: string): Promise<void> => {
-    return await canvasService.bringForward(shapeId);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.bringForward(currentCanvasId, shapeId);
+  }, [currentCanvasId]);
 
   const sendBackward = useCallback(async (shapeId: string): Promise<void> => {
-    return await canvasService.sendBackward(shapeId);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.sendBackward(currentCanvasId, shapeId);
+  }, [currentCanvasId]);
 
   // Batch Z-Index operations (for multi-selection)
   const batchBringToFront = useCallback(async (shapeIds: string[]): Promise<void> => {
-    return await canvasService.batchBringToFront(shapeIds);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.batchBringToFront(currentCanvasId, shapeIds);
+  }, [currentCanvasId]);
 
   const batchSendToBack = useCallback(async (shapeIds: string[]): Promise<void> => {
-    return await canvasService.batchSendToBack(shapeIds);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.batchSendToBack(currentCanvasId, shapeIds);
+  }, [currentCanvasId]);
 
   const batchBringForward = useCallback(async (shapeIds: string[]): Promise<void> => {
-    return await canvasService.batchBringForward(shapeIds);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.batchBringForward(currentCanvasId, shapeIds);
+  }, [currentCanvasId]);
 
   const batchSendBackward = useCallback(async (shapeIds: string[]): Promise<void> => {
-    return await canvasService.batchSendBackward(shapeIds);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.batchSendBackward(currentCanvasId, shapeIds);
+  }, [currentCanvasId]);
 
   // Alignment operations
   const alignShapes = useCallback(async (
     shapeIds: string[],
     alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom'
   ): Promise<void> => {
-    return await canvasService.alignShapes(shapeIds, alignment);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.alignShapes(currentCanvasId, shapeIds, alignment);
+  }, [currentCanvasId]);
 
   const distributeShapes = useCallback(async (
     shapeIds: string[],
     direction: 'horizontal' | 'vertical'
   ): Promise<void> => {
-    return await canvasService.distributeShapes(shapeIds, direction);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.distributeShapes(currentCanvasId, shapeIds, direction);
+  }, [currentCanvasId]);
 
   // Comment operations
   const addComment = useCallback(async (shapeId: string, text: string, userId: string, username: string): Promise<string> => {
-    return await canvasService.addComment(shapeId, text, userId, username);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.addComment(currentCanvasId, shapeId, text, userId, username);
+  }, [currentCanvasId]);
 
   const addReply = useCallback(async (commentId: string, userId: string, username: string, text: string): Promise<void> => {
-    return await canvasService.addReply(commentId, userId, username, text);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.addReply(currentCanvasId, commentId, userId, username, text);
+  }, [currentCanvasId]);
 
   const resolveComment = useCallback(async (commentId: string, userId: string): Promise<void> => {
-    return await canvasService.resolveComment(commentId, userId);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.resolveComment(currentCanvasId, commentId, userId);
+  }, [currentCanvasId]);
 
   const deleteComment = useCallback(async (commentId: string, userId: string): Promise<void> => {
-    return await canvasService.deleteComment(commentId, userId);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.deleteComment(currentCanvasId, commentId, userId);
+  }, [currentCanvasId]);
 
   const deleteReply = useCallback(async (commentId: string, replyIndex: number, userId: string): Promise<void> => {
-    return await canvasService.deleteReply(commentId, replyIndex, userId);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.deleteReply(currentCanvasId, commentId, replyIndex, userId);
+  }, [currentCanvasId]);
 
   const markRepliesAsRead = useCallback(async (commentId: string, userId: string): Promise<void> => {
-    return await canvasService.markRepliesAsRead(commentId, userId);
-  }, []);
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.markRepliesAsRead(currentCanvasId, commentId, userId);
+  }, [currentCanvasId]);
 
   // Text editing functions
   const enterEdit = useCallback((shapeId: string): void => {
@@ -393,8 +432,9 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const saveText = useCallback(async (shapeId: string, text: string): Promise<void> => {
+    if (!currentCanvasId) throw new Error('No canvas selected');
     try {
-      await canvasService.updateShapeText(shapeId, text);
+      await canvasService.updateShapeText(currentCanvasId, shapeId, text);
       setEditingTextId(null);
       // Reset cursor to pointer after saving text
       setActiveTool('select');
@@ -402,7 +442,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
       console.error('❌ Error saving text:', error);
       throw error;
     }
-  }, []);
+  }, [currentCanvasId]);
 
   const updateTextFormatting = useCallback(async (shapeId: string, formatting: {
     fontWeight?: 'normal' | 'bold';
@@ -410,13 +450,14 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     textDecoration?: 'none' | 'underline';
     fontSize?: number;
   }): Promise<void> => {
+    if (!currentCanvasId) throw new Error('No canvas selected');
     try {
-      await canvasService.updateTextFormatting(shapeId, formatting);
+      await canvasService.updateTextFormatting(currentCanvasId, shapeId, formatting);
     } catch (error) {
       console.error('❌ Error updating text formatting:', error);
       throw error;
     }
-  }, []);
+  }, [currentCanvasId]);
 
   const cancelEdit = useCallback((): void => {
     setEditingTextId(null);
@@ -425,6 +466,8 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(() => ({
+    currentCanvasId,
+    setCurrentCanvasId,
     selectedColor,
     setSelectedColor,
     textFormattingDefaults,
@@ -493,6 +536,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     updateTextFormatting,
     cancelEdit,
   }), [
+    currentCanvasId,
     selectedColor,
     textFormattingDefaults,
     activeTool,
@@ -563,4 +607,3 @@ export function useCanvasContext() {
   }
   return context;
 }
-

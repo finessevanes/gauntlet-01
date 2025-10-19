@@ -28,7 +28,9 @@ export const PAINT_COLORS = [
 ];
 
 // Cursor update frequency (ms)
-export const CURSOR_UPDATE_INTERVAL = 33; // ~30 FPS
+// EXPERIMENT 1: Increased from 33ms (30 FPS) to 50ms (20 FPS)
+// Testing if reducing cursor update frequency improves performance
+export const CURSOR_UPDATE_INTERVAL = 50; // ~20 FPS
 
 // Lock timeout (ms)
 export const LOCK_TIMEOUT = 5000; // 5 seconds

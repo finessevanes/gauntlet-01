@@ -5,6 +5,7 @@ import Signup from './components/Auth/Signup';
 import AppShell from './components/Layout/AppShell';
 import Canvas from './components/Canvas/Canvas';
 import { CanvasProvider } from './contexts/CanvasContext';
+import { UserSelectionsProvider } from './contexts/UserSelectionsContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 
@@ -34,11 +35,13 @@ function App() {
   // If authenticated, show main app with canvas
   return (
     <ErrorBoundary>
-      <CanvasProvider>
-        <AppShell>
-          <Canvas />
-        </AppShell>
-      </CanvasProvider>
+      <UserSelectionsProvider>
+        <CanvasProvider>
+          <AppShell>
+            <Canvas />
+          </AppShell>
+        </CanvasProvider>
+      </UserSelectionsProvider>
     </ErrorBoundary>
   );
 }

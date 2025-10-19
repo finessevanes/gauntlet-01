@@ -1,6 +1,7 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { Stage, Layer, Rect, Group, Text } from 'react-konva';
 import { useCanvasContext } from '../../contexts/CanvasContext';
+import { useUserSelections } from '../../contexts/UserSelectionsContext';
 import { useCursors } from '../../hooks/useCursors';
 import { useAuth } from '../../hooks/useAuth';
 import { useShapeResize } from '../../hooks/useShapeResize';
@@ -35,6 +36,7 @@ import type { ShapeData } from '../../services/canvasService';
 
 export default function Canvas() {
   const { user } = useAuth();
+  const { userSelections } = useUserSelections();
   const { 
     stageScale, 
     setStageScale, 
@@ -69,7 +71,6 @@ export default function Canvas() {
     setSelectedShapes,
     lastClickedShapeId,
     setLastClickedShapeId,
-    userSelections,
     shapesLoading,
     clipboard,
     setClipboard,
@@ -990,7 +991,7 @@ export default function Canvas() {
   };
 
   // Helper: Handle shape mousedown (optimistic selection + background lock)
-  const handleShapeMouseDown = async (shapeId: string, event?: MouseEvent | React.MouseEvent) => {
+  const handleShapeMouseDown = useCallback(async (shapeId: string, event?: MouseEvent | React.MouseEvent) => {
     if (!user) return;
 
     // Check if shape is selected by another user (selection locking)
@@ -1127,7 +1128,7 @@ export default function Canvas() {
         position: 'top-center',
       });
     }
-  };
+  }, [user, lockShape, unlockShape, shapes, selectedShapes, selectedShapeId, userSelections, setSelectedShapeId, setSelectedShapes, setLastClickedShapeId]);
 
   // Track previous mode when switching to bomb mode
   useEffect(() => {
@@ -2364,6 +2365,75 @@ export default function Canvas() {
     return { screenX, screenY, screenWidth, screenHeight };
   };
 
+  // Memoize shape rendering data to prevent recalculating on every render
+  // This dramatically improves performance by avoiding expensive operations in the render loop
+  const sortedShapesWithMetadata = useMemo(() => {
+    if (shapesLoading) return [];
+    
+    return shapes
+      .slice()
+      .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
+      .map((shape) => {
+        const lockStatus = getShapeLockStatus(shape, user, selectedShapeId);
+        const isLockedByMe = lockStatus === 'locked-by-me';
+        const isSelected = selectedShapeId === shape.id;
+        const isMultiSelected = selectedShapes.includes(shape.id);
+        
+        // Check if shape is selected by another user (selection locking)
+        const selectionLockStatus = user 
+          ? selectionService.isShapeLockedByOthers(shape.id, user.uid, userSelections)
+          : { locked: false };
+        
+        const isSelectedByOther = selectionLockStatus.locked;
+        const isLockedByOther = lockStatus === 'locked-by-other' || isSelectedByOther;
+
+        // Calculate comment info for this shape
+        const shapeComments = comments.filter(c => c.shapeId === shape.id && !c.resolved);
+        const commentCount = shapeComments.length;
+        
+        // Check if there are unread replies for the current user
+        const hasUnreadReplies = user ? shapeComments.some(comment => {
+          if (comment.shapeId !== shape.id || comment.userId !== user.uid) {
+            return false;
+          }
+          
+          if (!comment.replies || comment.replies.length === 0) {
+            return false;
+          }
+          
+          const hasRepliesFromOthers = comment.replies.some(reply => reply.userId !== user.uid);
+          if (!hasRepliesFromOthers) {
+            return false;
+          }
+          
+          if (comment.lastReplyAt) {
+            const lastReadTimestamp = comment.replyReadStatus?.[user.uid];
+            
+            if (!lastReadTimestamp) {
+              return true;
+            }
+            
+            const lastReadMs = lastReadTimestamp.toMillis ? lastReadTimestamp.toMillis() : lastReadTimestamp.seconds * 1000;
+            const lastReplyMs = comment.lastReplyAt.toMillis ? comment.lastReplyAt.toMillis() : comment.lastReplyAt.seconds * 1000;
+            
+            return lastReplyMs > lastReadMs;
+          }
+          
+          return false;
+        }) : false;
+
+        return {
+          shape,
+          isSelected,
+          isMultiSelected,
+          isLockedByMe,
+          isLockedByOther,
+          commentCount,
+          hasUnreadReplies,
+        };
+      });
+  }, [shapes, shapesLoading, user, selectedShapeId, selectedShapes, userSelections, comments]);
+
   return (
     <>
     <div 
@@ -2403,78 +2473,16 @@ export default function Canvas() {
             strokeWidth={1}
           />
 
-          {/* Render all shapes from Firestore (sorted by zIndex) */}
-          {!shapesLoading && shapes
-            .slice()
-            .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
-            .map((shape) => {
-            const lockStatus = getShapeLockStatus(shape, user, selectedShapeId);
-            const isLockedByMe = lockStatus === 'locked-by-me';
-            const isSelected = selectedShapeId === shape.id;
-            const isMultiSelected = selectedShapes.includes(shape.id);
-            
-            // Check if shape is selected by another user (selection locking)
-            const selectionLockStatus = user 
-              ? selectionService.isShapeLockedByOthers(shape.id, user.uid, userSelections)
-              : { locked: false };
-            
-            const isSelectedByOther = selectionLockStatus.locked;
-            
-            // Log when a shape is selected by another user (only log occasionally to avoid spam)
-            if (isSelectedByOther && Math.random() < 0.1) {
-              console.log('🔒 Shape selected by another user:', {
-                shapeId: shape.id,
-                lockedBy: selectionLockStatus.username,
-                userSelections,
-              });
-            }
-            
-            // A shape is locked by others if it's either:
-            // 1. Locked via the old locking mechanism (lockedBy field)
-            // 2. Selected by another user (new selection locking)
-            const isLockedByOther = lockStatus === 'locked-by-other' || isSelectedByOther;
-
-            // Calculate comment info for this shape
-            const shapeComments = comments.filter(c => c.shapeId === shape.id && !c.resolved);
-            const commentCount = shapeComments.length;
-            
-            // Check if there are unread replies for the current user
-            const hasUnreadReplies = user ? shapeComments.some(comment => {
-              // Only check comments that belong to this shape and where the current user is the author
-              if (comment.shapeId !== shape.id || comment.userId !== user.uid) {
-                return false;
-              }
-              
-              // Check if there are replies and if they haven't been read
-              if (!comment.replies || comment.replies.length === 0) {
-                return false;
-              }
-              
-              // Check if there are any replies from OTHER users (not from the comment author themselves)
-              const hasRepliesFromOthers = comment.replies.some(reply => reply.userId !== user.uid);
-              if (!hasRepliesFromOthers) {
-                return false; // Only own replies, don't show notification
-              }
-              
-              // If there's a lastReplyAt timestamp
-              if (comment.lastReplyAt) {
-                const lastReadTimestamp = comment.replyReadStatus?.[user.uid];
-                
-                // If user has never read replies, or last read was before last reply
-                if (!lastReadTimestamp) {
-                  return true;
-                }
-                
-                // Compare timestamps - convert to milliseconds for comparison
-                const lastReadMs = lastReadTimestamp.toMillis ? lastReadTimestamp.toMillis() : lastReadTimestamp.seconds * 1000;
-                const lastReplyMs = comment.lastReplyAt.toMillis ? comment.lastReplyAt.toMillis() : comment.lastReplyAt.seconds * 1000;
-                
-                return lastReplyMs > lastReadMs;
-              }
-              
-              return false;
-            }) : false;
-
+          {/* Render all shapes from Firestore (sorted by zIndex) - using memoized data */}
+          {sortedShapesWithMetadata.map(({ 
+            shape, 
+            isSelected, 
+            isMultiSelected, 
+            isLockedByMe, 
+            isLockedByOther, 
+            commentCount, 
+            hasUnreadReplies 
+          }) => {
             return (
               <CanvasShape
                 key={shape.id}

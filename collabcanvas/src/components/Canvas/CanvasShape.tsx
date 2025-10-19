@@ -1,4 +1,5 @@
 import { Group, Rect, Circle, Line, Text } from 'react-konva';
+import { memo } from 'react';
 import type Konva from 'konva';
 import type { ShapeData } from '../../services/canvasService';
 import { calculateTextDimensions } from '../../utils/textEditingHelpers';
@@ -40,7 +41,7 @@ interface CanvasShapeProps {
   editingTextDimensions?: { width: number; height: number } | null;
 }
 
-export default function CanvasShape({
+function CanvasShape({
   shape,
   isSelected,
   isMultiSelected,
@@ -723,4 +724,8 @@ export default function CanvasShape({
     </Group>
   );
 }
+
+// Memoize to prevent unnecessary re-renders when parent re-renders
+// Uses default shallow comparison which works well for our props
+export default memo(CanvasShape);
 

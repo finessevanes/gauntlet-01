@@ -1,4 +1,5 @@
 import { Layer } from 'react-konva';
+import { memo } from 'react';
 import Cursor from './Cursor';
 import type { CursorsMap } from '../../services/cursorService';
 
@@ -6,7 +7,7 @@ interface CursorLayerProps {
   cursors: CursorsMap;
 }
 
-export default function CursorLayer({ cursors }: CursorLayerProps) {
+function CursorLayer({ cursors }: CursorLayerProps) {
   return (
     <Layer listening={false}>
       {Object.entries(cursors).map(([userId, cursor]) => (
@@ -21,4 +22,7 @@ export default function CursorLayer({ cursors }: CursorLayerProps) {
     </Layer>
   );
 }
+
+// Only re-render if cursors object changes (shallow comparison)
+export default memo(CursorLayer);
 

@@ -1,4 +1,5 @@
 import { Group, Circle, Text } from 'react-konva';
+import { memo } from 'react';
 
 interface CursorProps {
   x: number;
@@ -7,7 +8,7 @@ interface CursorProps {
   color: string;
 }
 
-export default function Cursor({ x, y, username, color }: CursorProps) {
+function Cursor({ x, y, username, color }: CursorProps) {
   return (
     <Group x={x} y={y}>
       {/* Cursor pointer (triangle-like shape using circle) */}
@@ -59,4 +60,7 @@ export default function Cursor({ x, y, username, color }: CursorProps) {
     </Group>
   );
 }
+
+// Only re-render if props actually change (shallow comparison)
+export default memo(Cursor);
 

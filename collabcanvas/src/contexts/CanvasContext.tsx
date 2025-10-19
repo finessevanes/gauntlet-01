@@ -4,7 +4,6 @@ import { DEFAULT_COLOR } from '../utils/constants';
 import { canvasService } from '../services/canvasService';
 import type { ShapeData, ShapeCreateInput, CommentData } from '../services/canvasService';
 import { selectionService } from '../services/selectionService';
-import type { UserSelection } from '../services/selectionService';
 import { useAuth } from '../hooks/useAuth';
 import type { Unsubscribe } from 'firebase/firestore';
 
@@ -41,10 +40,6 @@ interface CanvasContextType {
   // Clipboard
   clipboard: ShapeData[] | null;
   setClipboard: (shapes: ShapeData[] | null) => void;
-  
-  // Other users' selections (for locking visibility)
-  userSelections: Record<string, UserSelection>;
-  setUserSelections: (selections: Record<string, UserSelection>) => void;
   
   // Drawing mode (deprecated - kept for backward compatibility)
   isDrawMode: boolean;
@@ -142,7 +137,6 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
   const [selectedShapes, setSelectedShapes] = useState<string[]>([]);
   const [lastClickedShapeId, setLastClickedShapeId] = useState<string | null>(null);
-  const [userSelections, setUserSelections] = useState<Record<string, UserSelection>>({});
   const [isDrawMode, setIsDrawMode] = useState(false); // Deprecated: kept for backward compatibility
   const [isBombMode, setIsBombMode] = useState(false); // Deprecated: kept for backward compatibility
   const [stageScale, setStageScale] = useState(1);
@@ -193,29 +187,6 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
 
     // Cleanup subscription on unmount or user change
     return () => {
-      unsubscribe();
-    };
-  }, [user]);
-
-  // Subscribe to other users' selections for locking visibility
-  useEffect(() => {
-    if (!user) {
-      setUserSelections({});
-      return;
-    }
-
-    console.log('🔄 Subscribing to other users\' selections');
-    
-    const unsubscribe: Unsubscribe = selectionService.subscribeToCanvasSelections(
-      user.uid,
-      (selections) => {
-        setUserSelections(selections);
-      }
-    );
-
-    // Cleanup subscription on unmount or user change
-    return () => {
-      console.log('🔄 Unsubscribing from other users\' selections');
       unsubscribe();
     };
   }, [user]);
@@ -459,8 +430,6 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     setSelectedShapes,
     lastClickedShapeId,
     setLastClickedShapeId,
-    userSelections,
-    setUserSelections,
     isDrawMode,
     setIsDrawMode,
     isBombMode,
@@ -523,7 +492,6 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     selectedShapeId,
     selectedShapes,
     lastClickedShapeId,
-    userSelections,
     isDrawMode,
     isBombMode,
     stageScale,

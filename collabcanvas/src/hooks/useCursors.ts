@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { throttle } from 'lodash';
 import { cursorService, type CursorsMap } from '../services/cursorService';
 import { presenceService, type PresenceMap } from '../services/presenceService';
@@ -112,21 +112,23 @@ export function useCursors(stageRef: React.RefObject<any>) {
     };
   }, [user]);
 
-  // Filter out own cursor AND cursors from offline users
-  const otherUsersCursors = Object.entries(cursors).reduce((acc, [userId, cursor]) => {
-    // Don't show own cursor
-    if (userId === user?.uid) {
+  // Filter out own cursor AND cursors from offline users (memoized for performance)
+  const otherUsersCursors = useMemo(() => {
+    return Object.entries(cursors).reduce((acc, [userId, cursor]) => {
+      // Don't show own cursor
+      if (userId === user?.uid) {
+        return acc;
+      }
+      
+      // Only show cursor if user is online
+      const userPresence = presence[userId];
+      if (userPresence && userPresence.online) {
+        acc[userId] = cursor;
+      }
+      
       return acc;
-    }
-    
-    // Only show cursor if user is online
-    const userPresence = presence[userId];
-    if (userPresence && userPresence.online) {
-      acc[userId] = cursor;
-    }
-    
-    return acc;
-  }, {} as CursorsMap);
+    }, {} as CursorsMap);
+  }, [cursors, presence, user?.uid]);
 
   return {
     cursors: otherUsersCursors,

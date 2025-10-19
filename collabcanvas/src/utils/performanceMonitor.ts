@@ -54,6 +54,11 @@ class PerformanceMonitor {
         this.metrics.shift();
       }
 
+      // Log to console if enabled
+      if (this.logToConsole) {
+        console.log(`[Performance] ${name}: ${measure.duration.toFixed(2)}ms`, metadata);
+      }
+
       // Clean up marks and measures
       performance.clearMarks(startMark);
       performance.clearMarks(endMark);
@@ -186,7 +191,7 @@ class PerformanceMonitor {
 
 // Create a singleton instance
 export const performanceMonitor = new PerformanceMonitor(
-  // Disable console logging to reduce noise
+  // Disable console logging by default to reduce noise
   false
 );
 

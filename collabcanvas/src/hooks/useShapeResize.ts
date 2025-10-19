@@ -639,8 +639,6 @@ export function useShapeResize({
           setPreviewDimensions(null);
         }, 100);
         
-        toast.success('Text resized', { duration: 1000 });
-        
         console.log('✅ Text resize persisted to Firestore with real-time sync');
         return;
       } else {
@@ -658,8 +656,6 @@ export function useShapeResize({
           setPreviewDimensions(null);
         }, 100);
         
-        toast.success('Shape resized', { duration: 1000 });
-        
         console.log('✅ SUCCESS TASK [1.6]: Shape resize persisted to Firestore with real-time sync');
         
         // Keep shape selected and locked so user can resize again
@@ -674,9 +670,7 @@ export function useShapeResize({
         setPreviewDimensions(null);
       }, 100);
       
-      toast.success('Circle resized', { duration: 1000 });
-      
-      console.log('✅ Circle resize persisted to Firestore with real-time sync');
+      console.log('✅ Circle resize persized to Firestore with real-time sync');
     } catch (error) {
       console.error('❌ Failed to resize shape:', error);
       toast.error('Failed to resize shape');

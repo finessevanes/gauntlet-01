@@ -132,8 +132,6 @@ export function useRotation(props: UseRotationProps) {
     try {
       await rotateShape(selectedShapeId, previewRotation);
       
-      toast.success('Shape rotated', { duration: 1000 });
-      
       console.log('✅ SUCCESS TASK [2.4]: Rotation persisted to Firestore', {
         finalRotation: previewRotation.toFixed(2) + '°',
       });

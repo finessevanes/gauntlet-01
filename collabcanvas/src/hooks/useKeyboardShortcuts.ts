@@ -164,10 +164,6 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
         if (selectedShapes.length >= 2) {
           try {
             const groupId = await groupShapes(selectedShapes, user.uid);
-            toast.success(`Grouped ${selectedShapes.length} shapes`, {
-              duration: 1500,
-              position: 'top-center',
-            });
             console.log('✅ Grouped shapes:', groupId);
           } catch (error) {
             console.error('Failed to group shapes:', error);
@@ -201,10 +197,6 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
                   setSelectedShapes([]);
                 }
                 
-                toast.success('Ungrouped shapes', {
-                  duration: 1500,
-                  position: 'top-center',
-                });
                 console.log('✅ Ungrouped shapes');
               }
             }
@@ -225,19 +217,11 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
         if (selectedShapes.length > 0) {
           const shapesToCopy = shapes.filter(s => selectedShapes.includes(s.id));
           setClipboard(shapesToCopy);
-          toast.success(`Copied ${selectedShapes.length} shape${selectedShapes.length > 1 ? 's' : ''}`, {
-            duration: 1500,
-            position: 'top-center',
-          });
           console.log('✅ Copied shapes to clipboard:', shapesToCopy);
         } else if (selectedShapeId) {
           const shapeToCopy = shapes.find(s => s.id === selectedShapeId);
           if (shapeToCopy) {
             setClipboard([shapeToCopy]);
-            toast.success('Copied 1 shape', {
-              duration: 1500,
-              position: 'top-center',
-            });
             console.log('✅ Copied shape to clipboard:', shapeToCopy);
           }
         }
@@ -333,11 +317,6 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
             await handleDeselectShape();
           }
           setSelectedShapes(newShapeIds.filter(Boolean) as string[]);
-          
-          toast.success(`Pasted ${clipboard.length} shape${clipboard.length > 1 ? 's' : ''}`, {
-            duration: 1500,
-            position: 'top-center',
-          });
         } catch (error) {
           console.error('❌ PASTE ERROR - Failed to paste shapes:', error);
           toast.error('Failed to paste shapes', {
@@ -431,20 +410,12 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
             }
             
             await batchBringForward(shapeIdsToBring);
-            toast.success('Brought forward', {
-              duration: 1000,
-              position: 'top-center',
-            });
           } catch (error) {
             console.error('Failed to bring forward:', error);
           }
         } else if (selectedShapeId) {
           try {
             await bringForward(selectedShapeId);
-            toast.success('Brought forward', {
-              duration: 1000,
-              position: 'top-center',
-            });
           } catch (error) {
             console.error('Failed to bring forward:', error);
           }
@@ -483,20 +454,12 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
             }
             
             await batchSendBackward(shapeIdsToSend);
-            toast.success('Sent backward', {
-              duration: 1000,
-              position: 'top-center',
-            });
           } catch (error) {
             console.error('Failed to send backward:', error);
           }
         } else if (selectedShapeId) {
           try {
             await sendBackward(selectedShapeId);
-            toast.success('Sent backward', {
-              duration: 1000,
-              position: 'top-center',
-            });
           } catch (error) {
             console.error('Failed to send backward:', error);
           }
@@ -535,20 +498,12 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
             }
             
             await batchBringToFront(shapeIdsToBring);
-            toast.success('Brought to front', {
-              duration: 1000,
-              position: 'top-center',
-            });
           } catch (error) {
             console.error('Failed to bring to front:', error);
           }
         } else if (selectedShapeId) {
           try {
             await bringToFront(selectedShapeId);
-            toast.success('Brought to front', {
-              duration: 1000,
-              position: 'top-center',
-            });
           } catch (error) {
             console.error('Failed to bring to front:', error);
           }
@@ -587,20 +542,12 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
             }
             
             await batchSendToBack(shapeIdsToSend);
-            toast.success('Sent to back', {
-              duration: 1000,
-              position: 'top-center',
-            });
           } catch (error) {
             console.error('Failed to send to back:', error);
           }
         } else if (selectedShapeId) {
           try {
             await sendToBack(selectedShapeId);
-            toast.success('Sent to back', {
-              duration: 1000,
-              position: 'top-center',
-            });
           } catch (error) {
             console.error('Failed to send to back:', error);
           }
@@ -613,12 +560,6 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
         e.preventDefault();
         const allShapeIds = shapes.map(s => s.id);
         setSelectedShapes(allShapeIds);
-        if (allShapeIds.length > 0) {
-          toast.success(`Selected ${allShapeIds.length} shape${allShapeIds.length > 1 ? 's' : ''}`, {
-            duration: 1000,
-            position: 'top-center',
-          });
-        }
         return;
       }
 
@@ -627,10 +568,6 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
         e.preventDefault();
         setStageScale(1);
         setStagePosition({ x: 0, y: 0 });
-        toast.success('Reset zoom to 100%', {
-          duration: 1000,
-          position: 'top-center',
-        });
         return;
       }
 
@@ -658,11 +595,6 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
             
             // Clear selection after delete
             setSelectedShapes([]);
-            
-            toast.success(`${selectedShapes.length} shape${selectedShapes.length > 1 ? 's' : ''} deleted`, {
-              duration: 1500,
-              position: 'top-center',
-            });
           } catch (error) {
             console.error('❌ BATCH DELETE ERROR - Failed to delete shapes:', error);
             toast.error('Failed to delete shapes', {
@@ -678,10 +610,6 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
           try {
             await deleteShape(selectedShapeId);
             setSelectedShapeId(null);
-            toast.success('Shape deleted', {
-              duration: 1000,
-              position: 'top-center',
-            });
           } catch (error) {
             console.error('Failed to delete shape:', error);
             toast.error('Failed to delete shape', {
@@ -714,11 +642,6 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
             
             // Clear original selection and select only the duplicates
             setSelectedShapes(newShapeIds);
-            
-            toast.success(`${selectedShapes.length} shape${selectedShapes.length > 1 ? 's' : ''} duplicated`, {
-              duration: 1500,
-              position: 'top-center',
-            });
           } catch (error) {
             console.error('❌ BATCH DUPLICATE ERROR - Failed to duplicate shapes:', error);
             toast.error('Failed to duplicate shapes', {
@@ -741,11 +664,6 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
             // Select and lock the new shape immediately
             setSelectedShapeId(newShapeId);
             await lockShape(newShapeId, user.uid);
-            
-            toast.success('Shape duplicated', {
-              duration: 1000,
-              position: 'top-center',
-            });
           } catch (error) {
             console.error('Failed to duplicate shape:', error);
             toast.error('Failed to duplicate shape', {

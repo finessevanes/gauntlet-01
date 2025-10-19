@@ -88,7 +88,7 @@ export default function CanvasShape({
   let currentHeight: number | undefined;
   let currentRadius: number | undefined;
   
-  if (shape.type === 'rectangle' || shape.type === 'triangle') {
+  if (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'path') {
     currentX = isBeingResized && previewDimensions ? previewDimensions.x : shape.x;
     currentY = isBeingResized && previewDimensions ? previewDimensions.y : shape.y;
     currentWidth = isBeingResized && previewDimensions ? previewDimensions.width : shape.width;
@@ -224,6 +224,27 @@ export default function CanvasShape({
           opacity={isLockedByOther ? 0.5 : 1}
           stroke={isMultiSelected ? '#60a5fa' : isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
           strokeWidth={isMultiSelected ? 4 : isLockedByMe || isLockedByOther ? 3 : 1}
+          shadowColor={isMultiSelected ? '#60a5fa' : undefined}
+          shadowBlur={isMultiSelected ? 10 : 0}
+          shadowOpacity={isMultiSelected ? 0.6 : 0}
+          onMouseEnter={() => {
+            if (activeTool === 'select' && !isLockedByOther) {
+              document.body.style.cursor = 'move';
+            }
+          }}
+          onMouseLeave={() => {
+            document.body.style.cursor = '';
+          }}
+        />
+      )}
+      {shape.type === 'path' && shape.points && (
+        <Line
+          points={shape.points}
+          stroke={shape.color}
+          strokeWidth={shape.strokeWidth || 2}
+          lineCap="round"
+          lineJoin="round"
+          opacity={isLockedByOther ? 0.5 : 1}
           shadowColor={isMultiSelected ? '#60a5fa' : undefined}
           shadowBlur={isMultiSelected ? 10 : 0}
           shadowOpacity={isMultiSelected ? 0.6 : 0}

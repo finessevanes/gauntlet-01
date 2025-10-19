@@ -61,3 +61,8 @@ export const CURSOR_COLORS = [
   '#f97316', // orange
 ];
 
+// Stroke width for path drawing
+export const DEFAULT_STROKE_WIDTH = 2;
+export const MIN_STROKE_WIDTH = 1;
+export const MAX_STROKE_WIDTH = 8;
+

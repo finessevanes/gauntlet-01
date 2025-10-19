@@ -51,7 +51,7 @@ export function getCursorStyle(
   if (isPanning) return 'grabbing'; // Actively panning
   if (isSpacePressed && !isPanning) return 'grab'; // Space held but not yet dragging
   if (activeTool === 'bomb') return 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewport=\'0 0 40 40\' style=\'font-size:32px\'><text y=\'32\'>💣</text></svg>") 16 16, crosshair'; // Bomb mode: show bomb cursor
-  if (activeTool === 'rectangle' || activeTool === 'circle' || activeTool === 'triangle') return 'crosshair'; // Shape tool: ready to draw
+  if (activeTool === 'rectangle' || activeTool === 'circle' || activeTool === 'triangle' || activeTool === 'pencil') return 'crosshair'; // Shape tool: ready to draw
   if (activeTool === 'text') return 'text'; // Text mode: show text cursor
   if (activeTool === 'pan') return 'grab'; // Pan mode: ready to pan
   return 'default'; // Select mode: default cursor (objects will have pointer cursor on hover)

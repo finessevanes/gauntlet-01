@@ -8,7 +8,7 @@ import type { UserSelection } from '../services/selectionService';
 import { useAuth } from '../hooks/useAuth';
 import type { Unsubscribe } from 'firebase/firestore';
 
-export type ToolType = 'select' | 'pan' | 'rectangle' | 'circle' | 'triangle' | 'text' | 'bomb';
+export type ToolType = 'select' | 'pan' | 'rectangle' | 'circle' | 'triangle' | 'pencil' | 'text' | 'bomb';
 
 export interface TextFormattingDefaults {
   fontSize: number;
@@ -65,6 +65,7 @@ interface CanvasContextType {
   createShape: (shapeInput: ShapeCreateInput) => Promise<string>;
   createCircle: (circleData: { x: number; y: number; radius: number; color: string; createdBy: string }) => Promise<string>;
   createTriangle: (triangleData: { x: number; y: number; width: number; height: number; color: string; createdBy: string }) => Promise<string>;
+  createPath: (pathData: { points: number[]; color: string; strokeWidth?: number; createdBy: string }) => Promise<string>;
   createText: (textData: { x: number; y: number; color: string; createdBy: string }) => Promise<string>;
   updateShape: (shapeId: string, updates: Partial<ShapeData>) => Promise<void>;
   batchUpdateShapes: (updates: Array<{ shapeId: string; updates: Partial<ShapeData> }>) => Promise<void>;
@@ -266,6 +267,10 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.createTriangle(triangleData);
   }, []);
 
+  const createPath = useCallback(async (pathData: { points: number[]; color: string; strokeWidth?: number; createdBy: string }): Promise<string> => {
+    return await canvasService.createPath(pathData);
+  }, []);
+
   const createText = useCallback(async (textData: { x: number; y: number; color: string; createdBy: string }): Promise<string> => {
     return await canvasService.createText({
       ...textData,
@@ -465,6 +470,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     createShape,
     createCircle,
     createTriangle,
+    createPath,
     createText,
     updateShape,
     batchUpdateShapes,
@@ -521,6 +527,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     createShape,
     createCircle,
     createTriangle,
+    createPath,
     createText,
     updateShape,
     batchUpdateShapes,

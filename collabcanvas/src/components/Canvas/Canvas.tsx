@@ -23,7 +23,8 @@ import {
   MIN_SHAPE_SIZE,
   MIN_CIRCLE_RADIUS,
   MIN_TRIANGLE_WIDTH,
-  MIN_TRIANGLE_HEIGHT
+  MIN_TRIANGLE_HEIGHT,
+  DEFAULT_STROKE_WIDTH
 } from '../../utils/constants';
 import type Konva from 'konva';
 import type { ShapeData } from '../../services/canvasService';
@@ -45,6 +46,7 @@ export default function Canvas() {
     createShape,
     createCircle,
     createTriangle,
+    createPath,
     createText,
     updateShape,
     batchUpdateShapes,
@@ -114,6 +116,8 @@ export default function Canvas() {
     width: number;
     height: number;
   } | null>(null);
+  const [previewPath, setPreviewPath] = useState<number[] | null>(null);
+  const [isDrawingPath, setIsDrawingPath] = useState(false);
 
   // Marquee selection state
   const [marqueeStart, setMarqueeStart] = useState<{ x: number; y: number } | null>(null);
@@ -1211,6 +1215,13 @@ export default function Canvas() {
         return;
       }
 
+      // Handle pencil tool - start drawing path
+      if (activeTool === 'pencil') {
+        setIsDrawingPath(true);
+        setPreviewPath([x, y]);
+        return;
+      }
+
       // Handle select tool - start marquee selection or clear selection
       if (activeTool === 'select') {
         // Check if Shift is held
@@ -1288,6 +1299,32 @@ export default function Canvas() {
       return;
     }
 
+    // Handle pencil tool drawing
+    if (isDrawingPath && previewPath) {
+      const pointerPosition = stage.getPointerPosition();
+      if (!pointerPosition) return;
+
+      // Check if mouse button is still pressed (fixes trackpad multi-touch issue)
+      // If buttons is 0, it means no button is pressed (user lifted finger)
+      if (e.evt.buttons === 0) {
+        // Mouse button released during move - finalize the path
+        handleMouseUp();
+        return;
+      }
+
+      // Convert screen coordinates to canvas coordinates
+      let currentX = (pointerPosition.x - stage.x()) / stage.scaleX();
+      let currentY = (pointerPosition.y - stage.y()) / stage.scaleY();
+
+      // Clamp to canvas bounds
+      currentX = Math.max(0, Math.min(CANVAS_WIDTH, currentX));
+      currentY = Math.max(0, Math.min(CANVAS_HEIGHT, currentY));
+
+      // Add new point to path
+      setPreviewPath([...previewPath, currentX, currentY]);
+      return;
+    }
+
     // Handle drawing preview
     if (!isDrawing || !drawStart) return;
 
@@ -1333,6 +1370,43 @@ export default function Canvas() {
   };
 
   const handleMouseUp = async () => {
+    // Handle path creation from pencil tool
+    if (isDrawingPath && previewPath && user) {
+      // Minimum 2 points (4 numbers) to create a path
+      if (previewPath.length < 4) {
+        toast.error('Path too short - draw a longer line');
+        setIsDrawingPath(false);
+        setPreviewPath(null);
+        return;
+      }
+
+      // Save path data but keep preview visible during save
+      const pathToCreate = previewPath;
+      setIsDrawingPath(false); // Stop accepting new points
+      // Note: previewPath is NOT cleared yet - keeps path visible during save
+
+      try {
+        await createPath({
+          points: pathToCreate,
+          color: selectedColor,
+          strokeWidth: DEFAULT_STROKE_WIDTH,
+          createdBy: user.uid,
+        });
+        // Success - now clear the preview
+        setPreviewPath(null);
+        toast.success('Path created', {
+          duration: 1000,
+          position: 'top-center',
+        });
+      } catch (error) {
+        console.error('❌ Failed to create path:', error);
+        toast.error('Failed to create path');
+        setPreviewPath(null); // Clear preview even on error
+      }
+
+      return;
+    }
+
     // Handle rotation end if in progress
     if (isRotating) {
       await handleRotationEnd();
@@ -2370,6 +2444,7 @@ export default function Canvas() {
             previewRect={previewRect}
             previewCircle={previewCircle}
             previewTriangle={previewTriangle}
+            previewPath={previewPath}
             activeTool={activeTool}
             selectedColor={selectedColor}
           />

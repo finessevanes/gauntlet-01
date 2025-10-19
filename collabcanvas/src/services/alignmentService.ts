@@ -3,9 +3,15 @@ import { firestore } from '../firebase';
 import type { ShapeData } from './types/canvasTypes';
 
 class AlignmentService {
-  private shapesCollectionPath = 'canvases/main/shapes';
+  /**
+   * Get shapes collection path for a specific canvas
+   */
+  private getShapesPath(canvasId: string): string {
+    return `canvases/${canvasId}/shapes`;
+  }
 
   async alignShapes(
+    canvasId: string,
     shapeIds: string[],
     alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom'
   ): Promise<void> {
@@ -14,8 +20,9 @@ class AlignmentService {
         throw new Error('At least 2 shapes are required for alignment');
       }
 
+      const shapesPath = this.getShapesPath(canvasId);
       const shapeDocs = await Promise.all(
-        shapeIds.map(id => getDoc(doc(firestore, this.shapesCollectionPath, id)))
+        shapeIds.map(id => getDoc(doc(firestore, shapesPath, id)))
       );
 
       const shapes = shapeDocs
@@ -78,7 +85,7 @@ class AlignmentService {
       const batch = writeBatch(firestore);
 
       shapes.forEach(shape => {
-        const shapeRef = doc(firestore, this.shapesCollectionPath, shape.id);
+        const shapeRef = doc(firestore, shapesPath, shape.id);
         const updates: any = { updatedAt: serverTimestamp() };
         const isCircle = shape.type === 'circle' && shape.radius;
 
@@ -108,6 +115,7 @@ class AlignmentService {
   }
 
   async distributeShapes(
+    canvasId: string,
     shapeIds: string[],
     direction: 'horizontal' | 'vertical'
   ): Promise<void> {
@@ -116,8 +124,9 @@ class AlignmentService {
         throw new Error('At least 3 shapes are required for distribution');
       }
 
+      const shapesPath = this.getShapesPath(canvasId);
       const shapeDocs = await Promise.all(
-        shapeIds.map(id => getDoc(doc(firestore, this.shapesCollectionPath, id)))
+        shapeIds.map(id => getDoc(doc(firestore, shapesPath, id)))
       );
 
       const shapes = shapeDocs
@@ -166,7 +175,7 @@ class AlignmentService {
             newX = targetCenterX - shape.width / 2;
           }
 
-          const shapeRef = doc(firestore, this.shapesCollectionPath, shape.id);
+          const shapeRef = doc(firestore, shapesPath, shape.id);
           batch.update(shapeRef, {
             x: newX,
             updatedAt: serverTimestamp(),
@@ -194,7 +203,7 @@ class AlignmentService {
             newY = targetCenterY - shape.height / 2;
           }
 
-          const shapeRef = doc(firestore, this.shapesCollectionPath, shape.id);
+          const shapeRef = doc(firestore, shapesPath, shape.id);
           batch.update(shapeRef, {
             y: newY,
             updatedAt: serverTimestamp(),
@@ -213,4 +222,3 @@ class AlignmentService {
 
 export const alignmentService = new AlignmentService();
 export default AlignmentService;
-

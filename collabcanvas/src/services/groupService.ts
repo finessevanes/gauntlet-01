@@ -5,24 +5,34 @@ import { shapeService } from './shapeService';
 import type { GroupData } from './types/canvasTypes';
 
 class GroupService {
-  private shapesCollectionPath = 'canvases/main/shapes';
-  private groupsCollectionPath = 'canvases/main/groups';
+  /**
+   * Get shapes collection path for a specific canvas
+   */
+  private getShapesPath(canvasId: string): string {
+    return `canvases/${canvasId}/shapes`;
+  }
 
-  async groupShapes(shapeIds: string[], userId: string, name?: string): Promise<string> {
+  /**
+   * Get groups collection path for a specific canvas
+   */
+  private getGroupsPath(canvasId: string): string {
+    return `canvases/${canvasId}/groups`;
+  }
+
+  async groupShapes(canvasId: string, shapeIds: string[], userId: string, name?: string): Promise<string> {
     try {
       if (shapeIds.length < 2) {
         throw new Error('At least 2 shapes are required to create a group');
       }
 
-      await shapeService.ensureCanvasDocExists();
-      
-      const shapes = await shapeService.getShapes();
+      const shapes = await shapeService.getShapes(canvasId);
       const maxZIndex = shapes.length > 0 ? Math.max(...shapes.map(s => s.zIndex || 0)) : -1;
       
       const shapesToGroup = shapes.filter(s => shapeIds.includes(s.id));
       shapesToGroup.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
       
-      const groupId = doc(collection(firestore, this.groupsCollectionPath)).id;
+      const groupsPath = this.getGroupsPath(canvasId);
+      const groupId = doc(collection(firestore, groupsPath)).id;
       
       const groupData: Omit<GroupData, 'id'> = {
         name: name || `Group ${groupId.slice(0, 6)}`,
@@ -31,14 +41,15 @@ class GroupService {
         createdAt: serverTimestamp() as Timestamp,
       };
 
-      const groupRef = doc(firestore, this.groupsCollectionPath, groupId);
+      const groupRef = doc(firestore, groupsPath, groupId);
       await setDoc(groupRef, groupData);
 
       const batch = writeBatch(firestore);
+      const shapesPath = this.getShapesPath(canvasId);
       
       shapesToGroup.forEach((shape, index) => {
         const newZIndex = maxZIndex + 1 + index;
-        const shapeRef = doc(firestore, this.shapesCollectionPath, shape.id);
+        const shapeRef = doc(firestore, shapesPath, shape.id);
         batch.update(shapeRef, {
           groupId,
           zIndex: newZIndex,
@@ -56,9 +67,10 @@ class GroupService {
     }
   }
 
-  async ungroupShapes(groupId: string): Promise<void> {
+  async ungroupShapes(canvasId: string, groupId: string): Promise<void> {
     try {
-      const groupRef = doc(firestore, this.groupsCollectionPath, groupId);
+      const groupsPath = this.getGroupsPath(canvasId);
+      const groupRef = doc(firestore, groupsPath, groupId);
       const groupSnap = await getDoc(groupRef);
       
       if (!groupSnap.exists()) {
@@ -68,9 +80,10 @@ class GroupService {
       const groupData = groupSnap.data() as GroupData;
       
       const batch = writeBatch(firestore);
+      const shapesPath = this.getShapesPath(canvasId);
       
       for (const shapeId of groupData.shapeIds) {
-        const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+        const shapeRef = doc(firestore, shapesPath, shapeId);
         batch.update(shapeRef, {
           groupId: null,
           updatedAt: serverTimestamp(),
@@ -88,9 +101,10 @@ class GroupService {
     }
   }
 
-  async getGroup(groupId: string): Promise<GroupData | null> {
+  async getGroup(canvasId: string, groupId: string): Promise<GroupData | null> {
     try {
-      const groupRef = doc(firestore, this.groupsCollectionPath, groupId);
+      const groupsPath = this.getGroupsPath(canvasId);
+      const groupRef = doc(firestore, groupsPath, groupId);
       const groupSnap = await getDoc(groupRef);
       
       if (!groupSnap.exists()) {
@@ -110,4 +124,3 @@ class GroupService {
 
 export const groupService = new GroupService();
 export default GroupService;
-

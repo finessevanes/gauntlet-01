@@ -24,176 +24,176 @@ class CanvasService {
   // Shape Operations (delegates to shapeService)
   // ============================================
 
-  async createShape(shapeInput: Parameters<typeof shapeService.createShape>[0]) {
-    return shapeService.createShape(shapeInput);
+  async createShape(canvasId: string, shapeInput: Parameters<typeof shapeService.createShape>[1]) {
+    return shapeService.createShape(canvasId, shapeInput);
   }
 
-  async updateShape(shapeId: string, updates: Parameters<typeof shapeService.updateShape>[1]) {
-    return shapeService.updateShape(shapeId, updates);
+  async updateShape(canvasId: string, shapeId: string, updates: Parameters<typeof shapeService.updateShape>[2]) {
+    return shapeService.updateShape(canvasId, shapeId, updates);
   }
 
-  async updateShapeText(shapeId: string, text: string) {
-    return shapeService.updateShapeText(shapeId, text);
+  async updateShapeText(canvasId: string, shapeId: string, text: string) {
+    return shapeService.updateShapeText(canvasId, shapeId, text);
   }
 
-  async updateTextFormatting(shapeId: string, formatting: Parameters<typeof shapeService.updateTextFormatting>[1]) {
-    return shapeService.updateTextFormatting(shapeId, formatting);
+  async updateTextFormatting(canvasId: string, shapeId: string, formatting: Parameters<typeof shapeService.updateTextFormatting>[2]) {
+    return shapeService.updateTextFormatting(canvasId, shapeId, formatting);
   }
 
-  async batchUpdateShapes(updates: Parameters<typeof shapeService.batchUpdateShapes>[0]) {
-    return shapeService.batchUpdateShapes(updates);
+  async batchUpdateShapes(canvasId: string, updates: Parameters<typeof shapeService.batchUpdateShapes>[1]) {
+    return shapeService.batchUpdateShapes(canvasId, updates);
   }
 
-  async lockShape(shapeId: string, userId: string) {
-    return shapeService.lockShape(shapeId, userId);
+  async lockShape(canvasId: string, shapeId: string, userId: string) {
+    return shapeService.lockShape(canvasId, shapeId, userId);
   }
 
-  async unlockShape(shapeId: string) {
-    return shapeService.unlockShape(shapeId);
+  async unlockShape(canvasId: string, shapeId: string) {
+    return shapeService.unlockShape(canvasId, shapeId);
   }
 
-  async resizeShape(shapeId: string, width: number, height: number) {
-    return shapeService.resizeShape(shapeId, width, height);
+  async resizeShape(canvasId: string, shapeId: string, width: number, height: number) {
+    return shapeService.resizeShape(canvasId, shapeId, width, height);
   }
 
-  async rotateShape(shapeId: string, rotation: number) {
-    return shapeService.rotateShape(shapeId, rotation);
+  async rotateShape(canvasId: string, shapeId: string, rotation: number) {
+    return shapeService.rotateShape(canvasId, shapeId, rotation);
   }
 
-  async resizeCircle(shapeId: string, radius: number) {
-    return shapeService.resizeCircle(shapeId, radius);
+  async resizeCircle(canvasId: string, shapeId: string, radius: number) {
+    return shapeService.resizeCircle(canvasId, shapeId, radius);
   }
 
-  async deleteShape(shapeId: string) {
-    return shapeService.deleteShape(shapeId);
+  async deleteShape(canvasId: string, shapeId: string) {
+    return shapeService.deleteShape(canvasId, shapeId);
   }
 
-  async deleteAllShapes() {
-    return shapeService.deleteAllShapes();
+  async deleteAllShapes(canvasId: string) {
+    return shapeService.deleteAllShapes(canvasId);
   }
 
-  async duplicateShape(shapeId: string, userId: string) {
-    return shapeService.duplicateShape(shapeId, userId);
+  async duplicateShape(canvasId: string, shapeId: string, userId: string) {
+    return shapeService.duplicateShape(canvasId, shapeId, userId);
   }
 
-  async createCircle(circleData: Parameters<typeof shapeService.createCircle>[0]) {
-    return shapeService.createCircle(circleData);
+  async createCircle(canvasId: string, circleData: Parameters<typeof shapeService.createCircle>[1]) {
+    return shapeService.createCircle(canvasId, circleData);
   }
 
-  async createTriangle(triangleData: Parameters<typeof shapeService.createTriangle>[0]) {
-    return shapeService.createTriangle(triangleData);
+  async createTriangle(canvasId: string, triangleData: Parameters<typeof shapeService.createTriangle>[1]) {
+    return shapeService.createTriangle(canvasId, triangleData);
   }
 
-  async createText(textData: Parameters<typeof shapeService.createText>[0]) {
-    return shapeService.createText(textData);
+  async createText(canvasId: string, textData: Parameters<typeof shapeService.createText>[1]) {
+    return shapeService.createText(canvasId, textData);
   }
 
-  subscribeToShapes(callback: Parameters<typeof shapeService.subscribeToShapes>[0]): Unsubscribe {
-    return shapeService.subscribeToShapes(callback);
+  subscribeToShapes(canvasId: string, callback: Parameters<typeof shapeService.subscribeToShapes>[1]): Unsubscribe {
+    return shapeService.subscribeToShapes(canvasId, callback);
   }
 
-  async getShapes() {
-    return shapeService.getShapes();
+  async getShapes(canvasId: string) {
+    return shapeService.getShapes(canvasId);
   }
 
   // ============================================
   // Z-Index Operations (delegates to zIndexService)
   // ============================================
 
-  async bringToFront(shapeId: string) {
-    return zIndexService.bringToFront(shapeId);
+  async bringToFront(canvasId: string, shapeId: string) {
+    return zIndexService.bringToFront(canvasId, shapeId);
   }
 
-  async batchBringToFront(shapeIds: string[]) {
-    return zIndexService.batchBringToFront(shapeIds);
+  async batchBringToFront(canvasId: string, shapeIds: string[]) {
+    return zIndexService.batchBringToFront(canvasId, shapeIds);
   }
 
-  async sendToBack(shapeId: string) {
-    return zIndexService.sendToBack(shapeId);
+  async sendToBack(canvasId: string, shapeId: string) {
+    return zIndexService.sendToBack(canvasId, shapeId);
   }
 
-  async batchSendToBack(shapeIds: string[]) {
-    return zIndexService.batchSendToBack(shapeIds);
+  async batchSendToBack(canvasId: string, shapeIds: string[]) {
+    return zIndexService.batchSendToBack(canvasId, shapeIds);
   }
 
-  async bringForward(shapeId: string) {
-    return zIndexService.bringForward(shapeId);
+  async bringForward(canvasId: string, shapeId: string) {
+    return zIndexService.bringForward(canvasId, shapeId);
   }
 
-  async batchBringForward(shapeIds: string[]) {
-    return zIndexService.batchBringForward(shapeIds);
+  async batchBringForward(canvasId: string, shapeIds: string[]) {
+    return zIndexService.batchBringForward(canvasId, shapeIds);
   }
 
-  async sendBackward(shapeId: string) {
-    return zIndexService.sendBackward(shapeId);
+  async sendBackward(canvasId: string, shapeId: string) {
+    return zIndexService.sendBackward(canvasId, shapeId);
   }
 
-  async batchSendBackward(shapeIds: string[]) {
-    return zIndexService.batchSendBackward(shapeIds);
+  async batchSendBackward(canvasId: string, shapeIds: string[]) {
+    return zIndexService.batchSendBackward(canvasId, shapeIds);
   }
 
   // ============================================
   // Group Operations (delegates to groupService)
   // ============================================
 
-  async groupShapes(shapeIds: string[], userId: string, name?: string) {
-    return groupService.groupShapes(shapeIds, userId, name);
+  async groupShapes(canvasId: string, shapeIds: string[], userId: string, name?: string) {
+    return groupService.groupShapes(canvasId, shapeIds, userId, name);
   }
 
-  async ungroupShapes(groupId: string) {
-    return groupService.ungroupShapes(groupId);
+  async ungroupShapes(canvasId: string, groupId: string) {
+    return groupService.ungroupShapes(canvasId, groupId);
   }
 
-  async getGroup(groupId: string) {
-    return groupService.getGroup(groupId);
+  async getGroup(canvasId: string, groupId: string) {
+    return groupService.getGroup(canvasId, groupId);
   }
 
   // ============================================
   // Alignment Operations (delegates to alignmentService)
   // ============================================
 
-  async alignShapes(shapeIds: string[], alignment: Parameters<typeof alignmentService.alignShapes>[1]) {
-    return alignmentService.alignShapes(shapeIds, alignment);
+  async alignShapes(canvasId: string, shapeIds: string[], alignment: Parameters<typeof alignmentService.alignShapes>[2]) {
+    return alignmentService.alignShapes(canvasId, shapeIds, alignment);
   }
 
-  async distributeShapes(shapeIds: string[], direction: Parameters<typeof alignmentService.distributeShapes>[1]) {
-    return alignmentService.distributeShapes(shapeIds, direction);
+  async distributeShapes(canvasId: string, shapeIds: string[], direction: Parameters<typeof alignmentService.distributeShapes>[2]) {
+    return alignmentService.distributeShapes(canvasId, shapeIds, direction);
   }
 
   // ============================================
   // Comment Operations (delegates to commentService)
   // ============================================
 
-  async addComment(shapeId: string, text: string, userId: string, username: string) {
-    return commentService.addComment(shapeId, text, userId, username);
+  async addComment(canvasId: string, shapeId: string, text: string, userId: string, username: string) {
+    return commentService.addComment(canvasId, shapeId, text, userId, username);
   }
 
-  async addReply(commentId: string, userId: string, username: string, text: string) {
-    return commentService.addReply(commentId, userId, username, text);
+  async addReply(canvasId: string, commentId: string, userId: string, username: string, text: string) {
+    return commentService.addReply(canvasId, commentId, userId, username, text);
   }
 
-  async markRepliesAsRead(commentId: string, userId: string) {
-    return commentService.markRepliesAsRead(commentId, userId);
+  async markRepliesAsRead(canvasId: string, commentId: string, userId: string) {
+    return commentService.markRepliesAsRead(canvasId, commentId, userId);
   }
 
-  async resolveComment(commentId: string, userId: string) {
-    return commentService.resolveComment(commentId, userId);
+  async resolveComment(canvasId: string, commentId: string, userId: string) {
+    return commentService.resolveComment(canvasId, commentId, userId);
   }
 
-  async deleteComment(commentId: string, userId: string) {
-    return commentService.deleteComment(commentId, userId);
+  async deleteComment(canvasId: string, commentId: string, userId: string) {
+    return commentService.deleteComment(canvasId, commentId, userId);
   }
 
-  async deleteReply(commentId: string, replyIndex: number, userId: string) {
-    return commentService.deleteReply(commentId, replyIndex, userId);
+  async deleteReply(canvasId: string, commentId: string, replyIndex: number, userId: string) {
+    return commentService.deleteReply(canvasId, commentId, replyIndex, userId);
   }
 
-  subscribeToComments(callback: Parameters<typeof commentService.subscribeToComments>[0]): Unsubscribe {
-    return commentService.subscribeToComments(callback);
+  subscribeToComments(canvasId: string, callback: Parameters<typeof commentService.subscribeToComments>[1]): Unsubscribe {
+    return commentService.subscribeToComments(canvasId, callback);
   }
 
-  async getCommentsByShapeId(shapeId: string) {
-    return commentService.getCommentsByShapeId(shapeId);
+  async getCommentsByShapeId(canvasId: string, shapeId: string) {
+    return commentService.getCommentsByShapeId(canvasId, shapeId);
   }
 }
 

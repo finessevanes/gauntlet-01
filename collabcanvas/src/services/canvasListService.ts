@@ -1,0 +1,183 @@
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  limit,
+  onSnapshot,
+  updateDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
+import type { Unsubscribe, Timestamp } from 'firebase/firestore';
+import { firestore } from '../firebase';
+import type { CanvasMetadata, CanvasDocument } from './types/canvasTypes';
+
+/**
+ * Canvas List Service
+ * Handles querying and managing the canvases collection
+ */
+class CanvasListService {
+  private canvasesCollectionPath = 'canvases';
+
+  /**
+   * Convert Firestore canvas document to CanvasMetadata
+   */
+  private convertToMetadata(doc: any): CanvasMetadata {
+    const data = doc.data() as CanvasDocument;
+    return {
+      id: doc.id,
+      name: data.name,
+      ownerId: data.ownerId,
+      collaboratorIds: data.collaboratorIds,
+      createdAt: data.createdAt ? (data.createdAt as Timestamp).toDate() : new Date(),
+      updatedAt: data.updatedAt ? (data.updatedAt as Timestamp).toDate() : new Date(),
+      lastAccessedAt: data.lastAccessedAt ? (data.lastAccessedAt as Timestamp).toDate() : new Date(),
+      shapeCount: data.shapeCount || 0,
+    };
+  }
+
+  /**
+   * Get all canvases user has access to (owned or shared)
+   * @param userId - Authenticated user ID
+   * @returns Promise resolving to array of canvas metadata
+   */
+  async getCanvasesForUser(userId: string): Promise<CanvasMetadata[]> {
+    try {
+      const canvasesRef = collection(firestore, this.canvasesCollectionPath);
+      const q = query(
+        canvasesRef,
+        where('collaboratorIds', 'array-contains', userId),
+        orderBy('updatedAt', 'desc'),
+        limit(50)
+      );
+
+      const snapshot = await getDocs(q);
+      const canvases: CanvasMetadata[] = [];
+
+      snapshot.forEach((doc) => {
+        canvases.push(this.convertToMetadata(doc));
+      });
+
+      console.log(`✅ Retrieved ${canvases.length} canvases for user ${userId}`);
+      return canvases;
+    } catch (error) {
+      console.error('❌ Error fetching canvases:', error);
+      return []; // Return empty array on error
+    }
+  }
+
+  /**
+   * Subscribe to real-time updates of user's canvases
+   * @param userId - Authenticated user ID
+   * @param callback - Called when canvas list changes
+   * @returns Unsubscribe function
+   */
+  subscribeToUserCanvases(
+    userId: string,
+    callback: (canvases: CanvasMetadata[]) => void
+  ): Unsubscribe {
+    try {
+      const canvasesRef = collection(firestore, this.canvasesCollectionPath);
+      const q = query(
+        canvasesRef,
+        where('collaboratorIds', 'array-contains', userId),
+        orderBy('updatedAt', 'desc'),
+        limit(50)
+      );
+
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const canvases: CanvasMetadata[] = [];
+          snapshot.forEach((doc) => {
+            canvases.push(this.convertToMetadata(doc));
+          });
+          callback(canvases);
+          console.log(`✅ Canvas list updated: ${canvases.length} canvases`);
+        },
+        (error) => {
+          console.error('❌ Error in canvas subscription:', error);
+          callback([]); // Return empty array on error
+        }
+      );
+
+      return unsubscribe;
+    } catch (error) {
+      console.error('❌ Error subscribing to canvases:', error);
+      return () => {}; // Return no-op unsubscribe function
+    }
+  }
+
+  /**
+   * Get metadata for a specific canvas
+   * @param canvasId - Canvas document ID
+   * @returns Promise resolving to canvas metadata or null if not found
+   */
+  async getCanvasById(canvasId: string): Promise<CanvasMetadata | null> {
+    try {
+      const canvasRef = doc(firestore, this.canvasesCollectionPath, canvasId);
+      const canvasDoc = await getDoc(canvasRef);
+
+      if (!canvasDoc.exists()) {
+        console.warn(`⚠️ Canvas not found: ${canvasId}`);
+        return null;
+      }
+
+      return this.convertToMetadata(canvasDoc);
+    } catch (error) {
+      console.error('❌ Error fetching canvas:', error);
+      return null; // Return null on error or access denied
+    }
+  }
+
+  /**
+   * Update lastAccessedAt timestamp when user opens canvas
+   * @param canvasId - Canvas document ID
+   * @returns Promise resolving when update complete
+   */
+  async updateCanvasAccess(canvasId: string): Promise<void> {
+    try {
+      const canvasRef = doc(firestore, this.canvasesCollectionPath, canvasId);
+      await updateDoc(canvasRef, {
+        lastAccessedAt: serverTimestamp(),
+      });
+      console.log(`✅ Updated canvas access: ${canvasId}`);
+    } catch (error) {
+      // Fail silently - non-critical operation
+      console.warn('⚠️ Could not update canvas access timestamp:', error);
+    }
+  }
+
+  /**
+   * Update canvas metadata (name, updatedAt, shapeCount)
+   * @param canvasId - Canvas document ID
+   * @param updates - Partial canvas data to update
+   * @returns Promise resolving when update complete
+   */
+  async updateCanvasMetadata(
+    canvasId: string,
+    updates: Partial<Omit<CanvasDocument, 'id'>>
+  ): Promise<void> {
+    try {
+      const canvasRef = doc(firestore, this.canvasesCollectionPath, canvasId);
+      
+      // Always include updatedAt when updating metadata
+      const updateData = {
+        ...updates,
+        updatedAt: serverTimestamp(),
+      };
+
+      await updateDoc(canvasRef, updateData);
+      console.log(`✅ Updated canvas metadata: ${canvasId}`, updates);
+    } catch (error) {
+      console.error('❌ Error updating canvas metadata:', error);
+      throw error;
+    }
+  }
+}
+
+export const canvasListService = new CanvasListService();
+

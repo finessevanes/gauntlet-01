@@ -19,28 +19,30 @@ import { requirementsMonitor } from '../utils/performanceRequirements';
 import type { ShapeData, ShapeCreateInput, ShapeUpdateInput } from './types/canvasTypes';
 
 class ShapeService {
-  private shapesCollectionPath = 'canvases/main/shapes';
-  private canvasDocPath = 'canvases/main';
-
-  async ensureCanvasDocExists(): Promise<void> {
-    try {
-      const canvasRef = doc(firestore, this.canvasDocPath);
-      await setDoc(canvasRef, { name: 'main', createdAt: serverTimestamp() }, { merge: true });
-    } catch (error) {
-      console.error('❌ Error ensuring canvas doc exists:', error);
-    }
+  /**
+   * Get shapes collection path for a specific canvas
+   */
+  private getShapesPath(canvasId: string): string {
+    return `canvases/${canvasId}/shapes`;
   }
 
-  async createShape(shapeInput: ShapeCreateInput): Promise<string> {
+  /**
+   * Get canvas document path
+   */
+  private getCanvasPath(canvasId: string): string {
+    return `canvases/${canvasId}`;
+  }
+
+  async createShape(canvasId: string, shapeInput: ShapeCreateInput): Promise<string> {
     const startTime = Date.now();
     
     try {
-      await this.ensureCanvasDocExists();
-      const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapeId = doc(collection(firestore, shapesPath)).id;
       
       let zIndex = shapeInput.zIndex;
       if (zIndex === undefined) {
-        const shapes = await this.getShapes();
+        const shapes = await this.getShapes(canvasId);
         const maxZIndex = shapes.length > 0 ? Math.max(...shapes.map(s => s.zIndex || 0)) : -1;
         zIndex = maxZIndex + 1;
       }
@@ -56,7 +58,7 @@ class ShapeService {
         updatedAt: serverTimestamp() as Timestamp,
       };
 
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const shapeRef = doc(firestore, shapesPath, shapeId);
       await setDoc(shapeRef, shapeData);
 
       const latency = Date.now() - startTime;
@@ -70,11 +72,12 @@ class ShapeService {
     }
   }
 
-  async updateShape(shapeId: string, updates: ShapeUpdateInput): Promise<void> {
+  async updateShape(canvasId: string, shapeId: string, updates: ShapeUpdateInput): Promise<void> {
     const startTime = Date.now();
     
     try {
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapeRef = doc(firestore, shapesPath, shapeId);
       await updateDoc(shapeRef, {
         ...updates,
         updatedAt: serverTimestamp(),
@@ -88,9 +91,10 @@ class ShapeService {
     }
   }
 
-  async updateShapeText(shapeId: string, text: string): Promise<void> {
+  async updateShapeText(canvasId: string, shapeId: string, text: string): Promise<void> {
     try {
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapeRef = doc(firestore, shapesPath, shapeId);
       await updateDoc(shapeRef, {
         text: text,
         updatedAt: serverTimestamp()
@@ -103,6 +107,7 @@ class ShapeService {
   }
 
   async updateTextFormatting(
+    canvasId: string,
     shapeId: string, 
     formatting: {
       fontWeight?: 'normal' | 'bold';
@@ -112,7 +117,8 @@ class ShapeService {
     }
   ): Promise<void> {
     try {
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapeRef = doc(firestore, shapesPath, shapeId);
       await updateDoc(shapeRef, {
         ...formatting,
         updatedAt: serverTimestamp()
@@ -124,14 +130,15 @@ class ShapeService {
     }
   }
 
-  async batchUpdateShapes(updates: Array<{ shapeId: string; updates: ShapeUpdateInput }>): Promise<void> {
+  async batchUpdateShapes(canvasId: string, updates: Array<{ shapeId: string; updates: ShapeUpdateInput }>): Promise<void> {
     const startTime = Date.now();
     
     try {
+      const shapesPath = this.getShapesPath(canvasId);
       const batch = writeBatch(firestore);
       
       for (const { shapeId, updates: shapeUpdates } of updates) {
-        const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+        const shapeRef = doc(firestore, shapesPath, shapeId);
         batch.update(shapeRef, {
           ...shapeUpdates,
           updatedAt: serverTimestamp(),
@@ -150,9 +157,10 @@ class ShapeService {
     }
   }
 
-  async lockShape(shapeId: string, userId: string): Promise<{ success: boolean; lockedByUsername?: string }> {
+  async lockShape(canvasId: string, shapeId: string, userId: string): Promise<{ success: boolean; lockedByUsername?: string }> {
     try {
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapeRef = doc(firestore, shapesPath, shapeId);
       const shapeSnap = await getDoc(shapeRef);
       
       if (!shapeSnap.exists()) {
@@ -195,9 +203,10 @@ class ShapeService {
     }
   }
 
-  async unlockShape(shapeId: string): Promise<void> {
+  async unlockShape(canvasId: string, shapeId: string): Promise<void> {
     try {
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapeRef = doc(firestore, shapesPath, shapeId);
       await updateDoc(shapeRef, {
         lockedBy: null,
         lockedAt: null,
@@ -209,13 +218,14 @@ class ShapeService {
     }
   }
 
-  async resizeShape(shapeId: string, width: number, height: number): Promise<void> {
+  async resizeShape(canvasId: string, shapeId: string, width: number, height: number): Promise<void> {
     try {
       if (width < MIN_SHAPE_WIDTH || height < MIN_SHAPE_HEIGHT) {
         throw new Error(`Minimum size is ${MIN_SHAPE_WIDTH}×${MIN_SHAPE_HEIGHT} pixels`);
       }
       
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapeRef = doc(firestore, shapesPath, shapeId);
       await updateDoc(shapeRef, {
         width: width,
         height: height,
@@ -229,11 +239,12 @@ class ShapeService {
     }
   }
 
-  async rotateShape(shapeId: string, rotation: number): Promise<void> {
+  async rotateShape(canvasId: string, shapeId: string, rotation: number): Promise<void> {
     try {
       const normalizedRotation = ((rotation % 360) + 360) % 360;
       
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapeRef = doc(firestore, shapesPath, shapeId);
       await updateDoc(shapeRef, {
         rotation: normalizedRotation,
         updatedAt: serverTimestamp()
@@ -246,9 +257,10 @@ class ShapeService {
     }
   }
 
-  async resizeCircle(shapeId: string, radius: number): Promise<void> {
+  async resizeCircle(canvasId: string, shapeId: string, radius: number): Promise<void> {
     try {
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapeRef = doc(firestore, shapesPath, shapeId);
       await updateDoc(shapeRef, {
         radius: radius,
         width: radius * 2,
@@ -263,9 +275,10 @@ class ShapeService {
     }
   }
 
-  async deleteShape(shapeId: string): Promise<void> {
+  async deleteShape(canvasId: string, shapeId: string): Promise<void> {
     try {
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapeRef = doc(firestore, shapesPath, shapeId);
       await deleteDoc(shapeRef);
       console.log('✅ Shape deleted:', shapeId);
     } catch (error) {
@@ -274,9 +287,10 @@ class ShapeService {
     }
   }
 
-  async deleteAllShapes(): Promise<void> {
+  async deleteAllShapes(canvasId: string): Promise<void> {
     try {
-      const shapesRef = collection(firestore, this.shapesCollectionPath);
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapesRef = collection(firestore, shapesPath);
       const snapshot = await getDocs(shapesRef);
       
       const deletePromises = snapshot.docs.map((docSnapshot) => 
@@ -292,9 +306,10 @@ class ShapeService {
     }
   }
 
-  async duplicateShape(shapeId: string, userId: string): Promise<string> {
+  async duplicateShape(canvasId: string, shapeId: string, userId: string): Promise<string> {
     try {
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapeRef = doc(firestore, shapesPath, shapeId);
       const shapeSnap = await getDoc(shapeRef);
       
       if (!shapeSnap.exists()) {
@@ -328,7 +343,7 @@ class ShapeService {
         if (originalShape.textDecoration !== undefined) newShapeInput.textDecoration = originalShape.textDecoration;
       }
 
-      const newShapeId = await this.createShape(newShapeInput);
+      const newShapeId = await this.createShape(canvasId, newShapeInput);
       console.log('✅ Shape duplicated:', shapeId, '->', newShapeId);
       return newShapeId;
     } catch (error) {
@@ -337,7 +352,7 @@ class ShapeService {
     }
   }
 
-  async createCircle(circleData: { 
+  async createCircle(canvasId: string, circleData: { 
     x: number; 
     y: number; 
     radius: number; 
@@ -345,10 +360,10 @@ class ShapeService {
     createdBy: string;
   }): Promise<string> {
     try {
-      await this.ensureCanvasDocExists();
-      const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapeId = doc(collection(firestore, shapesPath)).id;
       
-      const shapes = await this.getShapes();
+      const shapes = await this.getShapes(canvasId);
       const maxZIndex = shapes.length > 0 ? Math.max(...shapes.map(s => s.zIndex || 0)) : -1;
       const zIndex = maxZIndex + 1;
       
@@ -370,7 +385,7 @@ class ShapeService {
         updatedAt: serverTimestamp() as Timestamp,
       };
 
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const shapeRef = doc(firestore, shapesPath, shapeId);
       await setDoc(shapeRef, shapeData);
 
       console.log('✅ Circle shape created:', shapeId);
@@ -381,7 +396,7 @@ class ShapeService {
     }
   }
 
-  async createTriangle(triangleData: { 
+  async createTriangle(canvasId: string, triangleData: { 
     x: number; 
     y: number; 
     width: number; 
@@ -390,10 +405,10 @@ class ShapeService {
     createdBy: string;
   }): Promise<string> {
     try {
-      await this.ensureCanvasDocExists();
-      const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapeId = doc(collection(firestore, shapesPath)).id;
       
-      const shapes = await this.getShapes();
+      const shapes = await this.getShapes(canvasId);
       const maxZIndex = shapes.length > 0 ? Math.max(...shapes.map(s => s.zIndex || 0)) : -1;
       const zIndex = maxZIndex + 1;
       
@@ -414,7 +429,7 @@ class ShapeService {
         updatedAt: serverTimestamp() as Timestamp,
       };
 
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const shapeRef = doc(firestore, shapesPath, shapeId);
       await setDoc(shapeRef, shapeData);
 
       console.log('✅ Triangle shape created:', shapeId);
@@ -425,7 +440,7 @@ class ShapeService {
     }
   }
 
-  async createText(textData: { 
+  async createText(canvasId: string, textData: { 
     x: number; 
     y: number; 
     color: string; 
@@ -437,10 +452,10 @@ class ShapeService {
     textDecoration?: 'none' | 'underline';
   }): Promise<string> {
     try {
-      await this.ensureCanvasDocExists();
-      const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapeId = doc(collection(firestore, shapesPath)).id;
       
-      const shapes = await this.getShapes();
+      const shapes = await this.getShapes(canvasId);
       const maxZIndex = shapes.length > 0 ? Math.max(...shapes.map(s => s.zIndex || 0)) : -1;
       const zIndex = maxZIndex + 1;
       
@@ -474,7 +489,7 @@ class ShapeService {
         updatedAt: serverTimestamp() as Timestamp,
       };
 
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const shapeRef = doc(firestore, shapesPath, shapeId);
       await setDoc(shapeRef, shapeData);
 
       console.log('✅ Text shape created above and to the right of cursor:', shapeId);
@@ -485,9 +500,10 @@ class ShapeService {
     }
   }
 
-  subscribeToShapes(callback: (shapes: ShapeData[]) => void): Unsubscribe {
+  subscribeToShapes(canvasId: string, callback: (shapes: ShapeData[]) => void): Unsubscribe {
     try {
-      const shapesRef = collection(firestore, this.shapesCollectionPath);
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapesRef = collection(firestore, shapesPath);
       const q = query(shapesRef);
 
       const unsubscribe = onSnapshot(
@@ -516,9 +532,10 @@ class ShapeService {
     }
   }
 
-  async getShapes(): Promise<ShapeData[]> {
+  async getShapes(canvasId: string): Promise<ShapeData[]> {
     try {
-      const shapesRef = collection(firestore, this.shapesCollectionPath);
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapesRef = collection(firestore, shapesPath);
       const q = query(shapesRef);
       const snapshot = await getDocs(q);
 

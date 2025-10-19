@@ -14,17 +14,20 @@ import {
 } from 'firebase/firestore';
 import type { Timestamp, Unsubscribe } from 'firebase/firestore';
 import { firestore } from '../firebase';
-import { shapeService } from './shapeService';
 import type { CommentData, CommentReply } from './types/canvasTypes';
 
 class CommentService {
-  private commentsCollectionPath = 'canvases/main/comments';
+  /**
+   * Get comments collection path for a specific canvas
+   */
+  private getCommentsPath(canvasId: string): string {
+    return `canvases/${canvasId}/comments`;
+  }
 
-  async addComment(shapeId: string, text: string, userId: string, username: string): Promise<string> {
+  async addComment(canvasId: string, shapeId: string, text: string, userId: string, username: string): Promise<string> {
     try {
-      await shapeService.ensureCanvasDocExists();
-      
-      const commentId = doc(collection(firestore, this.commentsCollectionPath)).id;
+      const commentsPath = this.getCommentsPath(canvasId);
+      const commentId = doc(collection(firestore, commentsPath)).id;
       
       const commentData: Omit<CommentData, 'id'> = {
         shapeId,
@@ -38,7 +41,7 @@ class CommentService {
         lastReplyAt: null,
       };
 
-      const commentRef = doc(firestore, this.commentsCollectionPath, commentId);
+      const commentRef = doc(firestore, commentsPath, commentId);
       await setDoc(commentRef, commentData);
 
       console.log(`✅ Comment created: ${commentId} on shape ${shapeId}`);
@@ -49,9 +52,10 @@ class CommentService {
     }
   }
 
-  async addReply(commentId: string, userId: string, username: string, text: string): Promise<void> {
+  async addReply(canvasId: string, commentId: string, userId: string, username: string, text: string): Promise<void> {
     try {
-      const commentRef = doc(firestore, this.commentsCollectionPath, commentId);
+      const commentsPath = this.getCommentsPath(canvasId);
+      const commentRef = doc(firestore, commentsPath, commentId);
       const commentSnap = await getDoc(commentRef);
       
       if (!commentSnap.exists()) {
@@ -77,9 +81,10 @@ class CommentService {
     }
   }
 
-  async markRepliesAsRead(commentId: string, userId: string): Promise<void> {
+  async markRepliesAsRead(canvasId: string, commentId: string, userId: string): Promise<void> {
     try {
-      const commentRef = doc(firestore, this.commentsCollectionPath, commentId);
+      const commentsPath = this.getCommentsPath(canvasId);
+      const commentRef = doc(firestore, commentsPath, commentId);
       const commentSnap = await getDoc(commentRef);
       
       if (!commentSnap.exists()) {
@@ -97,9 +102,10 @@ class CommentService {
     }
   }
 
-  async resolveComment(commentId: string, userId: string): Promise<void> {
+  async resolveComment(canvasId: string, commentId: string, userId: string): Promise<void> {
     try {
-      const commentRef = doc(firestore, this.commentsCollectionPath, commentId);
+      const commentsPath = this.getCommentsPath(canvasId);
+      const commentRef = doc(firestore, commentsPath, commentId);
       const commentSnap = await getDoc(commentRef);
       
       if (!commentSnap.exists()) {
@@ -123,9 +129,10 @@ class CommentService {
     }
   }
 
-  async deleteComment(commentId: string, userId: string): Promise<void> {
+  async deleteComment(canvasId: string, commentId: string, userId: string): Promise<void> {
     try {
-      const commentRef = doc(firestore, this.commentsCollectionPath, commentId);
+      const commentsPath = this.getCommentsPath(canvasId);
+      const commentRef = doc(firestore, commentsPath, commentId);
       const commentSnap = await getDoc(commentRef);
       
       if (!commentSnap.exists()) {
@@ -146,9 +153,10 @@ class CommentService {
     }
   }
 
-  async deleteReply(commentId: string, replyIndex: number, userId: string): Promise<void> {
+  async deleteReply(canvasId: string, commentId: string, replyIndex: number, userId: string): Promise<void> {
     try {
-      const commentRef = doc(firestore, this.commentsCollectionPath, commentId);
+      const commentsPath = this.getCommentsPath(canvasId);
+      const commentRef = doc(firestore, commentsPath, commentId);
       const commentSnap = await getDoc(commentRef);
       
       if (!commentSnap.exists()) {
@@ -180,9 +188,10 @@ class CommentService {
     }
   }
 
-  subscribeToComments(callback: (comments: CommentData[]) => void): Unsubscribe {
+  subscribeToComments(canvasId: string, callback: (comments: CommentData[]) => void): Unsubscribe {
     try {
-      const commentsRef = collection(firestore, this.commentsCollectionPath);
+      const commentsPath = this.getCommentsPath(canvasId);
+      const commentsRef = collection(firestore, commentsPath);
       const q = query(commentsRef);
 
       const unsubscribe = onSnapshot(
@@ -214,9 +223,10 @@ class CommentService {
     }
   }
 
-  async getCommentsByShapeId(shapeId: string): Promise<CommentData[]> {
+  async getCommentsByShapeId(canvasId: string, shapeId: string): Promise<CommentData[]> {
     try {
-      const commentsRef = collection(firestore, this.commentsCollectionPath);
+      const commentsPath = this.getCommentsPath(canvasId);
+      const commentsRef = collection(firestore, commentsPath);
       const snapshot = await getDocs(commentsRef);
 
       const comments: CommentData[] = [];
@@ -244,4 +254,3 @@ class CommentService {
 
 export const commentService = new CommentService();
 export default CommentService;
-

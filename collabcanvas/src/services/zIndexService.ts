@@ -5,14 +5,20 @@ import { shapeService } from './shapeService';
 import type { ShapeData } from './types/canvasTypes';
 
 class ZIndexService {
-  private shapesCollectionPath = 'canvases/main/shapes';
+  /**
+   * Get shapes collection path for a specific canvas
+   */
+  private getShapesPath(canvasId: string): string {
+    return `canvases/${canvasId}/shapes`;
+  }
 
-  async bringToFront(shapeId: string): Promise<void> {
+  async bringToFront(canvasId: string, shapeId: string): Promise<void> {
     try {
-      const shapes = await shapeService.getShapes();
+      const shapes = await shapeService.getShapes(canvasId);
       const maxZIndex = Math.max(...shapes.map(s => s.zIndex || 0), 0);
       
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapeRef = doc(firestore, shapesPath, shapeId);
       await updateDoc(shapeRef, {
         zIndex: maxZIndex + 1,
         updatedAt: serverTimestamp(),
@@ -25,21 +31,22 @@ class ZIndexService {
     }
   }
 
-  async batchBringToFront(shapeIds: string[]): Promise<void> {
+  async batchBringToFront(canvasId: string, shapeIds: string[]): Promise<void> {
     try {
       if (shapeIds.length === 0) return;
       
-      const shapes = await shapeService.getShapes();
+      const shapes = await shapeService.getShapes(canvasId);
       const maxZIndex = Math.max(...shapes.map(s => s.zIndex || 0), 0);
       
       const shapesToMove = shapes.filter(s => shapeIds.includes(s.id));
       shapesToMove.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
       
       const batch = writeBatch(firestore);
+      const shapesPath = this.getShapesPath(canvasId);
       
       shapesToMove.forEach((shape, index) => {
         const newZIndex = maxZIndex + 1 + index;
-        const shapeRef = doc(firestore, this.shapesCollectionPath, shape.id);
+        const shapeRef = doc(firestore, shapesPath, shape.id);
         batch.update(shapeRef, {
           zIndex: newZIndex,
           updatedAt: serverTimestamp(),
@@ -55,12 +62,13 @@ class ZIndexService {
     }
   }
 
-  async sendToBack(shapeId: string): Promise<void> {
+  async sendToBack(canvasId: string, shapeId: string): Promise<void> {
     try {
-      const shapes = await shapeService.getShapes();
+      const shapes = await shapeService.getShapes(canvasId);
       const minZIndex = Math.min(...shapes.map(s => s.zIndex || 0), 0);
       
-      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapeRef = doc(firestore, shapesPath, shapeId);
       await updateDoc(shapeRef, {
         zIndex: minZIndex - 1,
         updatedAt: serverTimestamp(),
@@ -73,21 +81,22 @@ class ZIndexService {
     }
   }
 
-  async batchSendToBack(shapeIds: string[]): Promise<void> {
+  async batchSendToBack(canvasId: string, shapeIds: string[]): Promise<void> {
     try {
       if (shapeIds.length === 0) return;
       
-      const shapes = await shapeService.getShapes();
+      const shapes = await shapeService.getShapes(canvasId);
       const minZIndex = Math.min(...shapes.map(s => s.zIndex || 0), 0);
       
       const shapesToMove = shapes.filter(s => shapeIds.includes(s.id));
       shapesToMove.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
       
       const batch = writeBatch(firestore);
+      const shapesPath = this.getShapesPath(canvasId);
       
       shapesToMove.forEach((shape, index) => {
         const newZIndex = minZIndex - shapesToMove.length + index;
-        const shapeRef = doc(firestore, this.shapesCollectionPath, shape.id);
+        const shapeRef = doc(firestore, shapesPath, shape.id);
         batch.update(shapeRef, {
           zIndex: newZIndex,
           updatedAt: serverTimestamp(),
@@ -103,9 +112,9 @@ class ZIndexService {
     }
   }
 
-  async bringForward(shapeId: string): Promise<void> {
+  async bringForward(canvasId: string, shapeId: string): Promise<void> {
     try {
-      const shapes = await shapeService.getShapes();
+      const shapes = await shapeService.getShapes(canvasId);
       const currentShape = shapes.find(s => s.id === shapeId);
       
       if (!currentShape) {
@@ -130,14 +139,15 @@ class ZIndexService {
       const shapeAboveZIndex = shapeAbove.zIndex || 0;
 
       const batch = writeBatch(firestore);
+      const shapesPath = this.getShapesPath(canvasId);
       
-      const currentShapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const currentShapeRef = doc(firestore, shapesPath, shapeId);
       batch.update(currentShapeRef, {
         zIndex: shapeAboveZIndex,
         updatedAt: serverTimestamp(),
       });
       
-      const shapeAboveRef = doc(firestore, this.shapesCollectionPath, shapeAbove.id);
+      const shapeAboveRef = doc(firestore, shapesPath, shapeAbove.id);
       batch.update(shapeAboveRef, {
         zIndex: currentZIndex,
         updatedAt: serverTimestamp(),
@@ -152,12 +162,13 @@ class ZIndexService {
     }
   }
 
-  async batchBringForward(shapeIds: string[]): Promise<void> {
+  async batchBringForward(canvasId: string, shapeIds: string[]): Promise<void> {
     try {
       if (shapeIds.length === 0) return;
       
-      const shapes = await shapeService.getShapes();
+      const shapes = await shapeService.getShapes(canvasId);
       const batch = writeBatch(firestore);
+      const shapesPath = this.getShapesPath(canvasId);
       
       const selectedShapes = shapes.filter(s => shapeIds.includes(s.id));
       if (selectedShapes.length === 0) return;
@@ -191,14 +202,14 @@ class ZIndexService {
         const currentZIndex = shape.zIndex || 0;
         const newZIndex = currentZIndex + zIndexShift;
         
-        const shapeRef = doc(firestore, this.shapesCollectionPath, shape.id);
+        const shapeRef = doc(firestore, shapesPath, shape.id);
         batch.update(shapeRef, {
           zIndex: newZIndex,
           updatedAt: serverTimestamp(),
         });
       }
       
-      const targetShapeRef = doc(firestore, this.shapesCollectionPath, targetShape.id);
+      const targetShapeRef = doc(firestore, shapesPath, targetShape.id);
       batch.update(targetShapeRef, {
         zIndex: minSelectedZIndex,
         updatedAt: serverTimestamp(),
@@ -212,9 +223,9 @@ class ZIndexService {
     }
   }
 
-  async sendBackward(shapeId: string): Promise<void> {
+  async sendBackward(canvasId: string, shapeId: string): Promise<void> {
     try {
-      const shapes = await shapeService.getShapes();
+      const shapes = await shapeService.getShapes(canvasId);
       const currentShape = shapes.find(s => s.id === shapeId);
       
       if (!currentShape) {
@@ -239,14 +250,15 @@ class ZIndexService {
       const shapeBelowZIndex = shapeBelow.zIndex || 0;
 
       const batch = writeBatch(firestore);
+      const shapesPath = this.getShapesPath(canvasId);
       
-      const currentShapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      const currentShapeRef = doc(firestore, shapesPath, shapeId);
       batch.update(currentShapeRef, {
         zIndex: shapeBelowZIndex,
         updatedAt: serverTimestamp(),
       });
       
-      const shapeBelowRef = doc(firestore, this.shapesCollectionPath, shapeBelow.id);
+      const shapeBelowRef = doc(firestore, shapesPath, shapeBelow.id);
       batch.update(shapeBelowRef, {
         zIndex: currentZIndex,
         updatedAt: serverTimestamp(),
@@ -261,12 +273,13 @@ class ZIndexService {
     }
   }
 
-  async batchSendBackward(shapeIds: string[]): Promise<void> {
+  async batchSendBackward(canvasId: string, shapeIds: string[]): Promise<void> {
     try {
       if (shapeIds.length === 0) return;
       
-      const shapes = await shapeService.getShapes();
+      const shapes = await shapeService.getShapes(canvasId);
       const batch = writeBatch(firestore);
+      const shapesPath = this.getShapesPath(canvasId);
       
       const selectedShapes = shapes.filter(s => shapeIds.includes(s.id));
       if (selectedShapes.length === 0) return;
@@ -300,14 +313,14 @@ class ZIndexService {
         const currentZIndex = shape.zIndex || 0;
         const newZIndex = currentZIndex + zIndexShift;
         
-        const shapeRef = doc(firestore, this.shapesCollectionPath, shape.id);
+        const shapeRef = doc(firestore, shapesPath, shape.id);
         batch.update(shapeRef, {
           zIndex: newZIndex,
           updatedAt: serverTimestamp(),
         });
       }
       
-      const targetShapeRef = doc(firestore, this.shapesCollectionPath, targetShape.id);
+      const targetShapeRef = doc(firestore, shapesPath, targetShape.id);
       batch.update(targetShapeRef, {
         zIndex: maxSelectedZIndex,
         updatedAt: serverTimestamp(),
@@ -359,4 +372,3 @@ class ZIndexService {
 
 export const zIndexService = new ZIndexService();
 export default ZIndexService;
-

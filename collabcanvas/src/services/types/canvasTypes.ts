@@ -65,3 +65,32 @@ export type ShapeCreateInput = Omit<ShapeData, 'id' | 'createdAt' | 'updatedAt' 
 
 export type ShapeUpdateInput = Partial<Pick<ShapeData, 'x' | 'y' | 'width' | 'height' | 'color' | 'rotation'>>;
 
+// Canvas metadata types
+export interface CanvasMetadata {
+  id: string;
+  name: string;
+  ownerId: string;
+  collaboratorIds: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  lastAccessedAt: Date;
+  shapeCount: number;
+}
+
+export interface CanvasDocument {
+  id: string;
+  name: string;
+  ownerId: string;
+  collaboratorIds: string[];
+  createdAt: Timestamp | null;
+  updatedAt: Timestamp | null;
+  lastAccessedAt: Timestamp | null;
+  shapeCount: number;
+}
+
+export interface CanvasCardProps {
+  canvas: CanvasMetadata;
+  onClick: (canvasId: string) => void;
+  isLoading?: boolean;
+}
+

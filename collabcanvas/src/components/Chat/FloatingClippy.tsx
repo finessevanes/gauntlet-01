@@ -9,6 +9,7 @@ interface FloatingClippyProps {
   onDismiss: () => void;
   messages: ChatMessage[];
   onSendMessage: (content: string) => void;
+  onDeleteMessage: (messageId: string) => void;
   isLoading: boolean;
 }
 
@@ -20,7 +21,7 @@ interface FloatingClippyProps {
  * - Can be minimized or dismissed
  * - AI-powered message sending
  */
-const FloatingClippy: React.FC<FloatingClippyProps> = ({ isVisible, onDismiss, messages, onSendMessage, isLoading }) => {
+const FloatingClippy: React.FC<FloatingClippyProps> = ({ isVisible, onDismiss, messages, onSendMessage, onDeleteMessage, isLoading }) => {
   const [position, setPosition] = useState({ x: window.innerWidth - 300, y: window.innerHeight - 400 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -168,7 +169,45 @@ const FloatingClippy: React.FC<FloatingClippyProps> = ({ isVisible, onDismiss, m
             </div>
           ) : currentMessage ? (
             <div className="clippy-speech-bubble">
-              <div className="speech-bubble-content">
+              <div className="speech-bubble-content" style={{ position: 'relative' }}>
+                {/* Delete button (X) in top-right corner */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteMessage(currentMessage.id);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: '4px',
+                    right: '4px',
+                    background: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '18px',
+                    height: '18px',
+                    fontSize: '12px',
+                    lineHeight: '1',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0',
+                    fontWeight: 'bold',
+                    transition: 'background 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.target as HTMLButtonElement).style.background = '#b91c1c';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.target as HTMLButtonElement).style.background = '#dc2626';
+                  }}
+                  aria-label="Delete message"
+                  title="Delete this message"
+                >
+                  ×
+                </button>
+                
                 {/* Show who sent the message */}
                 {currentMessage.role === 'user' && (
                   <div style={{ fontWeight: 'bold', marginBottom: '4px', color: '#666' }}>

@@ -12,7 +12,7 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../../utils/constants';
 import { useCanvasContext } from '../../contexts/CanvasContext';
 import { useAuth } from '../../hooks/useAuth';
 import { AIService } from '../../services/aiService';
-import { saveMessage, loadChatHistory } from '../../services/chatService';
+import { saveMessage, loadChatHistory, deleteMessage } from '../../services/chatService';
 import toast from 'react-hot-toast';
 
 interface AppShellProps {
@@ -202,6 +202,43 @@ export default function AppShell({ children }: AppShellProps) {
     } finally {
       // Always clear loading state
       setIsChatLoading(false);
+    }
+  };
+  
+  // Handle deleting a chat message
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!user?.uid) return;
+    
+    try {
+      // Optimistically remove from UI
+      setChatMessages(prev => prev.filter(msg => msg.id !== messageId));
+      
+      // Delete from Firestore
+      await deleteMessage(messageId);
+      
+      toast.success('Message deleted', {
+        duration: 1500,
+        position: 'top-center',
+      });
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+      
+      // Reload messages on error to restore state
+      if (user?.uid) {
+        const canvasId = 'main';
+        const history = await loadChatHistory(canvasId, user.uid);
+        setChatMessages(history.length > 0 ? history : [{
+          id: 'welcome',
+          role: 'assistant',
+          content: "Hi! I'm Clippy, your canvas assistant. How can I help you today?",
+          timestamp: new Date()
+        }]);
+      }
+      
+      toast.error('Failed to delete message', {
+        duration: 2000,
+        position: 'top-center',
+      });
     }
   };
   
@@ -887,6 +924,7 @@ export default function AppShell({ children }: AppShellProps) {
         onDismiss={() => setIsChatOpen(false)}
         messages={chatMessages}
         onSendMessage={handleSendMessage}
+        onDeleteMessage={handleDeleteMessage}
         isLoading={isChatLoading}
       />
     </div>

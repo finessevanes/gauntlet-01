@@ -47,7 +47,7 @@ service cloud.firestore {
                        resource.data.userId == request.auth.uid;
     }
     
-    // Chat messages collection - private per user, immutable once created
+    // Chat messages collection - private per user
     match /chatMessages/{messageId} {
       // Users can only read their own messages
       allow read: if request.auth != null 
@@ -60,8 +60,12 @@ service cloud.firestore {
         && request.resource.data.role in ['user', 'assistant']
         && request.resource.data.content is string;
       
-      // No updates or deletes (messages are immutable)
-      allow update, delete: if false;
+      // Users can delete their own messages
+      allow delete: if request.auth != null 
+        && resource.data.userId == request.auth.uid;
+      
+      // No updates (messages cannot be edited)
+      allow update: if false;
     }
   }
 }

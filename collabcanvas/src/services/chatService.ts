@@ -127,6 +127,28 @@ export async function loadChatHistory(
 }
 
 /**
+ * Deletes a chat message from Firestore
+ * 
+ * @param messageId - Document ID of the message to delete
+ * @returns Promise<void>
+ * @throws Error if delete fails
+ */
+export async function deleteMessage(messageId: string): Promise<void> {
+  if (!messageId || messageId.trim() === '') {
+    throw new Error('Message ID is required');
+  }
+
+  try {
+    const { doc, deleteDoc } = await import('firebase/firestore');
+    const messageRef = doc(firestore, 'chatMessages', messageId);
+    await deleteDoc(messageRef);
+  } catch (error) {
+    console.error('Failed to delete message:', error);
+    throw error;
+  }
+}
+
+/**
  * Optional: Subscribes to real-time chat history updates
  * 
  * @param canvasId - Canvas ID to subscribe to

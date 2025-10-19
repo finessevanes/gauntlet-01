@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { User } from 'firebase/auth';
 import { authService } from '../services/authService';
 import type { UserProfile } from '../services/authService';
+import { presenceService } from '../services/presenceService';
 
 interface AuthContextType {
   user: User | null;
@@ -80,10 +81,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = async () => {
     setLoading(true);
     try {
+      // CRITICAL: Cancel disconnect handler FIRST to prevent race conditions
+      // Then mark offline, then sign out
+      if (user) {
+        console.log('🔴 [Auth] Logging out user:', user.uid);
+        
+        // Step 1: Cancel the automatic disconnect handler
+        await presenceService.cancelDisconnectHandler(user.uid);
+        console.log('✅ [Auth] Cancelled disconnect handler');
+        
+        // Step 2: Explicitly mark user as offline
+        await presenceService.setOffline(user.uid);
+        console.log('✅ [Auth] Marked user offline');
+      }
+      
+      // Step 3: Sign out from Firebase Auth
       await authService.logout();
+      console.log('✅ [Auth] Signed out from Firebase Auth');
+      
       setUser(null);
       setUserProfile(null);
     } catch (error) {
+      console.error('❌ [Auth] Logout error:', error);
       throw error;
     } finally {
       setLoading(false);

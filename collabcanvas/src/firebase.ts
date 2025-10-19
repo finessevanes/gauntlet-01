@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getAuth, connectAuthEmulator, browserLocalPersistence, setPersistence } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getDatabase, connectDatabaseEmulator } from 'firebase/database';
 
@@ -47,6 +47,20 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const firestore = getFirestore(app);
 const database = getDatabase(app);
+
+// Configure Auth Persistence
+// browserLocalPersistence: User stays signed in even after closing the browser
+// This is the default, but we're setting it explicitly for clarity
+// Alternative options:
+// - browserSessionPersistence: User is signed out when tab closes
+// - inMemoryPersistence: User is signed out on page reload
+setPersistence(auth, browserLocalPersistence)
+  .then(() => {
+    console.log('🔐 Auth persistence set to: LOCAL (persists across browser sessions)');
+  })
+  .catch((error) => {
+    console.error('❌ Failed to set auth persistence:', error);
+  });
 
 // Connect to emulators in development mode
 const isDevelopment = import.meta.env.MODE === 'development';

@@ -182,7 +182,18 @@ class PresenceService {
       const presenceRef = ref(database, `${this.presencePath}/${userId}/presence`);
       const cursorRef = ref(database, `${this.presencePath}/${userId}/cursor`);
 
-      // Set up disconnect handlers
+      // First, cancel any existing disconnect handlers to start fresh
+      // This prevents stale handlers from previous sessions
+      try {
+        await onDisconnect(presenceRef).cancel();
+        await onDisconnect(cursorRef).cancel();
+        console.log('🔄 [Presence] Cancelled any existing disconnect handlers');
+      } catch (cancelError) {
+        // It's okay if there's nothing to cancel
+        console.log('ℹ️ [Presence] No existing handlers to cancel');
+      }
+
+      // Set up NEW disconnect handlers
       await onDisconnect(presenceRef).set({
         online: false,
         active: false,
@@ -194,6 +205,8 @@ class PresenceService {
 
       // Also clean up cursor on disconnect
       await onDisconnect(cursorRef).remove();
+      
+      console.log('✅ [Presence] Disconnect handlers set up successfully');
     } catch (error) {
       console.error('❌ [Presence] Failed to setup disconnect handler:', error);
       throw error;

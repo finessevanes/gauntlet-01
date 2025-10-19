@@ -7,15 +7,6 @@ export function usePresence() {
   const [presence, setPresence] = useState<PresenceMap>({});
   const isActiveRef = useRef(true); // Track if user is actively viewing the page
 
-  // Debug: Log when hook initializes
-  useEffect(() => {
-    console.log('🔌 [usePresence] Hook initialized with:', {
-      userId: user?.uid,
-      username: userProfile?.username,
-      hasUser: !!user,
-      hasUserProfile: !!userProfile,
-    });
-  }, [user, userProfile]);
 
   // Subscribe to presence updates
   useEffect(() => {
@@ -40,30 +31,31 @@ export function usePresence() {
     }
 
     let hasSetupDisconnect = false;
+    let isMounted = true;
 
     // Function to mark user as online (called on first mount)
     const markOnline = async () => {
+      if (!isMounted) return;
+      
       try {
+        // CRITICAL: Setup disconnect handler FIRST, before marking online
+        // This ensures we have proper cleanup even if the user's connection drops
+        // immediately after logging in
+        if (!hasSetupDisconnect && isMounted) {
+          await presenceService.setupDisconnectHandler(user.uid);
+          hasSetupDisconnect = true;
+          console.log('✅ [Presence] Disconnect handler ready');
+        }
+
+        // Now mark user as online
         const isVisible = document.visibilityState === 'visible';
-        console.log('✅ [Presence] Marking user online', {
-          userId: user.uid,
-          username: userProfile.username,
-          active: isVisible,
-          visibilityState: document.visibilityState
-        });
-        
         await presenceService.setOnline(
           user.uid,
           userProfile.username,
           userProfile.cursorColor,
           isVisible  // active = true if visible, false if hidden
         );
-
-        // Setup disconnect handler (only once)
-        if (!hasSetupDisconnect) {
-          await presenceService.setupDisconnectHandler(user.uid);
-          hasSetupDisconnect = true;
-        }
+        console.log('✅ [Presence] User marked online:', userProfile.username);
       } catch (error) {
         console.error('❌ [usePresence] Failed to mark online:', error);
       }
@@ -71,11 +63,9 @@ export function usePresence() {
 
     // Function to mark user as active (tab visible)
     const markActive = async () => {
+      if (!isMounted) return;
+      
       try {
-        console.log('🟢 [Presence] Tab visible - marking active', {
-          userId: user.uid,
-          username: userProfile.username,
-        });
         await presenceService.setActive(user.uid);
       } catch (error) {
         console.error('❌ [usePresence] Failed to mark active:', error);
@@ -84,11 +74,9 @@ export function usePresence() {
 
     // Function to mark user as away (tab hidden)
     const markAway = async () => {
+      if (!isMounted) return;
+      
       try {
-        console.log('🔵 [Presence] Tab hidden - marking away', {
-          userId: user.uid,
-          username: userProfile.username,
-        });
         await presenceService.setAway(user.uid);
       } catch (error) {
         console.error('❌ [usePresence] Failed to mark away:', error);
@@ -121,10 +109,9 @@ export function usePresence() {
       updatePresence();
     };
 
-    // Clean up old ghost users before marking self as online
-    presenceService.cleanupOldPresence().catch(error => {
-      console.error('❌ [usePresence] Failed to cleanup old presence:', error);
-    });
+    // Note: cleanupOldPresence() requires admin permissions to delete other users' data
+    // This should be handled by Cloud Functions or backend, not client-side
+    // For now, we'll rely on the disconnect handlers to clean up stale presence
 
     // Mark user as online (with active state based on tab visibility)
     markOnline();
@@ -137,14 +124,11 @@ export function usePresence() {
 
     // Cleanup on unmount or logout - mark as offline (not just away)
     return () => {
+      isMounted = false;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       
-      if (user) {
-        console.log('🔴 [Presence] Component unmounting - marking offline');
-        presenceService.setOffline(user.uid).catch((error) => {
-          console.error('❌ [usePresence] Failed to set offline:', error);
-        });
-      }
+      // Only set offline if this is actually a logout/unmount, not just a re-render
+      // The AuthContext logout handler will handle setting offline explicitly
     };
   }, [user, userProfile]);
 
@@ -159,28 +143,6 @@ export function usePresence() {
   // Get total online user count (including self if online)
   const onlineCount = Object.values(presence).filter((p) => p.online).length;
 
-  // Debug: Log presence details when count changes
-  useEffect(() => {
-    const allUsers = Object.entries(presence);
-    const activeUsers = allUsers
-      .filter(([_, userData]) => userData.online && userData.active)
-      .map(([_, userData]) => userData.username);
-    const awayUsers = allUsers
-      .filter(([_, userData]) => userData.online && !userData.active)
-      .map(([_, userData]) => userData.username);
-    const offlineUsers = allUsers
-      .filter(([_, userData]) => !userData.online)
-      .map(([_, userData]) => userData.username);
-
-    console.log('👥 [Presence Debug] Total users in presence map:', allUsers.length);
-    console.log('🟢 [Presence Debug] Active users:', activeUsers.length, activeUsers);
-    console.log('🔵 [Presence Debug] Away users:', awayUsers.length, awayUsers);
-    console.log('🔴 [Presence Debug] Offline users:', offlineUsers.length, offlineUsers);
-    console.log('📊 [Presence Debug] Total online (active+away):', onlineCount);
-    
-    // Show full presence object for debugging
-    console.log('🔍 [Presence Debug] Full presence map:', JSON.stringify(presence, null, 2));
-  }, [presence, onlineCount]);
 
   return {
     presence,

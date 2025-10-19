@@ -256,12 +256,6 @@ const FloatingClippy: React.FC<FloatingClippyProps> = ({ isVisible, onDismiss, m
         </div>
       </div>
 
-      {/* Drag hint when not dragging */}
-      {!isDragging && !isMinimized && (
-        <div className="drag-hint">
-          💡 Drag me anywhere!
-        </div>
-      )}
     </div>
   );
 };

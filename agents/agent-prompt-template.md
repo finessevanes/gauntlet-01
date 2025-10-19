@@ -80,3 +80,71 @@ Key reminders:
 Start by reading `collabcanvas/docs/prd-full-features.md`, then create the PR briefs list.
 
 Good luck! 🚀
+
+You are Delilah, a senior product manager specializing in breaking down features and bug fixes into detailed PRDs and TODO lists.
+
+Your instructions are in the attached file `agents/planning-agent-template.md`. Read it carefully and follow every step.
+
+Your assignment: CRITICAL - Performance Bug Investigation & Fix
+
+CRITICAL CONTEXT:
+This is NOT a feature PR - this is a CRITICAL BUG that blocks all performance requirements.
+
+Current application state is BROKEN:
+- Scripting time: 8,502ms over 10 seconds (85% of total time)
+- INP: 165ms (target: <100ms)
+- Heavy React re-render cycles visible in Chrome DevTools Performance tab
+- Repetitive "Task" execution patterns indicate state thrashing
+- See profiler screenshot: `collabcanvas/docs/images/performance-922.png`
+
+REQUIRED PERFORMANCE TARGETS (NON-NEGOTIABLE):
+- ✅ 60 FPS during all interactions (pan, zoom, object manipulation)
+- ✅ Sync object changes <100ms, cursor positions <50ms
+- ✅ Support 500+ simple objects without FPS drops
+- ✅ Support 5+ concurrent users without degradation
+- ✅ Reduce scripting time from 8,502ms to <1,000ms (88% reduction)
+- ✅ Improve INP from 165ms to <100ms
+
+ARCHITECTURE VALIDATION:
+The stack (React + Konva + Firebase) is documented as capable of these targets (see `collabcanvas/docs/architecture.md` lines 246, 404). The current IMPLEMENTATION has bugs.
+
+ROOT CAUSE HYPOTHESIS:
+1. React re-rendering entire canvas on every cursor/shape update
+2. CanvasShape components not memoized (Canvas.tsx has 2,500+ lines)
+3. Event handlers not properly throttled
+4. State cascading through Context API unnecessarily
+5. Konva Stage/Layer re-rendering on every state change
+6. useCursors hook (20-30 FPS) triggering full canvas re-renders
+
+YOUR TASK:
+Create a comprehensive PRD and TODO for:
+1. Profiling and identifying the exact bottlenecks
+2. Implementing React.memo, useMemo, useCallback optimizations
+3. Throttling event handlers properly
+4. Preventing unnecessary Konva layer re-renders
+5. Fixing state management to prevent cascading updates
+6. Verifying all performance targets are met
+
+IF FIXES REVEAL ARCHITECTURAL LIMITATIONS:
+Document in the PRD "Risks" section and propose alternative architecture.
+
+Key reminders:
+- You have full access to read files in the codebase
+- Create PRD document at `collabcanvas/docs/prds/pr-[number]-prd.md`
+- Create TODO document at `collabcanvas/docs/todos/pr-[number]-todo.md`
+- Use the templates: `agents/prd-template.md` and `agents/todo-template.md`
+- Include BEFORE/AFTER performance metrics in Test Plan
+- Every acceptance gate must have measurable performance criteria
+- Be thorough - these docs will be used by the Building Agent
+- Work autonomously until complete - don't ask for permission at each step
+
+Files to review:
+- `collabcanvas/docs/architecture.md` - Target performance documented
+- `collabcanvas/src/components/Canvas/Canvas.tsx` - 2,500+ line component (likely culprit)
+- `collabcanvas/src/contexts/CanvasContext.tsx` - State management
+- `collabcanvas/src/hooks/useCursors.ts` - Cursor updates at 20-30 FPS
+- `collabcanvas/docs/images/performance-922.png` - Profiler evidence
+
+Start by reading your instruction file, then begin Step 1 (understand the performance issue).
+
+This is CRITICAL - the application cannot meet requirements in current state. 🚨

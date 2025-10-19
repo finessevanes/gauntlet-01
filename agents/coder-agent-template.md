@@ -16,15 +16,14 @@
 
 ---
 
-**Input Documents:**
-- PR brief (`collabcanvas/docs/pr-briefs.md`) - READ this first
-- Architecture doc (`collabcanvas/docs/architecture.md`) - READ for context
-- PRD template (`agents/prd-template.md`) - USE to CREATE your PRD
-- TODO template (`agents/todo-template.md`) - USE to CREATE your TODO
+**Input Documents (already created by Planning Agent):**
+- PRD document (`collabcanvas/docs/prds/pr-{number}-prd.md`) - READ this
+- TODO list (`collabcanvas/docs/todos/pr-{number}-todo.md`) - READ this
+- PR brief (`collabcanvas/docs/pr-briefs.md`) - READ for context
+- Architecture doc (`collabcanvas/docs/architecture.md`) - READ for codebase structure
 
 **Documents you will CREATE:**
-- PRD document (`collabcanvas/docs/prds/pr-{number}-prd.md`)
-- TODO list (`collabcanvas/docs/todos/pr-{number}-todo.md`)
+- Feature code (components, services, utils, etc.)
 - Test files:
   - Integration tests: `collabcanvas/tests/integration/{feature}.test.ts`
   - Service unit tests: `collabcanvas/tests/unit/services/{service-name}.test.ts`
@@ -47,30 +46,33 @@ git pull origin agents/first-round
 git checkout -b feat/pr-1-pencil-tool
 ```
 
-### Step 2: Read Context & Create Planning Documents
+### Step 2: Read PRD and TODO
 
-**A. Read existing documentation:**
-1. **PR brief** (`collabcanvas/docs/pr-briefs.md`) - Find your PR number, read the brief
-2. **Architecture doc** (`collabcanvas/docs/architecture.md`) - Understand codebase structure
-3. **Full feature context** (`collabcanvas/docs/prd-full-features.md`) - Understand the big picture
+**IMPORTANT:** PRD and TODO have already been created by the Planning Agent. Your job is to implement them.
 
-**B. Create PRD using template:**
-1. Read `agents/prd-template.md`
-2. Create `collabcanvas/docs/prds/pr-{number}-prd.md`
-3. Fill in all sections based on the PR brief
-4. Be thorough - this is your implementation guide
+**Read these documents thoroughly:**
+1. **PRD** (`collabcanvas/docs/prds/pr-{number}-prd.md`)
+   - Understand all requirements
+   - Note acceptance gates
+   - Review data model and service contracts
+   - Check UI components to modify
+   
+2. **TODO** (`collabcanvas/docs/todos/pr-{number}-todo.md`)
+   - This is your step-by-step guide
+   - Follow tasks in order
+   - Check off each task as you complete it
+   
+3. **Architecture doc** (`collabcanvas/docs/architecture.md`)
+   - Understand codebase structure
+   - Follow existing patterns
 
-**C. Create TODO using template:**
-1. Read `agents/todo-template.md`
-2. Create `collabcanvas/docs/todos/pr-{number}-todo.md`
-3. Break down PRD into step-by-step tasks
-4. Each task should be < 30 min of work
+**Key questions to verify:**
+- Do I understand the end-to-end user outcome?
+- Do I know which files to modify/create?
+- Are the acceptance gates clear?
+- Do I understand the dependencies?
 
-**Key questions to answer in your PRD:**
-- What is the end-to-end user outcome?
-- What files need to be created/modified?
-- What are the acceptance gates?
-- What are the dependencies?
+**If anything is unclear in the PRD/TODO, ask for clarification before proceeding.**
 
 ### Step 3: Implementation
 
@@ -426,15 +428,11 @@ git checkout agents/first-round
 git pull origin agents/first-round
 git checkout -b feat/pr-1-pencil-tool
 
-# 2. Read existing docs & Create planning docs
-# READ:
-# - collabcanvas/docs/pr-briefs.md (find PR #1)
+# 2. Read PRD and TODO
+# READ (already created by Planning Agent):
+# - collabcanvas/docs/prds/pr-1-prd.md
+# - collabcanvas/docs/todos/pr-1-todo.md
 # - collabcanvas/docs/architecture.md
-# - collabcanvas/docs/prd-full-features.md
-
-# CREATE (using templates):
-# - collabcanvas/docs/prds/pr-1-prd.md (use agents/prd-template.md)
-# - collabcanvas/docs/todos/pr-1-todo.md (use agents/todo-template.md)
 
 # 3. Implement feature (follow TODO)
 # - Add tool button to ToolPalette.tsx ✓

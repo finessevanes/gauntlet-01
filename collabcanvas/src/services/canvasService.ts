@@ -23,7 +23,7 @@ import { smoothPath, calculateBoundingBox, makePointsRelative } from '../utils/l
 // Shape data types
 export interface ShapeData {
   id: string;
-  type: 'rectangle' | 'text' | 'circle' | 'triangle' | 'path';
+  type: 'rectangle' | 'text' | 'circle' | 'triangle' | 'path' | 'spray';
   x: number;
   y: number;
   width: number;
@@ -41,6 +41,14 @@ export interface ShapeData {
   // Path-specific fields
   points?: number[]; // Flat array: [x1, y1, x2, y2, ...]
   strokeWidth?: number; // Line thickness (1-8px)
+  // Spray-specific fields
+  particles?: Array<{
+    x: number; // Particle position X (relative to spray's x, y)
+    y: number; // Particle position Y (relative to spray's x, y)
+    size: number; // Particle size (radius in pixels)
+  }>;
+  sprayRadius?: number; // Spray area radius (10-50px), default: 20
+  particleSize?: number; // Individual particle size (1-3px), default: 2
   // Grouping and layering fields
   groupId: string | null;
   zIndex: number;
@@ -640,6 +648,154 @@ class CanvasService {
       console.log(`✅ Path updated: ${pathId}`);
     } catch (error) {
       console.error('❌ Error updating path:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new spray shape from particle data
+   * @param particles - Array of particle objects with x, y, size
+   * @param color - Particle color (hex string)
+   * @param sprayRadius - Spray area radius (10-50px)
+   * @param particleSize - Individual particle size (1-3px)
+   * @param createdBy - User ID who created the spray
+   * @returns Promise<string> - The created spray shape ID
+   * @throws Error if validation fails or Firestore write fails
+   */
+  async createSpray(sprayData: {
+    particles: Array<{x: number, y: number, size: number}>;
+    color: string;
+    sprayRadius: number;
+    particleSize: number;
+    createdBy: string;
+  }): Promise<string> {
+    try {
+      // Validate particles array
+      if (!sprayData.particles || sprayData.particles.length < 1) {
+        throw new Error('Spray must have at least 1 particle');
+      }
+
+      // Validate sprayRadius
+      if (sprayData.sprayRadius < 10 || sprayData.sprayRadius > 50) {
+        throw new Error('Spray radius must be between 10 and 50 pixels');
+      }
+
+      // Validate particleSize
+      if (sprayData.particleSize < 1 || sprayData.particleSize > 3) {
+        throw new Error('Particle size must be between 1 and 3 pixels');
+      }
+
+      // Ensure parent document exists
+      await this.ensureCanvasDocExists();
+
+      // Calculate bounding box from particles
+      const xs = sprayData.particles.map(p => p.x);
+      const ys = sprayData.particles.map(p => p.y);
+      const minX = Math.min(...xs);
+      const minY = Math.min(...ys);
+      const maxX = Math.max(...xs);
+      const maxY = Math.max(...ys);
+
+      const bboxX = minX;
+      const bboxY = minY;
+      const bboxWidth = maxX - minX;
+      const bboxHeight = maxY - minY;
+
+      // Convert particles to relative coordinates (relative to bounding box origin)
+      const relativeParticles = sprayData.particles.map(p => ({
+        x: p.x - bboxX,
+        y: p.y - bboxY,
+        size: p.size
+      }));
+
+      // Generate a unique ID for the spray
+      const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
+
+      // Auto-increment z-index: new shapes appear on top by default
+      const shapes = await this.getShapes();
+      const maxZIndex = shapes.length > 0 ? Math.max(...shapes.map(s => s.zIndex || 0)) : -1;
+      const zIndex = maxZIndex + 1;
+
+      const shapeData: Omit<ShapeData, 'id'> = {
+        type: 'spray',
+        x: bboxX,
+        y: bboxY,
+        width: bboxWidth,
+        height: bboxHeight,
+        particles: relativeParticles,
+        sprayRadius: sprayData.sprayRadius,
+        particleSize: sprayData.particleSize,
+        color: sprayData.color,
+        rotation: 0,
+        groupId: null,
+        zIndex,
+        createdBy: sprayData.createdBy,
+        createdAt: serverTimestamp() as Timestamp,
+        lockedBy: null,
+        lockedAt: null,
+        updatedAt: serverTimestamp() as Timestamp,
+      };
+
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await setDoc(shapeRef, shapeData);
+
+      console.log(`✅ Spray shape created: ${shapeId} (${sprayData.particles.length} particles)`);
+      return shapeId;
+    } catch (error) {
+      console.error('❌ Error creating spray shape:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update spray particles (stub for future editing feature)
+   * @param sprayId - Spray shape ID
+   * @param particles - Updated particles array
+   * @returns Promise<void>
+   */
+  async updateSpray(
+    sprayId: string,
+    particles: Array<{x: number, y: number, size: number}>
+  ): Promise<void> {
+    try {
+      // Validate particles array
+      if (!particles || particles.length < 1) {
+        throw new Error('Spray must have at least 1 particle');
+      }
+
+      // Calculate new bounding box from particles
+      const xs = particles.map(p => p.x);
+      const ys = particles.map(p => p.y);
+      const minX = Math.min(...xs);
+      const minY = Math.min(...ys);
+      const maxX = Math.max(...xs);
+      const maxY = Math.max(...ys);
+
+      const bboxX = minX;
+      const bboxY = minY;
+      const bboxWidth = maxX - minX;
+      const bboxHeight = maxY - minY;
+
+      // Convert particles to relative coordinates
+      const relativeParticles = particles.map(p => ({
+        x: p.x - bboxX,
+        y: p.y - bboxY,
+        size: p.size
+      }));
+
+      const shapeRef = doc(firestore, this.shapesCollectionPath, sprayId);
+      await updateDoc(shapeRef, {
+        particles: relativeParticles,
+        x: bboxX,
+        y: bboxY,
+        width: bboxWidth,
+        height: bboxHeight,
+        updatedAt: serverTimestamp(),
+      });
+
+      console.log(`✅ Spray updated: ${sprayId}`);
+    } catch (error) {
+      console.error('❌ Error updating spray:', error);
       throw error;
     }
   }

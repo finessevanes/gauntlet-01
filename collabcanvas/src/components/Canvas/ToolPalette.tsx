@@ -72,6 +72,7 @@ export default function ToolPalette({
     { id: 'circle', icon: '⭕', name: 'Circle', active: activeTool === 'circle' },
     { id: 'triangle', icon: '△', name: 'Triangle', active: activeTool === 'triangle' },
     { id: 'pencil', icon: '✏️', name: 'Pencil Tool (P)', active: activeTool === 'pencil' },
+    { id: 'spray', icon: '💨', name: 'Spray Paint Tool (S)', active: activeTool === 'spray' },
     { id: 'text', icon: 'T', name: 'Text Tool', active: activeTool === 'text' },
     { id: 'bomb', icon: '💣', name: 'Bomb / Clear Canvas', active: activeTool === 'bomb' },
   ];
@@ -95,6 +96,10 @@ export default function ToolPalette({
       setIsBombMode(false);
     } else if (toolId === 'pencil') {
       setActiveTool('pencil');
+      setIsDrawMode(true);
+      setIsBombMode(false);
+    } else if (toolId === 'spray') {
+      setActiveTool('spray');
       setIsDrawMode(true);
       setIsBombMode(false);
     } else if (toolId === 'pan') {

@@ -66,3 +66,10 @@ export const DEFAULT_STROKE_WIDTH = 2;
 export const MIN_STROKE_WIDTH = 1;
 export const MAX_STROKE_WIDTH = 8;
 
+// Spray paint tool constants
+export const DEFAULT_SPRAY_RADIUS = 20; // Spray area radius (px)
+export const MIN_SPRAY_RADIUS = 10;
+export const MAX_SPRAY_RADIUS = 50;
+export const DEFAULT_PARTICLE_SIZE = 2; // Individual particle size (px)
+export const DEFAULT_SPRAY_DENSITY = 5; // Particles per frame
+

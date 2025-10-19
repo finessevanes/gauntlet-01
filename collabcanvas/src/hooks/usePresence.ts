@@ -1,32 +1,34 @@
 import { useState, useEffect, useRef } from 'react';
 import { presenceService, type PresenceMap } from '../services/presenceService';
 import { useAuth } from './useAuth';
+import { useCanvasContext } from '../contexts/CanvasContext';
 
 export function usePresence() {
   const { user, userProfile } = useAuth();
+  const { currentCanvasId } = useCanvasContext();
   const [presence, setPresence] = useState<PresenceMap>({});
   const isActiveRef = useRef(true); // Track if user is actively viewing the page
 
-
-  // Subscribe to presence updates
+  // Subscribe to presence updates (canvas-scoped)
   useEffect(() => {
-    if (!user) {
+    if (!user || !currentCanvasId) {
+      setPresence({});
       return;
     }
 
-    const unsubscribe = presenceService.subscribeToPresence((updatedPresence) => {
+    const unsubscribe = presenceService.subscribeToPresence(currentCanvasId, (updatedPresence) => {
       setPresence(updatedPresence);
     });
 
     return () => {
       unsubscribe();
     };
-  }, [user]);
+  }, [user, currentCanvasId]);
 
   // Set up presence and disconnect handler when user logs in
   // AND track page visibility/focus to show online only when actively viewing
   useEffect(() => {
-    if (!user || !userProfile) {
+    if (!user || !userProfile || !currentCanvasId) {
       return;
     }
 
@@ -42,13 +44,14 @@ export function usePresence() {
         // This ensures we have proper cleanup even if the user's connection drops
         // immediately after logging in
         if (!hasSetupDisconnect && isMounted) {
-          await presenceService.setupDisconnectHandler(user.uid);
+          await presenceService.setupDisconnectHandler(currentCanvasId, user.uid);
           hasSetupDisconnect = true;
         }
 
         // Now mark user as online
         const isVisible = document.visibilityState === 'visible';
         await presenceService.setOnline(
+          currentCanvasId,
           user.uid,
           userProfile.username,
           userProfile.cursorColor,
@@ -64,7 +67,7 @@ export function usePresence() {
       if (!isMounted) return;
       
       try {
-        await presenceService.setActive(user.uid);
+        await presenceService.setActive(currentCanvasId, user.uid);
       } catch (error) {
         console.error('❌ [usePresence] Failed to mark active:', error);
       }
@@ -75,7 +78,7 @@ export function usePresence() {
       if (!isMounted) return;
       
       try {
-        await presenceService.setAway(user.uid);
+        await presenceService.setAway(currentCanvasId, user.uid);
       } catch (error) {
         console.error('❌ [usePresence] Failed to mark away:', error);
       }
@@ -107,10 +110,6 @@ export function usePresence() {
       updatePresence();
     };
 
-    // Note: cleanupOldPresence() requires admin permissions to delete other users' data
-    // This should be handled by Cloud Functions or backend, not client-side
-    // For now, we'll rely on the disconnect handlers to clean up stale presence
-
     // Mark user as online (with active state based on tab visibility)
     markOnline();
     
@@ -120,15 +119,18 @@ export function usePresence() {
     // Listen for visibility changes only (not focus)
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Cleanup on unmount or logout - mark as offline (not just away)
+    // Cleanup on unmount or canvas change
     return () => {
       isMounted = false;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       
-      // Only set offline if this is actually a logout/unmount, not just a re-render
-      // The AuthContext logout handler will handle setting offline explicitly
+      // Mark user as offline when leaving canvas or unmounting
+      if (currentCanvasId && user) {
+        presenceService.setOffline(currentCanvasId, user.uid).catch(console.error);
+        presenceService.cancelDisconnectHandler(currentCanvasId, user.uid).catch(console.error);
+      }
     };
-  }, [user, userProfile]);
+  }, [user, userProfile, currentCanvasId]);
 
   // Get list of online users (including self)
   const onlineUsers = Object.entries(presence)
@@ -141,11 +143,9 @@ export function usePresence() {
   // Get total online user count (including self if online)
   const onlineCount = Object.values(presence).filter((p) => p.online).length;
 
-
   return {
     presence,
     onlineUsers,
     onlineCount,
   };
 }
-

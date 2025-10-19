@@ -1,17 +1,78 @@
-import { useState, Profiler } from 'react';
+import { useState, useEffect, Profiler } from 'react';
 import type { ProfilerOnRenderCallback } from 'react';
 import { useAuth } from './hooks/useAuth';
 import Login from './components/Auth/Login';
 import Signup from './components/Auth/Signup';
 import AppShell from './components/Layout/AppShell';
 import Canvas from './components/Canvas/Canvas';
-import { CanvasProvider } from './contexts/CanvasContext';
+import { CanvasGallery } from './components/CanvasGallery/CanvasGallery';
+import { CanvasProvider, useCanvasContext } from './contexts/CanvasContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 
-function App() {
-  const { user, userProfile, loading } = useAuth();
-  const [showLogin, setShowLogin] = useState(true);
+type View = 'gallery' | 'canvas';
+
+/**
+ * Inner app component that has access to CanvasContext
+ */
+function AppContent() {
+  const { setCurrentCanvasId } = useCanvasContext();
+  const [currentView, setCurrentView] = useState<View>('gallery');
+  const [urlCanvasId, setUrlCanvasId] = useState<string | null>(null);
+
+  // Parse URL and determine current view
+  useEffect(() => {
+    const parseUrl = () => {
+      const pathname = window.location.pathname;
+      
+      // Match /canvas/:canvasId
+      const canvasMatch = pathname.match(/^\/canvas\/([^\/]+)$/);
+      if (canvasMatch) {
+        const canvasId = canvasMatch[1];
+        setUrlCanvasId(canvasId);
+        setCurrentView('canvas');
+        setCurrentCanvasId(canvasId);
+        return;
+      }
+      
+      // Default to gallery for / or /gallery
+      setCurrentView('gallery');
+      setUrlCanvasId(null);
+      setCurrentCanvasId(null);
+    };
+
+    // Parse initial URL
+    parseUrl();
+
+    // Listen for back/forward button
+    const handlePopState = () => {
+      parseUrl();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [setCurrentCanvasId]);
+
+  // Navigate to canvas
+  const navigateToCanvas = (canvasId: string) => {
+    const newUrl = `/canvas/${canvasId}`;
+    window.history.pushState({}, '', newUrl);
+    setUrlCanvasId(canvasId);
+    setCurrentView('canvas');
+    setCurrentCanvasId(canvasId);
+  };
+
+  // Navigate to gallery
+  const navigateToGallery = () => {
+    const newUrl = '/gallery';
+    window.history.pushState({}, '', newUrl);
+    setUrlCanvasId(null);
+    setCurrentView('gallery');
+    setCurrentCanvasId(null);
+  };
 
   // Profiler callback to track Canvas render performance
   const handleCanvasProfiler: ProfilerOnRenderCallback = (
@@ -20,16 +81,6 @@ function App() {
     actualDuration,
     _baseDuration
   ) => {
-    // Log performance data (React Profiler already measured it for us)
-    // Disabled to reduce console noise
-    // if (process.env.NODE_ENV === 'development') {
-    //   console.log(`⚛️ ${id} ${phase}:`, {
-    //     actualDuration: actualDuration.toFixed(2) + 'ms',
-    //     baseDuration: baseDuration.toFixed(2) + 'ms',
-    //     renderType: phase === 'mount' ? 'Initial Render' : 'Re-render',
-    //   });
-    // }
-
     // Emit user-friendly event for the retro performance panel
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
@@ -45,6 +96,38 @@ function App() {
       );
     }
   };
+
+  // Render gallery view
+  if (currentView === 'gallery') {
+    return (
+      <AppShell onNavigateToGallery={navigateToGallery}>
+        <CanvasGallery onCanvasSelect={navigateToCanvas} />
+      </AppShell>
+    );
+  }
+
+  // Render canvas view
+  if (currentView === 'canvas' && urlCanvasId) {
+    return (
+      <AppShell onNavigateToGallery={navigateToGallery}>
+        <Profiler id="Canvas" onRender={handleCanvasProfiler}>
+          <Canvas />
+        </Profiler>
+      </AppShell>
+    );
+  }
+
+  // Fallback to gallery
+  return (
+    <AppShell onNavigateToGallery={navigateToGallery}>
+      <CanvasGallery onCanvasSelect={navigateToCanvas} />
+    </AppShell>
+  );
+}
+
+function App() {
+  const { user, userProfile, loading } = useAuth();
+  const [showLogin, setShowLogin] = useState(true);
 
   // Show loading state while checking authentication
   if (loading) {
@@ -65,15 +148,11 @@ function App() {
     );
   }
 
-  // If authenticated, show main app with canvas
+  // If authenticated, show main app with routing
   return (
     <ErrorBoundary>
       <CanvasProvider>
-        <AppShell>
-          <Profiler id="Canvas" onRender={handleCanvasProfiler}>
-            <Canvas />
-          </Profiler>
-        </AppShell>
+        <AppContent />
       </CanvasProvider>
     </ErrorBoundary>
   );

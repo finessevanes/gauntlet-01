@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ChatTriggerButtonProps } from './types';
-import './ChatPanel.css';
+import './FloatingClippy.css';
 
 /**
  * Chat Trigger Button (FAB - Floating Action Button)

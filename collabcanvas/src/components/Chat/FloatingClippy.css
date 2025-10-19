@@ -89,101 +89,21 @@
   transform: translateX(-50%);
   width: 0;
   height: 0;
-  border-left: 18px solid transparent;
-  border-right: 18px solid transparent;
-  border-top: 18px solid #FFFFE1;
-  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 1));
+  border-left: 15px solid transparent;
+  border-right: 15px solid transparent;
+  border-top: 18px solid #000000;
 }
 
 .speech-bubble-tail::before {
   content: '';
   position: absolute;
-  top: -21px;
-  left: -18px;
+  top: -20px;
+  left: -12px;
   width: 0;
   height: 0;
-  border-left: 18px solid transparent;
-  border-right: 18px solid transparent;
-  border-top: 18px solid #000000;
-}
-
-/* ===== INPUT AREA ===== */
-.clippy-input-area {
-  display: flex;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #C0C0C0;
-  border: 3px solid #000000;
-  border-radius: 6px;
-  box-shadow: 
-    3px 3px 0 rgba(0, 0, 0, 0.3),
-    inset -1px -1px 0 rgba(0, 0, 0, 0.1),
-    inset 1px 1px 0 rgba(255, 255, 255, 0.8);
-  animation: inputSlideIn 300ms ease-out;
-  min-width: 280px;
-}
-
-@keyframes inputSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.clippy-input {
-  flex: 1;
-  padding: 6px 10px;
-  border: 2px inset #808080;
-  border-radius: 0;
-  font-size: 13px;
-  font-family: 'MS Sans Serif', 'Segoe UI', system-ui, sans-serif;
-  outline: none;
-  background: #FFFFFF;
-  color: #000000;
-}
-
-.clippy-input:disabled {
-  background: #ECE9D8;
-  color: #808080;
-  cursor: not-allowed;
-}
-
-.clippy-input:not(:disabled):focus {
-  border-color: #4169E1;
-}
-
-.clippy-send-button {
-  width: 36px;
-  height: 28px;
-  border: 2px outset #C0C0C0;
-  background: #C0C0C0;
-  border-radius: 0;
-  color: #000000;
-  font-size: 14px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: none;
-  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
-}
-
-.clippy-send-button:not(:disabled):hover {
-  background: #DFDFDF;
-}
-
-.clippy-send-button:not(:disabled):active {
-  border-style: inset;
-  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.5);
-}
-
-.clippy-send-button:disabled {
-  color: #808080;
-  cursor: not-allowed;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-top: 15px solid #FFFFE1;
 }
 
 /* ===== MESSAGE NAVIGATION DOTS ===== */
@@ -191,93 +111,135 @@
   display: flex;
   gap: 6px;
   justify-content: center;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  margin-top: 8px;
+  padding: 0;
 }
 
 .message-dots .dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  border: 1px solid #000000;
-  background: #FFFFFF;
-  cursor: pointer;
+  background: #999;
+  border: 1px solid #666;
   padding: 0;
+  cursor: pointer;
   transition: all 150ms ease;
 }
 
-.message-dots .dot:hover {
-  background: #CCCCCC;
+.message-dots .dot.active {
+  background: #4169E1;
+  border-color: #2851B8;
   transform: scale(1.2);
 }
 
-.message-dots .dot.active {
-  background: #000000;
-  width: 10px;
-  height: 10px;
+.message-dots .dot:hover:not(.active) {
+  background: #666;
+  transform: scale(1.1);
+}
+
+/* ===== INPUT AREA ===== */
+.clippy-input-area {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  background: #E6E6E6;
+  border: 2px solid #000000;
+  border-radius: 6px;
+  width: 280px;
+  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.clippy-input {
+  flex: 1;
+  padding: 6px 8px;
+  border: 2px inset #FFFFFF;
+  background: #FFFFFF;
+  color: #000000;
+  font-family: 'MS Sans Serif', 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  border-radius: 0;
+  outline: none;
+}
+
+.clippy-input:focus {
+  border-color: #4169E1;
+}
+
+.clippy-input:disabled {
+  background: #E6E6E6;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.clippy-send-button {
+  padding: 6px 12px;
+  border: 2px outset #C0C0C0;
+  background: #C0C0C0;
+  font-family: 'MS Sans Serif', 'Segoe UI', system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 0;
+  min-width: 36px;
+  transition: all 100ms ease;
+}
+
+.clippy-send-button:hover:not(:disabled) {
+  background: #D4D4D4;
+  border-color: #FFFFFF #808080 #808080 #FFFFFF;
+}
+
+.clippy-send-button:active:not(:disabled) {
+  border-style: inset;
+  border-color: #808080 #FFFFFF #FFFFFF #808080;
+}
+
+.clippy-send-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-style: outset;
 }
 
 /* ===== CLIPPY CHARACTER ===== */
 .clippy-character {
   position: relative;
-  animation: clippyBounce 2s ease-in-out infinite;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 
-@keyframes clippyBounce {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
-}
-
-.floating-clippy.dragging .clippy-character {
-  animation: none;
-}
-
-/* ===== CONTROL BUTTONS ===== */
 .clippy-controls {
-  position: absolute;
-  top: -8px;
-  right: -8px;
   display: flex;
   gap: 4px;
-  opacity: 0;
-  transition: opacity 200ms ease;
-}
-
-.floating-clippy:hover .clippy-controls {
-  opacity: 1;
+  margin-top: 4px;
 }
 
 .control-btn {
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   border: 2px outset #C0C0C0;
   background: #C0C0C0;
-  border-radius: 50%;
+  border-radius: 0;
   cursor: pointer;
-  font-size: 10px;
-  font-weight: bold;
-  color: #000000;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 150ms ease;
-  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 100ms ease;
+  padding: 0;
 }
 
 .control-btn:hover {
-  background: #DFDFDF;
-  transform: scale(1.1);
+  background: #D4D4D4;
+  border-color: #FFFFFF #808080 #808080 #FFFFFF;
 }
 
 .control-btn:active {
   border-style: inset;
-  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.5);
-  transform: scale(0.95);
+  border-color: #808080 #FFFFFF #FFFFFF #808080;
+  background: #B0B0B0;
 }
 
 .minimize-btn {
@@ -285,126 +247,19 @@
 }
 
 .close-btn {
-  font-size: 11px;
+  color: #CC0000;
+  font-size: 16px;
+  line-height: 1;
 }
 
 /* ===== DRAG HINT ===== */
 .drag-hint {
-  position: absolute;
-  bottom: -28px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 11px;
+  text-align: center;
+  font-size: 12px;
+  color: #666;
+  margin-top: 8px;
   font-family: 'MS Sans Serif', 'Segoe UI', system-ui, sans-serif;
-  color: #666666;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 4px 10px;
-  border-radius: 12px;
-  border: 1px solid #CCCCCC;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  animation: hintFadeIn 1s ease 1s forwards, hintPulse 2s ease 2s infinite;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-@keyframes hintFadeIn {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-5px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
-@keyframes hintPulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.6;
-  }
-}
-
-.floating-clippy:hover .drag-hint {
-  opacity: 0;
-  animation: none;
-}
-
-/* ===== MINIMIZED STATE ===== */
-.floating-clippy.minimized .clippy-speech-bubble {
-  display: none;
-}
-
-.floating-clippy.minimized .drag-hint {
-  display: none;
-}
-
-.floating-clippy.minimized .clippy-character {
-  animation: clippyBounce 1.5s ease-in-out infinite;
-}
-
-/* ===== RESPONSIVE ADJUSTMENTS ===== */
-@media (max-width: 768px) {
-  .clippy-speech-bubble {
-    max-width: 220px;
-    min-width: 180px;
-    padding: 12px 16px 10px;
-    font-size: 13px;
-  }
-
-  .clippy-input-area {
-    min-width: 220px;
-    padding: 6px 10px;
-  }
-
-  .clippy-input {
-    font-size: 12px;
-    padding: 5px 8px;
-  }
-
-  .clippy-send-button {
-    width: 32px;
-    height: 26px;
-    font-size: 13px;
-  }
-
-  .speech-bubble-tail {
-    border-left-width: 14px;
-    border-right-width: 14px;
-    border-top-width: 14px;
-    bottom: -14px;
-  }
-
-  .speech-bubble-tail::before {
-    border-left-width: 14px;
-    border-right-width: 14px;
-    border-top-width: 14px;
-    top: -17px;
-    left: -14px;
-  }
-
-  .drag-hint {
-    font-size: 10px;
-    padding: 3px 8px;
-  }
-}
-
-/* ===== ACCESSIBILITY ===== */
-@media (prefers-reduced-motion: reduce) {
-  .floating-clippy,
-  .clippy-speech-bubble,
-  .clippy-character,
-  .drag-hint {
-    animation: none !important;
-  }
-
-  .floating-clippy {
-    opacity: 1;
-    transform: none;
-  }
+  user-select: none;
 }
 
 /* Focus states for keyboard navigation */
@@ -418,3 +273,45 @@
   outline-offset: 2px;
 }
 
+/* ===== CHAT TRIGGER BUTTON (FAB) ===== */
+.chat-trigger-button {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  min-width: 140px;
+  height: 48px;
+  padding: 0 16px;
+  border: 3px outset #C0C0C0;
+  background: #C0C0C0;
+  border-radius: 0;
+  box-shadow: 
+    3px 3px 0 rgba(0, 0, 0, 0.5),
+    -1px -1px 0 rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: 'MS Sans Serif', 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: bold;
+  color: #000000;
+  z-index: 1000;
+  transition: all 100ms ease;
+}
+
+.chat-trigger-button:hover {
+  border-style: outset;
+  background: #D4D4D4;
+  box-shadow: 
+    4px 4px 0 rgba(0, 0, 0, 0.5),
+    -1px -1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.chat-trigger-button:active {
+  border-style: inset;
+  box-shadow: 
+    inset 2px 2px 0 rgba(0, 0, 0, 0.3),
+    1px 1px 0 rgba(255, 255, 255, 0.8);
+  transform: translateY(1px);
+}

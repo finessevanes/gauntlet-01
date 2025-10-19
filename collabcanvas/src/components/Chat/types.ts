@@ -13,6 +13,8 @@ export interface ChatPanelProps {
   isOpen: boolean;
   onClose: () => void;
   messages: ChatMessage[];
+  onSendMessage: (content: string) => void;
+  isLoading: boolean;
 }
 
 export interface ChatTriggerButtonProps {

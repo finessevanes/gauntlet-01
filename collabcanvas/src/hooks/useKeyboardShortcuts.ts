@@ -104,6 +104,10 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
     const handleKeyDown = async (e: KeyboardEvent) => {
       // Space key handling for panning
       if (e.key === ' ') {
+        // Don't intercept space if user is typing in an input field
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+          return; // Let the input handle the space
+        }
         e.preventDefault(); // Prevent page scrolling
         setIsSpacePressed(true);
         return; // Don't process other shortcuts when space is pressed

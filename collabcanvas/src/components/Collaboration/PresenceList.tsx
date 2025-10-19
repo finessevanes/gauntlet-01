@@ -23,6 +23,7 @@ export default function PresenceList() {
               username={user.username}
               color={user.color}
               online={user.online}
+              active={user.active}
             />
           ))
         )}

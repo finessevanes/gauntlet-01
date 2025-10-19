@@ -7,6 +7,7 @@ export function usePresence() {
   const [presence, setPresence] = useState<PresenceMap>({});
   const isActiveRef = useRef(true); // Track if user is actively viewing the page
 
+
   // Subscribe to presence updates
   useEffect(() => {
     if (!user) {
@@ -30,91 +31,102 @@ export function usePresence() {
     }
 
     let hasSetupDisconnect = false;
+    let isMounted = true;
 
-    // Function to mark user as online
+    // Function to mark user as online (called on first mount)
     const markOnline = async () => {
+      if (!isMounted) return;
+      
       try {
-        console.log('✅ [Presence] User is now active - marking online');
-        await presenceService.setOnline(
-          user.uid,
-          userProfile.username,
-          userProfile.cursorColor
-        );
-
-        // Setup disconnect handler (only once)
-        if (!hasSetupDisconnect) {
+        // CRITICAL: Setup disconnect handler FIRST, before marking online
+        // This ensures we have proper cleanup even if the user's connection drops
+        // immediately after logging in
+        if (!hasSetupDisconnect && isMounted) {
           await presenceService.setupDisconnectHandler(user.uid);
           hasSetupDisconnect = true;
         }
+
+        // Now mark user as online
+        const isVisible = document.visibilityState === 'visible';
+        await presenceService.setOnline(
+          user.uid,
+          userProfile.username,
+          userProfile.cursorColor,
+          isVisible  // active = true if visible, false if hidden
+        );
       } catch (error) {
         console.error('❌ [usePresence] Failed to mark online:', error);
       }
     };
 
-    // Function to mark user as offline
-    const markOffline = async () => {
+    // Function to mark user as active (tab visible)
+    const markActive = async () => {
+      if (!isMounted) return;
+      
       try {
-        console.log('👋 [Presence] User is now inactive - marking offline');
-        await presenceService.setOffline(user.uid);
+        await presenceService.setActive(user.uid);
       } catch (error) {
-        console.error('❌ [usePresence] Failed to mark offline:', error);
+        console.error('❌ [usePresence] Failed to mark active:', error);
       }
     };
 
-    // Check if user is currently active (page visible AND window focused)
-    const checkIsActive = () => {
-      const isVisible = document.visibilityState === 'visible';
-      const isFocused = document.hasFocus();
-      return isVisible && isFocused;
+    // Function to mark user as away (tab hidden)
+    const markAway = async () => {
+      if (!isMounted) return;
+      
+      try {
+        await presenceService.setAway(user.uid);
+      } catch (error) {
+        console.error('❌ [usePresence] Failed to mark away:', error);
+      }
     };
 
-    // Update presence based on active state
+    // Check if user is currently viewing the tab
+    const checkIsActive = () => {
+      return document.visibilityState === 'visible';
+    };
+
+    // Update presence based on visibility state
     const updatePresence = async () => {
       const isActive = checkIsActive();
       
+      // Only update if state actually changes
       if (isActive !== isActiveRef.current) {
         isActiveRef.current = isActive;
         
         if (isActive) {
-          await markOnline();
+          await markActive();
         } else {
-          await markOffline();
+          await markAway();
         }
       }
     };
 
-    // Event handlers for visibility and focus changes
+    // Event handler for visibility changes
     const handleVisibilityChange = () => {
       updatePresence();
     };
 
-    const handleFocus = () => {
-      updatePresence();
-    };
+    // Note: cleanupOldPresence() requires admin permissions to delete other users' data
+    // This should be handled by Cloud Functions or backend, not client-side
+    // For now, we'll rely on the disconnect handlers to clean up stale presence
 
-    const handleBlur = () => {
-      updatePresence();
-    };
+    // Mark user as online (with active state based on tab visibility)
+    markOnline();
+    
+    // Set initial active ref state
+    isActiveRef.current = checkIsActive();
 
-    // Set initial presence state
-    updatePresence();
-
-    // Listen for visibility and focus changes
+    // Listen for visibility changes only (not focus)
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('blur', handleBlur);
 
-    // Cleanup on unmount or logout
+    // Cleanup on unmount or logout - mark as offline (not just away)
     return () => {
+      isMounted = false;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('blur', handleBlur);
       
-      if (user) {
-        presenceService.setOffline(user.uid).catch((error) => {
-          console.error('❌ [usePresence] Failed to set offline:', error);
-        });
-      }
+      // Only set offline if this is actually a logout/unmount, not just a re-render
+      // The AuthContext logout handler will handle setting offline explicitly
     };
   }, [user, userProfile]);
 
@@ -128,6 +140,7 @@ export function usePresence() {
 
   // Get total online user count (including self if online)
   const onlineCount = Object.values(presence).filter((p) => p.online).length;
+
 
   return {
     presence,

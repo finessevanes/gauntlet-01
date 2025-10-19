@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import PaintTitleBar from './PaintTitleBar';
 import ToolPalette from '../Canvas/ToolPalette';
 import ColorPalette from '../Canvas/ColorPalette';
 import StatusBar from './StatusBar';
+import PerformancePanel from '../PerformancePanel';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../../utils/constants';
 import { useCanvasContext } from '../../contexts/CanvasContext';
 import { useAuth } from '../../hooks/useAuth';
@@ -15,6 +16,7 @@ interface AppShellProps {
 
 export default function AppShell({ children }: AppShellProps) {
   const { user } = useAuth();
+  const [isPerformancePanelOpen, setIsPerformancePanelOpen] = useState(false);
   const { 
     stageScale, 
     shapes, 
@@ -683,6 +685,11 @@ export default function AppShell({ children }: AppShellProps) {
         zoom={stageScale}
         selectedShapes={selectedShapes}
         shapes={shapes}
+        onPerformanceClick={() => setIsPerformancePanelOpen(true)}
+      />
+      <PerformancePanel
+        isOpen={isPerformancePanelOpen}
+        onClose={() => setIsPerformancePanelOpen(false)}
       />
     </div>
   );

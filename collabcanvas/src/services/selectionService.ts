@@ -54,7 +54,6 @@ class SelectionService {
     try {
       const selectionRef = doc(firestore, this.selectionsCollectionPath, userId);
       await deleteDoc(selectionRef);
-      console.log('✅ User selection cleared from Firestore:', userId);
     } catch (error) {
       console.error('❌ Error clearing user selection:', error);
       throw error;
@@ -85,11 +84,6 @@ class SelectionService {
             if (data.userId !== currentUserId) {
               selections[data.userId] = data;
             }
-          });
-
-          console.log('🔄 Other users\' selections updated:', {
-            userCount: Object.keys(selections).length,
-            selections,
           });
 
           callback(selections);

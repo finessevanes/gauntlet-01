@@ -1,11 +1,21 @@
 import { database } from '../firebase';
-import { ref, set, onValue, off, onDisconnect, serverTimestamp } from 'firebase/database';
+import { ref, set, onValue, off, onDisconnect, serverTimestamp, remove, get } from 'firebase/database';
 
 export interface PresenceUser {
-  online: boolean;
-  lastSeen: number;
+  online: boolean;      // Signed in to the session
+  active: boolean;      // Currently viewing (tab visible)
+  lastSeen: number;     // Last time they were online
+  lastActive: number;   // Last time they were active (tab visible)
   username: string;
   color: string;
+}
+
+export type PresenceStatus = 'active' | 'away' | 'offline';
+
+export function getPresenceStatus(user: PresenceUser | undefined): PresenceStatus {
+  if (!user || !user.online) return 'offline';  // 🔴 Red
+  if (user.active) return 'active';              // 🟢 Green
+  return 'away';                                 // 🔵 Blue
 }
 
 export interface PresenceMap {
@@ -14,24 +24,67 @@ export interface PresenceMap {
 
 class PresenceService {
   private presencePath = '/sessions/main/users';
-  private lastOnlineUsers: string[] = [];
 
   /**
-   * Mark a user as online
+   * Mark a user as online and active (tab visible)
    */
-  async setOnline(userId: string, username: string, color: string): Promise<void> {
+  async setOnline(userId: string, username: string, color: string, active: boolean = true): Promise<void> {
     try {
       const presenceRef = ref(database, `${this.presencePath}/${userId}/presence`);
       
       await set(presenceRef, {
         online: true,
+        active,
         lastSeen: serverTimestamp(),
+        lastActive: active ? serverTimestamp() : Date.now(),
         username,
         color,
       });
     } catch (error) {
       console.error('❌ [Presence] Failed to set user online:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Mark a user as active (tab visible)
+   */
+  async setActive(userId: string): Promise<void> {
+    try {
+      const presenceRef = ref(database, `${this.presencePath}/${userId}/presence`);
+      const snapshot = await get(presenceRef);
+      
+      if (snapshot.exists()) {
+        const currentData = snapshot.val();
+        await set(presenceRef, {
+          ...currentData,
+          active: true,
+          lastActive: serverTimestamp(),
+        });
+      }
+    } catch (error) {
+      console.error('❌ [Presence] Failed to set user active:', error);
+    }
+  }
+
+  /**
+   * Mark a user as away (tab hidden)
+   */
+  async setAway(userId: string): Promise<void> {
+    try {
+      const presenceRef = ref(database, `${this.presencePath}/${userId}/presence`);
+      const snapshot = await get(presenceRef);
+      
+      if (snapshot.exists()) {
+        const currentData = snapshot.val();
+        await set(presenceRef, {
+          ...currentData,
+          active: false,
+          lastSeen: serverTimestamp(),
+        });
+      }
+    } catch (error) {
+      console.error('❌ [Presence] Failed to set user away:', error);
     }
   }
 
@@ -43,7 +96,9 @@ class PresenceService {
     
     await set(presenceRef, {
       online: false,
+      active: false,
       lastSeen: serverTimestamp(),
+      lastActive: Date.now(),
       username: '', // Will be overwritten by disconnect handler if set up
       color: '',
     });
@@ -73,21 +128,6 @@ class PresenceService {
         }
       });
 
-      // Log online users only when the list changes
-      const onlineUsers = Object.entries(presence)
-        .filter(([_, user]) => user.online)
-        .map(([_, user]) => user.username)
-        .sort();
-      
-      const hasChanged = 
-        onlineUsers.length !== this.lastOnlineUsers.length ||
-        onlineUsers.some((username, i) => username !== this.lastOnlineUsers[i]);
-      
-      if (hasChanged) {
-        console.log('👥 Online users:', onlineUsers.length > 0 ? onlineUsers.join(', ') : 'none');
-        this.lastOnlineUsers = onlineUsers;
-      }
-
       callback(presence);
     };
 
@@ -114,10 +154,21 @@ class PresenceService {
       const presenceRef = ref(database, `${this.presencePath}/${userId}/presence`);
       const cursorRef = ref(database, `${this.presencePath}/${userId}/cursor`);
 
-      // Set up disconnect handlers
+      // First, cancel any existing disconnect handlers to start fresh
+      // This prevents stale handlers from previous sessions
+      try {
+        await onDisconnect(presenceRef).cancel();
+        await onDisconnect(cursorRef).cancel();
+      } catch (cancelError) {
+        // It's okay if there's nothing to cancel
+      }
+
+      // Set up NEW disconnect handlers
       await onDisconnect(presenceRef).set({
         online: false,
+        active: false,
         lastSeen: serverTimestamp(),
+        lastActive: Date.now(),
         username: '',
         color: '',
       });
@@ -139,6 +190,53 @@ class PresenceService {
 
     await onDisconnect(presenceRef).cancel();
     await onDisconnect(cursorRef).cancel();
+  }
+
+  /**
+   * Clean up old offline presence records
+   * Removes users who have been offline for more than a specified time
+   */
+  async cleanupOldPresence(maxAgeMs: number = 24 * 60 * 60 * 1000): Promise<void> {
+    try {
+      const usersRef = ref(database, this.presencePath);
+      const snapshot = await get(usersRef);
+      
+      if (!snapshot.exists()) {
+        return;
+      }
+
+      const data = snapshot.val();
+      const now = Date.now();
+      const toRemove: string[] = [];
+
+      // Find users who are offline and have been inactive for too long
+      Object.entries(data).forEach(([userId, userData]: [string, any]) => {
+        if (userData.presence) {
+          const { online, lastSeen, username } = userData.presence;
+          
+          // Remove if:
+          // 1. User is offline AND has no username (ghost user)
+          // 2. OR user is offline AND hasn't been seen in maxAgeMs
+          if (!online) {
+            if (!username || username === '') {
+              toRemove.push(userId);
+            } else if (lastSeen && (now - lastSeen > maxAgeMs)) {
+              toRemove.push(userId);
+            }
+          }
+        }
+      });
+
+      // Remove stale presence records
+      const removePromises = toRemove.map(userId => {
+        const userRef = ref(database, `${this.presencePath}/${userId}`);
+        return remove(userRef);
+      });
+
+      await Promise.all(removePromises);
+    } catch (error) {
+      console.error('❌ [Presence] Failed to cleanup old presence:', error);
+    }
   }
 }
 

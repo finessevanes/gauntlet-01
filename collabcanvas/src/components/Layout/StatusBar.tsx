@@ -6,6 +6,7 @@ interface StatusBarProps {
   zoom: number;
   selectedShapes?: string[];
   shapes?: Array<{ id: string; groupId: string | null }>;
+  onPerformanceClick?: () => void;
 }
 
 export default function StatusBar({ 
@@ -15,7 +16,8 @@ export default function StatusBar({
   cursorY, 
   zoom,
   selectedShapes = [],
-  shapes = []
+  shapes = [],
+  onPerformanceClick
 }: StatusBarProps) {
   // Check if any selected shapes are grouped
   const firstSelectedShape = selectedShapes.length > 0 
@@ -52,6 +54,26 @@ export default function StatusBar({
             <span style={{ fontSize: '12px', marginRight: '4px' }}>🔒</span>
             {shapesInGroup} {shapesInGroup === 1 ? 'shape' : 'shapes'} grouped
           </div>
+        </>
+      )}
+      {/* Performance Button */}
+      <div style={{ marginLeft: 'auto' }} />
+      {onPerformanceClick && (
+        <>
+          <div style={styles.divider} />
+          <button
+            onClick={onPerformanceClick}
+            style={styles.performanceButton}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#e0e0e0';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+            title="Open Performance Monitor"
+          >
+            ⚡ Performance
+          </button>
         </>
       )}
     </div>
@@ -96,6 +118,20 @@ const styles = {
     height: '16px',
     backgroundColor: '#808080',
     boxShadow: '1px 0 0 0 #ffffff',
+  },
+  performanceButton: {
+    padding: '0 12px',
+    height: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    border: 'none',
+    fontSize: '11px',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+    cursor: 'pointer',
+    color: '#000000',
+    transition: 'background-color 0.2s',
+    fontWeight: 500,
   },
 };
 

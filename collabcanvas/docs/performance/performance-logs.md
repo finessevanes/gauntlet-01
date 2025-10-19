@@ -10,40 +10,44 @@ A comprehensive performance monitoring system has been added to the CollabCanvas
 
 **Components:**
 - ✅ Performance Monitor Utility (`performanceMonitor.ts`)
+- ✅ Performance Requirements Tracker (`performanceRequirements.ts`)
 - ✅ React Hooks (`usePerformanceMonitor.ts`)
 - ✅ User-Facing Performance Panel (`PerformancePanel.tsx`)
 - ✅ Unit Tests (`performanceMonitor.test.ts`)
 - ✅ Integration Tests (`canvas-performance.test.tsx`)
-- ✅ Documentation (PERFORMANCE_MONITORING.md, EXAMPLES.md)
-
-**Key Measurements:**
-- `shapes-sort`: Time to sort shapes by zIndex
-- `shapes-render`: Time to render all shape components
-- `comments-map-build`: Time to build comment metadata map
 
 **Dev Tools Features:**
-- Real-time performance monitoring
+- Real-time FPS monitoring with LIVE indicator
+- Performance requirements dashboard (5 key metrics)
 - Auto-refresh every second
 - Export to CSV
 - Statistics dashboard (avg, min, max, latest)
-- Color-coded performance indicators
-- Keyboard shortcut: `Ctrl/Cmd+Shift+P`
+- Color-coded status indicators (✓ MET, ⚠ WARNING, ✗ FAILING)
+- Windows 95-style retro UI
+- Toggle recording on/off
+- FPS history graph (last 15 seconds)
+- Non-blocking overlay panel
 
-### Baseline Measurements
+### Performance Requirements
 
-Initial performance targets have been set:
+The system tracks 5 key performance requirements:
 
-| Operation           | Shape Count | Target    | Maximum   |
-|--------------------|-------------|-----------|-----------|
-| shapes-sort        | 100         | < 1ms     | 5ms       |
-| shapes-render      | 100         | < 25ms    | 50ms      |
-| comments-map-build | 100         | < 5ms     | 10ms      |
+| Requirement      | Target       | Warning Threshold | Status Colors |
+|------------------|--------------|-------------------|---------------|
+| Frame Rate       | 60 FPS       | < 55 FPS          | 🟢 🟡 🔴      |
+| Object Sync      | < 100ms      | < 150ms           | ✓ ⚠ ✗         |
+| Cursor Sync      | < 50ms       | < 75ms            | ✓ ⚠ ✗         |
+| Object Capacity  | 500+ objects | > 750 objects     | ✓ ⚠ ✗         |
+| User Capacity    | 5+ users     | > 8 users         | ✓ ⚠ ✗         |
 
 ### Testing
 
 Performance test suite created with:
 - Sorting benchmarks (10, 50, 100, 500, 1000 shapes)
 - Rendering benchmarks (10, 50, 100, 500 shapes)
+- Comment map building tests
+- Bounding box computation tests
+- Filtering operations tests
 - Stress test (2000+ shapes)
 - Regression detection
 - Memory efficiency tests

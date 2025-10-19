@@ -33,14 +33,14 @@
 
 ### Step 1: Setup
 ```
-FIRST: Create a new branch FROM agents/first-round
-- Base branch: agents/first-round
+FIRST: Create a new branch FROM feat/agents
+- Base branch: feat/agents
 - Branch name: feat/pr-{number}-{feature-name}
 - Example: feat/pr-1-pencil-tool
 
 Commands:
-git checkout agents/first-round
-git pull origin agents/first-round
+git checkout feat/agents
+git pull origin feat/agents
 git checkout -b feat/pr-1-pencil-tool
 ```
 
@@ -200,7 +200,7 @@ describe('Multi-User Collaboration Tests', () => {
 
 ### Step 7: Create Pull Request & Handoff
 
-**IMPORTANT: PR must target `agents/first-round` branch, NOT `main`**
+**IMPORTANT: PR must target `feat/agents` branch, NOT `main`**
 
 After creating the PR, the agent's work is complete. The following will be done by the user:
 
@@ -218,7 +218,7 @@ PR #{number}: {Feature Name}
 Example: PR #1: Pencil Tool
 ```
 
-**Base branch:** `agents/first-round`  
+**Base branch:** `feat/agents`  
 **Compare branch:** `feat/pr-{number}-{feature-name}`
 
 **PR description must include:**
@@ -421,9 +421,9 @@ Before submitting PR, review your own code:
 ## Example: Complete Workflow
 
 ```bash
-# 1. Create branch FROM agents/first-round
-git checkout agents/first-round
-git pull origin agents/first-round
+# 1. Create branch FROM feat/agents
+git checkout feat/agents
+git pull origin feat/agents
 git checkout -b feat/pr-1-pencil-tool
 
 # 2. Read PRD and TODO
@@ -455,12 +455,12 @@ npm run test
 # 6. Verify gates
 # Check PRD Section 12, all gates pass ✓
 
-# 7. Create PR (targeting agents/first-round)
+# 7. Create PR (targeting feat/agents)
 git add .
 git commit -m "feat: add pencil tool for free-form drawing"
 git push origin feat/pr-1-pencil-tool
 # Create PR on GitHub:
-#   - Base: agents/first-round
+#   - Base: feat/agents
 #   - Compare: feat/pr-1-pencil-tool
 #   - Full description with screenshots
 

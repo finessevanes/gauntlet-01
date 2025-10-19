@@ -5,6 +5,9 @@ import ToolPalette from '../Canvas/ToolPalette';
 import ColorPalette from '../Canvas/ColorPalette';
 import StatusBar from './StatusBar';
 import PerformancePanel from '../PerformancePanel';
+import ChatPanel from '../Chat/ChatPanel';
+import ChatTriggerButton from '../Chat/ChatTriggerButton';
+import type { ChatMessage } from '../Chat/types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../../utils/constants';
 import { useCanvasContext } from '../../contexts/CanvasContext';
 import { useAuth } from '../../hooks/useAuth';
@@ -17,6 +20,30 @@ interface AppShellProps {
 export default function AppShell({ children }: AppShellProps) {
   const { user } = useAuth();
   const [isPerformancePanelOpen, setIsPerformancePanelOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  
+  // Mock chat messages for UI demonstration (PR #10 will add real AI backend)
+  const [chatMessages] = useState<ChatMessage[]>([
+    {
+      id: '1',
+      role: 'assistant',
+      content: 'Hi! I\'m Clippy, your canvas assistant. How can I help you today?',
+      timestamp: new Date(Date.now() - 60000),
+    },
+    {
+      id: '2',
+      role: 'user',
+      content: 'Hello Clippy! Can you help me organize my shapes?',
+      timestamp: new Date(Date.now() - 45000),
+    },
+    {
+      id: '3',
+      role: 'assistant',
+      content: 'Of course! I can help you arrange shapes in rows, columns, or grids. I can also help with alignment, distribution, and grouping. What would you like to do?',
+      timestamp: new Date(Date.now() - 30000),
+    },
+  ]);
+  
   const { 
     stageScale, 
     shapes, 
@@ -690,6 +717,14 @@ export default function AppShell({ children }: AppShellProps) {
       <PerformancePanel
         isOpen={isPerformancePanelOpen}
         onClose={() => setIsPerformancePanelOpen(false)}
+      />
+      
+      {/* Chat UI Components */}
+      <ChatTriggerButton onClick={() => setIsChatOpen(true)} />
+      <ChatPanel
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        messages={chatMessages}
       />
     </div>
   );

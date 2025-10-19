@@ -44,7 +44,6 @@ export function usePresence() {
         if (!hasSetupDisconnect && isMounted) {
           await presenceService.setupDisconnectHandler(user.uid);
           hasSetupDisconnect = true;
-          console.log('✅ [Presence] Disconnect handler ready');
         }
 
         // Now mark user as online
@@ -55,7 +54,6 @@ export function usePresence() {
           userProfile.cursorColor,
           isVisible  // active = true if visible, false if hidden
         );
-        console.log('✅ [Presence] User marked online:', userProfile.username);
       } catch (error) {
         console.error('❌ [usePresence] Failed to mark online:', error);
       }

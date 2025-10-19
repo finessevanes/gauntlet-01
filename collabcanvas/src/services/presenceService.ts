@@ -24,7 +24,6 @@ export interface PresenceMap {
 
 class PresenceService {
   private presencePath = '/sessions/main/users';
-  private lastOnlineUsers: string[] = [];
 
   /**
    * Mark a user as online and active (tab visible)
@@ -32,14 +31,6 @@ class PresenceService {
   async setOnline(userId: string, username: string, color: string, active: boolean = true): Promise<void> {
     try {
       const presenceRef = ref(database, `${this.presencePath}/${userId}/presence`);
-      
-      console.log('📝 [Presence] Setting user online:', {
-        userId,
-        username,
-        color,
-        active,
-        path: `${this.presencePath}/${userId}/presence`
-      });
       
       await set(presenceRef, {
         online: true,
@@ -49,8 +40,6 @@ class PresenceService {
         username,
         color,
       });
-      
-      console.log(`✅ [Presence] Successfully set user online (${active ? 'active' : 'away'}):`, username);
     } catch (error) {
       console.error('❌ [Presence] Failed to set user online:', error);
       throw error;
@@ -72,7 +61,6 @@ class PresenceService {
           active: true,
           lastActive: serverTimestamp(),
         });
-        console.log('🟢 [Presence] User is now active (tab visible)');
       }
     } catch (error) {
       console.error('❌ [Presence] Failed to set user active:', error);
@@ -94,7 +82,6 @@ class PresenceService {
           active: false,
           lastSeen: serverTimestamp(),
         });
-        console.log('🔵 [Presence] User is now away (tab hidden)');
       }
     } catch (error) {
       console.error('❌ [Presence] Failed to set user away:', error);
@@ -141,21 +128,6 @@ class PresenceService {
         }
       });
 
-      // Log online users only when the list changes
-      const onlineUsers = Object.entries(presence)
-        .filter(([_, user]) => user.online)
-        .map(([_, user]) => user.username)
-        .sort();
-      
-      const hasChanged = 
-        onlineUsers.length !== this.lastOnlineUsers.length ||
-        onlineUsers.some((username, i) => username !== this.lastOnlineUsers[i]);
-      
-      if (hasChanged) {
-        console.log('👥 Online users:', onlineUsers.length > 0 ? onlineUsers.join(', ') : 'none');
-        this.lastOnlineUsers = onlineUsers;
-      }
-
       callback(presence);
     };
 
@@ -187,10 +159,8 @@ class PresenceService {
       try {
         await onDisconnect(presenceRef).cancel();
         await onDisconnect(cursorRef).cancel();
-        console.log('🔄 [Presence] Cancelled any existing disconnect handlers');
       } catch (cancelError) {
         // It's okay if there's nothing to cancel
-        console.log('ℹ️ [Presence] No existing handlers to cancel');
       }
 
       // Set up NEW disconnect handlers
@@ -205,8 +175,6 @@ class PresenceService {
 
       // Also clean up cursor on disconnect
       await onDisconnect(cursorRef).remove();
-      
-      console.log('✅ [Presence] Disconnect handlers set up successfully');
     } catch (error) {
       console.error('❌ [Presence] Failed to setup disconnect handler:', error);
       throw error;
@@ -266,10 +234,6 @@ class PresenceService {
       });
 
       await Promise.all(removePromises);
-      
-      if (toRemove.length > 0) {
-        console.log(`🧹 [Presence] Cleaned up ${toRemove.length} stale presence records`);
-      }
     } catch (error) {
       console.error('❌ [Presence] Failed to cleanup old presence:', error);
     }

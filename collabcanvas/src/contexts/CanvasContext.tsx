@@ -201,8 +201,6 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
       setUserSelections({});
       return;
     }
-
-    console.log('🔄 Subscribing to other users\' selections');
     
     const unsubscribe: Unsubscribe = selectionService.subscribeToCanvasSelections(
       user.uid,
@@ -213,7 +211,6 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
 
     // Cleanup subscription on unmount or user change
     return () => {
-      console.log('🔄 Unsubscribing from other users\' selections');
       unsubscribe();
     };
   }, [user]);
@@ -225,13 +222,6 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     const syncSelection = async () => {
       try {
         if (selectedShapes.length > 0) {
-          console.log('📤 Syncing selection to Firestore:', {
-            userId: user.uid,
-            username: user.displayName || user.email || 'Anonymous',
-            shapeCount: selectedShapes.length,
-            shapeIds: selectedShapes,
-          });
-          
           // Update selection in Firestore
           await selectionService.updateUserSelection(
             user.uid,
@@ -239,8 +229,6 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
             selectedShapes
           );
         } else {
-          console.log('📤 Clearing selection from Firestore:', user.uid);
-          
           // Clear selection from Firestore
           await selectionService.clearUserSelection(user.uid);
         }

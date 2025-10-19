@@ -55,9 +55,6 @@ const database = getDatabase(app);
 // - browserSessionPersistence: User is signed out when tab closes
 // - inMemoryPersistence: User is signed out on page reload
 setPersistence(auth, browserLocalPersistence)
-  .then(() => {
-    console.log('🔐 Auth persistence set to: LOCAL (persists across browser sessions)');
-  })
   .catch((error) => {
     console.error('❌ Failed to set auth persistence:', error);
   });
@@ -92,10 +89,6 @@ if (isDevelopment && useEmulators) {
   } catch (error) {
     console.warn('RTDB Emulator already connected or unavailable:', error);
   }
-} else {
-  console.log('🚀 Running in production mode - using Firebase Cloud services');
-  console.log('🔍 Database URL being used:', database.app.options.databaseURL);
-  console.log('🔍 Database instance:', database);
 }
 
 export { app, auth, firestore, database };

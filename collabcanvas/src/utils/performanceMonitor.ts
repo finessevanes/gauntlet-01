@@ -54,12 +54,6 @@ class PerformanceMonitor {
         this.metrics.shift();
       }
 
-      // Log if enabled
-      if (this.logToConsole) {
-        const metadataStr = metadata ? ` (${JSON.stringify(metadata)})` : '';
-        console.log(`⏱️  ${name}: ${measure.duration.toFixed(2)}ms${metadataStr}`);
-      }
-
       // Clean up marks and measures
       performance.clearMarks(startMark);
       performance.clearMarks(endMark);
@@ -186,31 +180,14 @@ class PerformanceMonitor {
    * Log a performance summary to console
    */
   logSummary() {
-    const measurementNames = [...new Set(this.metrics.map(m => m.name))];
-    
-    console.log('\n📊 Performance Summary:');
-    console.log('─'.repeat(80));
-    
-    measurementNames.forEach(name => {
-      const stats = this.getStats(name);
-      if (stats) {
-        console.log(`\n${name}:`);
-        console.log(`  Count:   ${stats.count}`);
-        console.log(`  Average: ${stats.average.toFixed(2)}ms`);
-        console.log(`  Min:     ${stats.min.toFixed(2)}ms`);
-        console.log(`  Max:     ${stats.max.toFixed(2)}ms`);
-        console.log(`  Latest:  ${stats.latest.toFixed(2)}ms`);
-      }
-    });
-    
-    console.log('\n' + '─'.repeat(80) + '\n');
+    // Performance summary logging disabled
   }
 }
 
 // Create a singleton instance
 export const performanceMonitor = new PerformanceMonitor(
-  // Enable logging in development
-  process.env.NODE_ENV === 'development'
+  // Disable console logging to reduce noise
+  false
 );
 
 // Export for custom instances

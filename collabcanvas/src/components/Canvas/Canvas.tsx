@@ -3,6 +3,7 @@ import { Stage, Layer, Rect, Group, Text } from 'react-konva';
 import { useCanvasContext } from '../../contexts/CanvasContext';
 import { useCursors } from '../../hooks/useCursors';
 import { useAuth } from '../../hooks/useAuth';
+import { usePresence } from '../../hooks/usePresence';
 import { useShapeResize } from '../../hooks/useShapeResize';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useDrawing } from '../../hooks/useDrawing';
@@ -11,6 +12,8 @@ import { useMarqueeSelection } from '../../hooks/useMarqueeSelection';
 import { useShapeInteraction } from '../../hooks/useShapeInteraction';
 import { useCommentPanel } from '../../hooks/useCommentPanel';
 import { useMultiShapeDrag } from '../../hooks/useMultiShapeDrag';
+import { usePerformanceMeasure } from '../../hooks/usePerformanceMonitor';
+import { requirementsMonitor } from '../../utils/performanceRequirements';
 import CursorLayer from '../Collaboration/CursorLayer';
 import CanvasShape from './CanvasShape';
 import CanvasPreview from './CanvasPreview';
@@ -33,6 +36,8 @@ import type { ShapeData } from '../../services/canvasService';
 
 export default function Canvas() {
   const { user } = useAuth();
+  const { onlineCount } = usePresence();
+  const { start: perfStart, end: perfEnd } = usePerformanceMeasure();
   const { 
     stageScale, 
     setStageScale, 
@@ -105,6 +110,39 @@ export default function Canvas() {
   // Text editing state - track current text content for dynamic border
   const [editingTextContent, setEditingTextContent] = useState<string>('');
   const [editingTextDimensions, setEditingTextDimensions] = useState<{ width: number; height: number } | null>(null);
+  
+  // Track performance requirements (object count, user count, FPS)
+  useEffect(() => {
+    // Get current FPS from window (if available from PerformancePanel)
+    // For now, we'll estimate based on requestAnimationFrame
+    let lastTime = performance.now();
+    let frames = 0;
+    let fps = 60;
+    
+    const measureFPS = (currentTime: number) => {
+      frames++;
+      const elapsed = currentTime - lastTime;
+      
+      if (elapsed >= 1000) {
+        fps = Math.round((frames * 1000) / elapsed);
+        
+        // Track scale metrics with actual online user count
+        // Ensure at least 1 user (yourself) is counted
+        const userCount = Math.max(1, onlineCount);
+        
+        requirementsMonitor.trackScale(shapes.length, userCount, fps);
+        
+        frames = 0;
+        lastTime = currentTime;
+      }
+      
+      return requestAnimationFrame(measureFPS);
+    };
+    
+    const animationId = requestAnimationFrame(measureFPS);
+    
+    return () => cancelAnimationFrame(animationId);
+  }, [shapes.length, onlineCount]);
   
   // Handle text content changes during editing
   const handleEditingTextChange = (text: string) => {
@@ -230,7 +268,6 @@ export default function Canvas() {
     handleMultiDragStart,
     handleMultiDragMove,
     handleMultiDragEnd,
-    clearMultiDrag,
   } = useMultiShapeDrag({
     stageRef,
     shapes,
@@ -689,11 +726,23 @@ export default function Canvas() {
 
   // 1. Memoize sorted shapes (avoid re-sorting on every render)
   const sortedShapes = useMemo(() => {
-    return shapes.slice().sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
-  }, [shapes]);
+    perfStart('shapes-sort');
+    const sorted = shapes.slice().sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+    const duration = perfEnd('shapes-sort', { shapeCount: shapes.length });
+    
+    // Emit event for live monitoring
+    window.dispatchEvent(
+      new CustomEvent('performance-operation', {
+        detail: { operation: 'shapes-sort', duration },
+      })
+    );
+    
+    return sorted;
+  }, [shapes, perfStart, perfEnd]);
 
   // 2. Memoize comment data for each shape (expensive filtering/calculations)
   const shapeCommentsMap = useMemo(() => {
+    perfStart('comments-map-build');
     const map = new Map<string, { count: number; hasUnreadReplies: boolean }>();
     
     shapes.forEach(shape => {
@@ -738,8 +787,17 @@ export default function Canvas() {
       map.set(shape.id, { count: commentCount, hasUnreadReplies });
     });
     
+    const duration = perfEnd('comments-map-build', { shapeCount: shapes.length, commentCount: comments.length });
+    
+    // Emit event for live monitoring
+    window.dispatchEvent(
+      new CustomEvent('performance-operation', {
+        detail: { operation: 'comments-map-build', duration },
+      })
+    );
+    
     return map;
-  }, [shapes, comments, user]);
+  }, [shapes, comments, user, perfStart, perfEnd]);
 
   // 3. Memoize cursor style (avoid recalculating on every render)
   const cursorStyle = useMemo(() => {
@@ -791,7 +849,9 @@ export default function Canvas() {
           />
 
           {/* Render all shapes from Firestore (sorted by zIndex) */}
-          {!shapesLoading && sortedShapes.map((shape) => {
+          {!shapesLoading && (() => {
+            perfStart('shapes-render');
+            const shapesComponents = sortedShapes.map((shape) => {
             const lockStatus = getShapeLockStatus(shape, user, selectedShapeId);
             const isLockedByMe = lockStatus === 'locked-by-me';
             const isSelected = selectedShapeId === shape.id;
@@ -857,7 +917,18 @@ export default function Canvas() {
                 editingTextDimensions={editingTextDimensions}
               />
             );
-          })}
+          });
+            const duration = perfEnd('shapes-render', { shapeCount: sortedShapes.length });
+            
+            // Emit event for live monitoring
+            window.dispatchEvent(
+              new CustomEvent('performance-operation', {
+                detail: { operation: 'shapes-render', duration },
+              })
+            );
+            
+            return shapesComponents;
+          })()}
 
           {/* Shape drawing previews */}
           <CanvasPreview

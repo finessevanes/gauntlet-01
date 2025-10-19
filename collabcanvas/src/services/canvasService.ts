@@ -15,14 +15,15 @@ import {
 } from 'firebase/firestore';
 import type { Timestamp, Unsubscribe } from 'firebase/firestore';
 import { firestore } from '../firebase';
-import { MIN_SHAPE_WIDTH, MIN_SHAPE_HEIGHT } from '../utils/constants';
+import { MIN_SHAPE_WIDTH, MIN_SHAPE_HEIGHT, DEFAULT_STROKE_WIDTH } from '../utils/constants';
 import { findOverlappingShapesAbove, findOverlappingShapesBelow } from '../utils/overlapDetection';
 import { calculateTextDimensions } from '../utils/textEditingHelpers';
+import { smoothPath, calculateBoundingBox, makePointsRelative } from '../utils/lineSmoothing';
 
 // Shape data types
 export interface ShapeData {
   id: string;
-  type: 'rectangle' | 'text' | 'circle' | 'triangle';
+  type: 'rectangle' | 'text' | 'circle' | 'triangle' | 'path';
   x: number;
   y: number;
   width: number;
@@ -37,6 +38,9 @@ export interface ShapeData {
   fontWeight?: 'normal' | 'bold';
   fontStyle?: 'normal' | 'italic';
   textDecoration?: 'none' | 'underline';
+  // Path-specific fields
+  points?: number[]; // Flat array: [x1, y1, x2, y2, ...]
+  strokeWidth?: number; // Line thickness (1-8px)
   // Grouping and layering fields
   groupId: string | null;
   zIndex: number;
@@ -523,6 +527,119 @@ class CanvasService {
       return shapeId;
     } catch (error) {
       console.error('❌ Error creating triangle shape:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new path shape from drawing points
+   * @param points - Flat array of x,y coordinates [x1,y1,x2,y2,...]
+   * @param color - Stroke color (hex string)
+   * @param strokeWidth - Line thickness (1-8px, default: 2)
+   * @param createdBy - User ID who created the path
+   * @returns Promise<string> - The created path shape ID
+   * @throws Error if validation fails or Firestore write fails
+   */
+  async createPath(pathData: {
+    points: number[];
+    color: string;
+    strokeWidth?: number;
+    createdBy: string;
+  }): Promise<string> {
+    try {
+      // Validate points array
+      if (!pathData.points || pathData.points.length < 4) {
+        throw new Error('Path must have at least 2 points (4 numbers)');
+      }
+      if (pathData.points.length % 2 !== 0) {
+        throw new Error('Points array must have even length (pairs of x,y coordinates)');
+      }
+
+      // Ensure parent document exists
+      await this.ensureCanvasDocExists();
+
+      // Apply line smoothing to reduce point count
+      const smoothedPoints = smoothPath(pathData.points, 2.0);
+
+      // Convert absolute coordinates to relative (so points are relative to x,y position)
+      const { relative: relativePoints, offset } = makePointsRelative(smoothedPoints);
+
+      // Calculate bounding box dimensions
+      const bbox = calculateBoundingBox(smoothedPoints);
+
+      // Generate a unique ID for the path
+      const shapeId = doc(collection(firestore, this.shapesCollectionPath)).id;
+
+      // Auto-increment z-index: new shapes appear on top by default
+      const shapes = await this.getShapes();
+      const maxZIndex = shapes.length > 0 ? Math.max(...shapes.map(s => s.zIndex || 0)) : -1;
+      const zIndex = maxZIndex + 1;
+
+      const shapeData: Omit<ShapeData, 'id'> = {
+        type: 'path',
+        x: offset.x,  // Use offset as shape position
+        y: offset.y,
+        width: bbox.width,
+        height: bbox.height,
+        points: relativePoints,  // Store relative points
+        strokeWidth: pathData.strokeWidth ?? DEFAULT_STROKE_WIDTH,
+        color: pathData.color,
+        rotation: 0,
+        groupId: null,
+        zIndex,
+        createdBy: pathData.createdBy,
+        createdAt: serverTimestamp() as Timestamp,
+        lockedBy: null,
+        lockedAt: null,
+        updatedAt: serverTimestamp() as Timestamp,
+      };
+
+      const shapeRef = doc(firestore, this.shapesCollectionPath, shapeId);
+      await setDoc(shapeRef, shapeData);
+
+      console.log(`✅ Path shape created: ${shapeId} (${relativePoints.length / 2} points, reduced from ${pathData.points.length / 2})`);
+      return shapeId;
+    } catch (error) {
+      console.error('❌ Error creating path shape:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update path points (stub for future path editing feature)
+   * @param pathId - Path shape ID
+   * @param points - Updated points array
+   * @returns Promise<void>
+   */
+  async updatePath(pathId: string, points: number[]): Promise<void> {
+    try {
+      // Validate points array
+      if (!points || points.length < 4) {
+        throw new Error('Path must have at least 2 points (4 numbers)');
+      }
+      if (points.length % 2 !== 0) {
+        throw new Error('Points array must have even length (pairs of x,y coordinates)');
+      }
+
+      // Apply line smoothing
+      const smoothedPoints = smoothPath(points, 2.0);
+
+      // Recalculate bounding box
+      const bbox = calculateBoundingBox(smoothedPoints);
+
+      const shapeRef = doc(firestore, this.shapesCollectionPath, pathId);
+      await updateDoc(shapeRef, {
+        points: smoothedPoints,
+        x: bbox.x,
+        y: bbox.y,
+        width: bbox.width,
+        height: bbox.height,
+        updatedAt: serverTimestamp(),
+      });
+
+      console.log(`✅ Path updated: ${pathId}`);
+    } catch (error) {
+      console.error('❌ Error updating path:', error);
       throw error;
     }
   }

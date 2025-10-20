@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import toast from 'react-hot-toast';
+import { useError } from '../../contexts/ErrorContext';
 
 interface LoginProps {
   onSwitchToSignup: () => void;
@@ -14,12 +14,13 @@ export default function Login({ onSwitchToSignup }: LoginProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const { login, loginWithGoogle } = useAuth();
+  const { showError } = useError();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     if (!email || !password) {
-      toast.error('Please fill in all fields');
+      showError('Please fill in all fields');
       return;
     }
 
@@ -27,7 +28,6 @@ export default function Login({ onSwitchToSignup }: LoginProps) {
 
     try {
       await login(email, password);
-      toast.success('Welcome back!');
     } catch (error: any) {
       // Use generic error message for authentication failures to prevent user enumeration
       const authErrors = [
@@ -40,10 +40,10 @@ export default function Login({ onSwitchToSignup }: LoginProps) {
       const isAuthError = authErrors.some(msg => error.message?.includes(msg));
       
       if (isAuthError) {
-        toast.error('The email and password combination is incorrect. Please try again.');
+        showError('The email and password combination is incorrect. Please try again.');
       } else {
         // Show specific errors for other cases (network, too many attempts, etc.)
-        toast.error(error.message || 'Login failed');
+        showError(error.message || 'Login failed');
       }
     } finally {
       setIsSubmitting(false);
@@ -55,11 +55,10 @@ export default function Login({ onSwitchToSignup }: LoginProps) {
 
     try {
       await loginWithGoogle();
-      toast.success('Welcome back!');
     } catch (error: any) {
-      // Don't show error toast if user cancelled
+      // Don't show error if user cancelled
       if (error.message !== 'Sign-in cancelled') {
-        toast.error(error.message || 'Google sign-in failed');
+        showError(error.message || 'Google sign-in failed');
       }
     } finally {
       setIsGoogleLoading(false);

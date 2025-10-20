@@ -1,5 +1,6 @@
 import { database } from '../firebase';
 import { ref, set, onValue, off, remove } from 'firebase/database';
+import { requirementsMonitor } from '../utils/performanceRequirements';
 
 export interface Cursor {
   x: number;
@@ -14,20 +15,29 @@ export interface CursorsMap {
 }
 
 class CursorService {
-  private cursorsPath = '/sessions/main/users';
+  /**
+   * Get cursors path for a specific canvas
+   */
+  private getCursorsPath(canvasId: string): string {
+    return `/sessions/${canvasId}/users`;
+  }
 
   /**
-   * Update the current user's cursor position in RTDB
+   * Update the current user's cursor position in RTDB for a specific canvas
    */
   async updateCursorPosition(
+    canvasId: string,
     userId: string,
     x: number,
     y: number,
     username: string,
     color: string
   ): Promise<void> {
+    const startTime = Date.now();
+    
     try {
-      const cursorRef = ref(database, `${this.cursorsPath}/${userId}/cursor`);
+      const cursorsPath = this.getCursorsPath(canvasId);
+      const cursorRef = ref(database, `${cursorsPath}/${userId}/cursor`);
       
       await set(cursorRef, {
         x,
@@ -36,6 +46,11 @@ class CursorService {
         color,
         timestamp: Date.now(),
       });
+      
+      // Track cursor sync latency for performance requirements
+      const latency = Date.now() - startTime;
+      requirementsMonitor.trackCursorSync(latency);
+      
     } catch (error) {
       console.error('❌ [Cursor] Failed to update cursor position:', error);
       throw error;
@@ -43,12 +58,14 @@ class CursorService {
   }
 
   /**
-   * Subscribe to all users' cursor positions
+   * Subscribe to all users' cursor positions for a specific canvas
+   * @param canvasId - Canvas ID to subscribe to
    * @param callback - Called with updated cursors map whenever data changes
    * @returns Unsubscribe function
    */
-  subscribeToCursors(callback: (cursors: CursorsMap) => void): () => void {
-    const usersRef = ref(database, this.cursorsPath);
+  subscribeToCursors(canvasId: string, callback: (cursors: CursorsMap) => void): () => void {
+    const cursorsPath = this.getCursorsPath(canvasId);
+    const usersRef = ref(database, cursorsPath);
 
     const handleValue = (snapshot: any) => {
       const data = snapshot.val();
@@ -84,13 +101,13 @@ class CursorService {
   }
 
   /**
-   * Remove a user's cursor from RTDB
+   * Remove a user's cursor from RTDB for a specific canvas
    */
-  async removeCursor(userId: string): Promise<void> {
-    const cursorRef = ref(database, `${this.cursorsPath}/${userId}/cursor`);
+  async removeCursor(canvasId: string, userId: string): Promise<void> {
+    const cursorsPath = this.getCursorsPath(canvasId);
+    const cursorRef = ref(database, `${cursorsPath}/${userId}/cursor`);
     await remove(cursorRef);
   }
 }
 
 export const cursorService = new CursorService();
-

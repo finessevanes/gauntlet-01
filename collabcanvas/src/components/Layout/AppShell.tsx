@@ -1,20 +1,282 @@
 import type { ReactNode } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import PaintTitleBar from './PaintTitleBar';
 import ToolPalette from '../Canvas/ToolPalette';
 import ColorPalette from '../Canvas/ColorPalette';
 import StatusBar from './StatusBar';
+import PerformancePanel from '../PerformancePanel';
+import FloatingClippy from '../Chat/FloatingClippy';
+import ChatTriggerButton from '../Chat/ChatTriggerButton';
+import type { ChatMessage } from '../Chat/types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../../utils/constants';
 import { useCanvasContext } from '../../contexts/CanvasContext';
 import { useAuth } from '../../hooks/useAuth';
-import toast from 'react-hot-toast';
+import { useError } from '../../contexts/ErrorContext';
+import { AIService } from '../../services/aiService';
+import { saveMessage, loadChatHistory, deleteMessage } from '../../services/chatService';
 
 interface AppShellProps {
   children: ReactNode;
+  onNavigateToGallery?: () => void;
 }
 
-export default function AppShell({ children }: AppShellProps) {
+export default function AppShell({ children, onNavigateToGallery }: AppShellProps) {
   const { user } = useAuth();
+  const { showError } = useError();
+  const canvasContext = useCanvasContext();
+  const { currentCanvasId, stagePosition, stageScale: canvasStageScale } = canvasContext;
+  const [isPerformancePanelOpen, setIsPerformancePanelOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  
+  // AI Service instance
+  const aiServiceRef = useRef<AIService | null>(null);
+  if (!aiServiceRef.current) {
+    aiServiceRef.current = new AIService();
+  }
+  
+  // Load chat history from Firestore when user is authenticated or canvas changes
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (!user?.uid || !currentCanvasId) {
+        setChatMessages([]);
+        return;
+      }
+      
+      setIsChatLoading(true);
+      try {
+        const history = await loadChatHistory(currentCanvasId, user.uid);
+        
+        // If history is empty, show welcome message
+        if (history.length === 0) {
+          setChatMessages([{
+            id: 'welcome',
+            role: 'assistant',
+            content: "Hi! I'm Clippy, your canvas assistant. How can I help you today?",
+            timestamp: new Date()
+          }]);
+        } else {
+          // Load chat history from Firestore
+          setChatMessages(history);
+        }
+      } catch (error) {
+        console.error('Failed to load chat history:', error);
+        // Show error message in chat
+        setChatMessages([{
+          id: 'error',
+          role: 'assistant',
+          content: "⚠️ Couldn't load chat history. Starting fresh!",
+          timestamp: new Date()
+        }]);
+      } finally {
+        setIsChatLoading(false);
+      }
+    };
+    
+    loadHistory();
+  }, [user?.uid, currentCanvasId]);
+  
+  // Handle sending messages to AI
+  const handleSendMessage = async (content: string) => {
+    // Validate user authentication
+    if (!user || !user.uid) {
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: '⚠️ You need to be logged in to chat with Clippy.',
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+      return;
+    }
+    
+    // Validate current canvas
+    if (!currentCanvasId) {
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: '⚠️ No canvas selected. Please select a canvas first.',
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+      return;
+    }
+    
+    // Validate message content
+    const trimmedContent = content.trim();
+    if (!trimmedContent) return;
+    
+    if (trimmedContent.length > 500) {
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: '⚠️ That message is too long! Please keep it under 500 characters.',
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+      return;
+    }
+    
+    // Create user message (optimistic UI)
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: trimmedContent,
+      timestamp: new Date()
+    };
+    setChatMessages(prev => [...prev, userMessage]);
+    
+    // Save user message to Firestore (canvas-scoped)
+    try {
+      await saveMessage(currentCanvasId, {
+        userId: user.uid,
+        role: 'user',
+        content: trimmedContent
+      });
+    } catch (error) {
+      console.error('Failed to save user message:', error);
+      showError('⚠️ Message not saved. Check your connection.');
+    }
+    
+    // Set loading state
+    setIsChatLoading(true);
+    
+    try {
+      // Create timeout promise (30 seconds)
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('TIMEOUT')), 30000);
+      });
+      
+      // Calculate viewport center for AI positioning
+      // Viewport dimensions (assume 1920x1080 as typical, but AI will place at center regardless)
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      // Calculate canvas position at viewport center
+      const viewportCenterX = (-stagePosition.x + viewportWidth / 2) / canvasStageScale;
+      const viewportCenterY = (-stagePosition.y + viewportHeight / 2) / canvasStageScale;
+      
+      const viewport = {
+        centerX: viewportCenterX,
+        centerY: viewportCenterY,
+        scale: canvasStageScale
+      };
+      
+      // Call AI service with timeout and viewport info
+      const aiStartTime = performance.now();
+      const result = await Promise.race([
+        aiServiceRef.current!.executeCommand(
+          trimmedContent, 
+          user.uid, 
+          currentCanvasId, 
+          viewport,
+          // Callback: clear loading state immediately when shapes are drawn
+          () => {
+            const shapesDrawnTime = performance.now();
+            console.log(`🎨 Shapes drawn at ${(shapesDrawnTime - aiStartTime).toFixed(2)}ms - clearing "thinking..." state NOW`);
+            setIsChatLoading(false);
+          }
+        ),
+        timeoutPromise
+      ]);
+      const aiEndTime = performance.now();
+      console.log(`🎨 AI Service completed in ${(aiEndTime - aiStartTime).toFixed(2)}ms`);
+      
+      // Create AI response message
+      const uiUpdateStartTime = performance.now();
+      const aiMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: result.message,
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, aiMessage]);
+      const uiUpdateEndTime = performance.now();
+      console.log(`💬 UI updated with message in ${(uiUpdateEndTime - uiUpdateStartTime).toFixed(2)}ms`);
+      console.log(`⏱️ Total delay from AI completion to UI update: ${(uiUpdateEndTime - aiEndTime).toFixed(2)}ms`);
+      
+      // Clear loading state (in case callback didn't fire - e.g., for non-drawing operations)
+      setIsChatLoading(false);
+      
+      // Save AI response to Firestore (canvas-scoped) - don't await, let it happen in background
+      saveMessage(currentCanvasId, {
+        userId: user.uid,
+        role: 'assistant',
+        content: result.message
+      }).catch(error => {
+        console.error('Failed to save AI response:', error);
+      });
+      
+    } catch (error: any) {
+      console.error('AI error:', error);
+      
+      // Determine error message
+      let errorContent: string;
+      if (error.message === 'TIMEOUT') {
+        errorContent = "⚠️ That's taking longer than expected. Please try again.";
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        errorContent = "⚠️ Oops! I'm having trouble connecting right now. Please try again in a moment.";
+      } else {
+        errorContent = "⚠️ Something went wrong. Please try again.";
+      }
+      
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: errorContent,
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+      
+      // Save error message to Firestore (canvas-scoped)
+      try {
+        if (currentCanvasId) {
+          await saveMessage(currentCanvasId, {
+            userId: user.uid,
+            role: 'assistant',
+            content: errorContent
+          });
+        }
+      } catch (saveError) {
+        console.error('Failed to save error message:', saveError);
+      }
+      
+      // Clear loading state after error handling
+      setIsChatLoading(false);
+    }
+  };
+  
+  // Handle deleting a chat message
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!user?.uid || !currentCanvasId) return;
+    
+    try {
+      // Optimistically remove from UI
+      setChatMessages(prev => prev.filter(msg => msg.id !== messageId));
+      
+      // Delete from Firestore (canvas-scoped)
+      await deleteMessage(currentCanvasId, messageId);
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+      
+      // Reload messages on error to restore state
+      if (user?.uid && currentCanvasId) {
+        const history = await loadChatHistory(currentCanvasId, user.uid);
+        setChatMessages(history.length > 0 ? history : [{
+          id: 'welcome',
+          role: 'assistant',
+          content: "Hi! I'm Clippy, your canvas assistant. How can I help you today?",
+          timestamp: new Date()
+        }]);
+      }
+      
+      showError('Failed to delete message');
+    }
+  };
+  
   const { 
     stageScale, 
     shapes, 
@@ -96,17 +358,9 @@ export default function AppShell({ children }: AppShellProps) {
           const newWeight = currentWeight === 'bold' ? 'normal' : 'bold';
           
           await updateTextFormatting(selectedShapeId, { fontWeight: newWeight });
-          
-          toast.success(`Text ${newWeight === 'bold' ? 'bolded' : 'unbolded'}`, {
-            duration: 1000,
-            position: 'top-center',
-          });
         } catch (error) {
           console.error('❌ Error toggling bold:', error);
-          toast.error('Failed to update text formatting', {
-            duration: 2000,
-            position: 'top-center',
-          });
+          showError('Failed to update text formatting');
         }
         return;
       }
@@ -118,11 +372,6 @@ export default function AppShell({ children }: AppShellProps) {
       setTextFormattingDefaults({
         ...textFormattingDefaults,
         fontWeight: newWeight
-      });
-      
-      toast.success(`Text defaults: ${newWeight === 'bold' ? 'bold' : 'normal'}`, {
-        duration: 1000,
-        position: 'top-center',
       });
     }
   };
@@ -139,17 +388,9 @@ export default function AppShell({ children }: AppShellProps) {
           const newStyle = currentStyle === 'italic' ? 'normal' : 'italic';
           
           await updateTextFormatting(selectedShapeId, { fontStyle: newStyle });
-          
-          toast.success(`Text ${newStyle === 'italic' ? 'italicized' : 'unitalicized'}`, {
-            duration: 1000,
-            position: 'top-center',
-          });
         } catch (error) {
           console.error('❌ Error toggling italic:', error);
-          toast.error('Failed to update text formatting', {
-            duration: 2000,
-            position: 'top-center',
-          });
+          showError('Failed to update text formatting');
         }
         return;
       }
@@ -161,11 +402,6 @@ export default function AppShell({ children }: AppShellProps) {
       setTextFormattingDefaults({
         ...textFormattingDefaults,
         fontStyle: newStyle
-      });
-      
-      toast.success(`Text defaults: ${newStyle === 'italic' ? 'italic' : 'normal'}`, {
-        duration: 1000,
-        position: 'top-center',
       });
     }
   };
@@ -182,17 +418,9 @@ export default function AppShell({ children }: AppShellProps) {
           const newDecoration = currentDecoration === 'underline' ? 'none' : 'underline';
           
           await updateTextFormatting(selectedShapeId, { textDecoration: newDecoration });
-          
-          toast.success(`Text ${newDecoration === 'underline' ? 'underlined' : 'ununderlined'}`, {
-            duration: 1000,
-            position: 'top-center',
-          });
         } catch (error) {
           console.error('❌ Error toggling underline:', error);
-          toast.error('Failed to update text formatting', {
-            duration: 2000,
-            position: 'top-center',
-          });
+          showError('Failed to update text formatting');
         }
         return;
       }
@@ -204,11 +432,6 @@ export default function AppShell({ children }: AppShellProps) {
       setTextFormattingDefaults({
         ...textFormattingDefaults,
         textDecoration: newDecoration
-      });
-      
-      toast.success(`Text defaults: ${newDecoration === 'underline' ? 'underlined' : 'normal'}`, {
-        duration: 1000,
-        position: 'top-center',
       });
     }
   };
@@ -222,17 +445,9 @@ export default function AppShell({ children }: AppShellProps) {
       if (selectedShape && selectedShape.type === 'text') {
         try {
           await updateTextFormatting(selectedShapeId, { fontSize });
-          
-          toast.success(`Font size changed to ${fontSize}px`, {
-            duration: 1000,
-            position: 'top-center',
-          });
         } catch (error) {
           console.error('❌ Error changing font size:', error);
-          toast.error('Failed to update font size', {
-            duration: 2000,
-            position: 'top-center',
-          });
+          showError('Failed to update font size');
         }
         return;
       }
@@ -243,11 +458,6 @@ export default function AppShell({ children }: AppShellProps) {
       setTextFormattingDefaults({
         ...textFormattingDefaults,
         fontSize
-      });
-      
-      toast.success(`Text defaults: ${fontSize}px`, {
-        duration: 1000,
-        position: 'top-center',
       });
     }
   };
@@ -311,17 +521,9 @@ export default function AppShell({ children }: AppShellProps) {
         
         // Clear selection after delete
         setSelectedShapes([]);
-        
-        toast.success(`${selectedShapes.length} shape${selectedShapes.length > 1 ? 's' : ''} deleted`, {
-          duration: 1500,
-          position: 'top-center',
-        });
       } catch (error) {
         console.error('❌ BATCH DELETE ERROR (Button):', error);
-        toast.error('Failed to delete shapes', {
-          duration: 2000,
-          position: 'top-center',
-        });
+        showError('Failed to delete shapes');
       }
       return;
     }
@@ -331,16 +533,9 @@ export default function AppShell({ children }: AppShellProps) {
       try {
         await deleteShape(selectedShapeId);
         setSelectedShapeId(null);
-        toast.success('Shape deleted', {
-          duration: 1000,
-          position: 'top-center',
-        });
       } catch (error) {
         console.error('❌ Failed to delete shape:', error);
-        toast.error('Failed to delete shape', {
-          duration: 2000,
-          position: 'top-center',
-        });
+        showError('Failed to delete shape');
       }
     }
   };
@@ -360,17 +555,9 @@ export default function AppShell({ children }: AppShellProps) {
         
         // Clear original selection and select only the duplicates
         setSelectedShapes(newShapeIds);
-        
-        toast.success(`${selectedShapes.length} shape${selectedShapes.length > 1 ? 's' : ''} duplicated`, {
-          duration: 1500,
-          position: 'top-center',
-        });
       } catch (error) {
         console.error('❌ BATCH DUPLICATE ERROR (Button):', error);
-        toast.error('Failed to duplicate shapes', {
-          duration: 2000,
-          position: 'top-center',
-        });
+        showError('Failed to duplicate shapes');
       }
       return;
     }
@@ -387,17 +574,9 @@ export default function AppShell({ children }: AppShellProps) {
         // Select and lock the new shape immediately
         setSelectedShapeId(newShapeId);
         await lockShape(newShapeId, user.uid);
-        
-        toast.success('Shape duplicated', {
-          duration: 1000,
-          position: 'top-center',
-        });
       } catch (error) {
         console.error('❌ Failed to duplicate shape:', error);
-        toast.error('Failed to duplicate shape', {
-          duration: 2000,
-          position: 'top-center',
-        });
+        showError('Failed to duplicate shape');
       }
     }
   };
@@ -409,16 +588,9 @@ export default function AppShell({ children }: AppShellProps) {
     try {
       const groupId = await groupShapes(selectedShapes, user.uid);
       console.log('✅ Group created:', groupId);
-      toast.success(`${selectedShapes.length} shapes grouped`, {
-        duration: 1500,
-        position: 'top-center',
-      });
     } catch (error) {
       console.error('❌ Failed to group shapes:', error);
-      toast.error('Failed to group shapes', {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError('Failed to group shapes');
     }
   };
 
@@ -428,10 +600,7 @@ export default function AppShell({ children }: AppShellProps) {
     // Find groupId from selected shapes
     const groupId = shapes.find(s => selectedShapes.includes(s.id))?.groupId;
     if (!groupId) {
-      toast.error('No group to ungroup', {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError('No group to ungroup');
       return;
     }
     
@@ -447,17 +616,9 @@ export default function AppShell({ children }: AppShellProps) {
         // Fallback: clear selection if last clicked shape isn't available
         setSelectedShapes([]);
       }
-      
-      toast.success('Shapes ungrouped', {
-        duration: 1500,
-        position: 'top-center',
-      });
     } catch (error) {
       console.error('❌ Failed to ungroup shapes:', error);
-      toast.error('Failed to ungroup shapes', {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError('Failed to ungroup shapes');
     }
   };
 
@@ -491,21 +652,9 @@ export default function AppShell({ children }: AppShellProps) {
       } else {
         await bringToFront(targetIds[0]);
       }
-      
-      const message = targetIds.length > 1 
-        ? `${targetIds.length} shapes brought to front`
-        : 'Brought to front';
-      
-      toast.success(message, {
-        duration: 1000,
-        position: 'top-center',
-      });
     } catch (error) {
       console.error('❌ Failed to bring to front:', error);
-      toast.error('Failed to bring to front', {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError('Failed to bring to front');
     }
   };
 
@@ -538,21 +687,9 @@ export default function AppShell({ children }: AppShellProps) {
       } else {
         await sendToBack(targetIds[0]);
       }
-      
-      const message = targetIds.length > 1 
-        ? `${targetIds.length} shapes sent to back`
-        : 'Sent to back';
-      
-      toast.success(message, {
-        duration: 1000,
-        position: 'top-center',
-      });
     } catch (error) {
       console.error('❌ Failed to send to back:', error);
-      toast.error('Failed to send to back', {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError('Failed to send to back');
     }
   };
 
@@ -585,21 +722,9 @@ export default function AppShell({ children }: AppShellProps) {
       } else {
         await bringForward(targetIds[0]);
       }
-      
-      const message = targetIds.length > 1 
-        ? `${targetIds.length} shapes brought forward`
-        : 'Brought forward';
-      
-      toast.success(message, {
-        duration: 1000,
-        position: 'top-center',
-      });
     } catch (error) {
       console.error('❌ Failed to bring forward:', error);
-      toast.error('Failed to bring forward', {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError('Failed to bring forward');
     }
   };
 
@@ -632,27 +757,15 @@ export default function AppShell({ children }: AppShellProps) {
       } else {
         await sendBackward(targetIds[0]);
       }
-      
-      const message = targetIds.length > 1 
-        ? `${targetIds.length} shapes sent backward`
-        : 'Sent backward';
-      
-      toast.success(message, {
-        duration: 1000,
-        position: 'top-center',
-      });
     } catch (error) {
       console.error('❌ Failed to send backward:', error);
-      toast.error('Failed to send backward', {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError('Failed to send backward');
     }
   };
 
   return (
     <div style={styles.appShell}>
-      <PaintTitleBar />
+      <PaintTitleBar onNavigateToGallery={onNavigateToGallery} />
       <ToolPalette 
         selectedShape={selectedShape}
         selectedShapes={selectedShapes}
@@ -683,6 +796,22 @@ export default function AppShell({ children }: AppShellProps) {
         zoom={stageScale}
         selectedShapes={selectedShapes}
         shapes={shapes}
+        onPerformanceClick={() => setIsPerformancePanelOpen(true)}
+      />
+      <PerformancePanel
+        isOpen={isPerformancePanelOpen}
+        onClose={() => setIsPerformancePanelOpen(false)}
+      />
+      
+      {/* Chat UI Components */}
+      <ChatTriggerButton onClick={() => setIsChatOpen(true)} />
+      <FloatingClippy
+        isVisible={isChatOpen}
+        onDismiss={() => setIsChatOpen(false)}
+        messages={chatMessages}
+        onSendMessage={handleSendMessage}
+        onDeleteMessage={handleDeleteMessage}
+        isLoading={isChatLoading}
       />
     </div>
   );

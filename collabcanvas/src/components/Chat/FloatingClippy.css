@@ -1,0 +1,307 @@
+/**
+ * Floating Clippy Styles
+ * Classic Microsoft Office assistant aesthetic
+ */
+
+/* ===== MAIN CONTAINER ===== */
+.floating-clippy {
+  position: fixed;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  cursor: move;
+  user-select: none;
+  animation: clippyEnter 600ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3));
+}
+
+@keyframes clippyEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) translateY(100px);
+  }
+  60% {
+    transform: scale(1.1) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.floating-clippy.dragging {
+  cursor: grabbing;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.4));
+  animation: none;
+}
+
+.floating-clippy.minimized {
+  gap: 8px;
+}
+
+/* ===== SPEECH BUBBLE ===== */
+.clippy-speech-bubble {
+  position: relative;
+  background: #FFFFE1;
+  border: 3px solid #000000;
+  border-radius: 8px;
+  padding: 16px 20px 12px;
+  max-width: 280px;
+  min-width: 200px;
+  box-shadow: 
+    3px 3px 0 rgba(0, 0, 0, 0.3),
+    inset -1px -1px 0 rgba(0, 0, 0, 0.1),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.8);
+  animation: bubblePop 400ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes bubblePop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translateY(20px);
+  }
+  70% {
+    transform: scale(1.05) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.speech-bubble-content {
+  font-family: 'MS Sans Serif', 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #000000;
+  word-wrap: break-word;
+  margin: 0;
+  text-align: left;
+}
+
+/* Speech bubble tail (triangle pointing down) */
+.speech-bubble-tail {
+  position: absolute;
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 15px solid transparent;
+  border-right: 15px solid transparent;
+  border-top: 18px solid #000000;
+}
+
+.speech-bubble-tail::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  left: -12px;
+  width: 0;
+  height: 0;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-top: 15px solid #FFFFE1;
+}
+
+/* ===== MESSAGE NAVIGATION DOTS ===== */
+.message-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 8px;
+  padding: 0;
+}
+
+.message-dots .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #999;
+  border: 1px solid #666;
+  padding: 0;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.message-dots .dot.active {
+  background: #4169E1;
+  border-color: #2851B8;
+  transform: scale(1.2);
+}
+
+.message-dots .dot:hover:not(.active) {
+  background: #666;
+  transform: scale(1.1);
+}
+
+/* ===== INPUT AREA ===== */
+.clippy-input-area {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  background: #E6E6E6;
+  border: 2px solid #000000;
+  border-radius: 6px;
+  width: 280px;
+  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.clippy-input {
+  flex: 1;
+  padding: 6px 8px;
+  border: 2px inset #FFFFFF;
+  background: #FFFFFF;
+  color: #000000;
+  font-family: 'MS Sans Serif', 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  border-radius: 0;
+  outline: none;
+}
+
+.clippy-input:focus {
+  border-color: #4169E1;
+}
+
+.clippy-input:disabled {
+  background: #E6E6E6;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.clippy-send-button {
+  padding: 6px 12px;
+  border: 2px outset #C0C0C0;
+  background: #C0C0C0;
+  font-family: 'MS Sans Serif', 'Segoe UI', system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 0;
+  min-width: 36px;
+  transition: all 100ms ease;
+}
+
+.clippy-send-button:hover:not(:disabled) {
+  background: #D4D4D4;
+  border-color: #FFFFFF #808080 #808080 #FFFFFF;
+}
+
+.clippy-send-button:active:not(:disabled) {
+  border-style: inset;
+  border-color: #808080 #FFFFFF #FFFFFF #808080;
+}
+
+.clippy-send-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-style: outset;
+}
+
+/* ===== CLIPPY CHARACTER ===== */
+.clippy-character {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.clippy-controls {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.control-btn {
+  width: 28px;
+  height: 28px;
+  border: 2px outset #C0C0C0;
+  background: #C0C0C0;
+  border-radius: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 100ms ease;
+  padding: 0;
+}
+
+.control-btn:hover {
+  background: #D4D4D4;
+  border-color: #FFFFFF #808080 #808080 #FFFFFF;
+}
+
+.control-btn:active {
+  border-style: inset;
+  border-color: #808080 #FFFFFF #FFFFFF #808080;
+  background: #B0B0B0;
+}
+
+.minimize-btn {
+  font-size: 12px;
+}
+
+.close-btn {
+  color: #CC0000;
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* Focus states for keyboard navigation */
+.control-btn:focus-visible {
+  outline: 2px solid #4169E1;
+  outline-offset: 2px;
+}
+
+.message-dots .dot:focus-visible {
+  outline: 2px solid #4169E1;
+  outline-offset: 2px;
+}
+
+/* ===== CHAT TRIGGER BUTTON (FAB) ===== */
+.chat-trigger-button {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  min-width: 140px;
+  height: 48px;
+  padding: 0 16px;
+  border: 3px outset #C0C0C0;
+  background: #C0C0C0;
+  border-radius: 0;
+  box-shadow: 
+    3px 3px 0 rgba(0, 0, 0, 0.5),
+    -1px -1px 0 rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: 'MS Sans Serif', 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: bold;
+  color: #000000;
+  z-index: 1000;
+  transition: all 100ms ease;
+}
+
+.chat-trigger-button:hover {
+  border-style: outset;
+  background: #D4D4D4;
+  box-shadow: 
+    4px 4px 0 rgba(0, 0, 0, 0.5),
+    -1px -1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.chat-trigger-button:active {
+  border-style: inset;
+  box-shadow: 
+    inset 2px 2px 0 rgba(0, 0, 0, 0.3),
+    1px 1px 0 rgba(255, 255, 255, 0.8);
+  transform: translateY(1px);
+}

@@ -112,7 +112,7 @@ interface CanvasContextType {
   commentsLoading: boolean;
   addComment: (shapeId: string, text: string, userId: string, username: string) => Promise<string>;
   addReply: (commentId: string, userId: string, username: string, text: string) => Promise<void>;
-  resolveComment: (commentId: string, userId: string) => Promise<void>;
+  resolveComment: (commentId: string) => Promise<void>;
   deleteComment: (commentId: string, userId: string) => Promise<void>;
   deleteReply: (commentId: string, replyIndex: number, userId: string) => Promise<void>;
   markRepliesAsRead: (commentId: string, userId: string) => Promise<void>;
@@ -416,9 +416,9 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     return await canvasService.addReply(currentCanvasId, commentId, userId, username, text);
   }, [currentCanvasId]);
 
-  const resolveComment = useCallback(async (commentId: string, userId: string): Promise<void> => {
+  const resolveComment = useCallback(async (commentId: string): Promise<void> => {
     if (!currentCanvasId) throw new Error('No canvas selected');
-    return await canvasService.resolveComment(currentCanvasId, commentId, userId);
+    return await canvasService.resolveComment(currentCanvasId, commentId);
   }, [currentCanvasId]);
 
   const deleteComment = useCallback(async (commentId: string, userId: string): Promise<void> => {

@@ -96,7 +96,7 @@ class CommentService {
     }
   }
 
-  async resolveComment(canvasId: string, commentId: string, userId: string): Promise<void> {
+  async resolveComment(canvasId: string, commentId: string): Promise<void> {
     try {
       const commentsPath = this.getCommentsPath(canvasId);
       const commentRef = doc(firestore, commentsPath, commentId);
@@ -105,8 +105,6 @@ class CommentService {
       if (!commentSnap.exists()) {
         throw new Error('Comment not found');
       }
-
-      const comment = commentSnap.data() as CommentData;
 
       await updateDoc(commentRef, {
         resolved: true,

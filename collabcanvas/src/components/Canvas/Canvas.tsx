@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useMemo } from 'react';
 import { Stage, Layer, Rect, Group, Text } from 'react-konva';
 import { useCanvasContext } from '../../contexts/CanvasContext';
+import { useError } from '../../contexts/ErrorContext';
 import { useCursors } from '../../hooks/useCursors';
 import { useAuth } from '../../hooks/useAuth';
 import { usePresence } from '../../hooks/usePresence';
@@ -37,6 +38,7 @@ export default function Canvas() {
   const { user } = useAuth();
   const { onlineCount } = usePresence();
   const { start: perfStart, end: perfEnd } = usePerformanceMeasure();
+  const { showError } = useError();
   const { 
     stageScale, 
     setStageScale, 
@@ -249,6 +251,7 @@ export default function Canvas() {
     lockShape,
     unlockShape,
     updateShape,
+    showError,
   });
 
   // Multi-shape drag hook
@@ -293,6 +296,7 @@ export default function Canvas() {
     setMarqueeStart,
     setMarqueeEnd,
     setIsMarqueeActive,
+    showError,
   });
 
   // Rotation hook
@@ -310,6 +314,7 @@ export default function Canvas() {
     shapes,
     selectedShapeId,
     rotateShape,
+    showError,
   });
 
   // Comment panel hook
@@ -351,6 +356,7 @@ export default function Canvas() {
     resizeCircle,
     updateShape,
     unlockShape,
+    showError,
   });
 
   // Keyboard shortcuts hook

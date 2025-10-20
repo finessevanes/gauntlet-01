@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useShareCanvas } from '../../hooks/useShareCanvas';
+import { useError } from '../../contexts/ErrorContext';
 import CollaboratorsList from './CollaboratorsList';
-import toast from 'react-hot-toast';
 import '../CanvasGallery/CanvasGallery.css';
 
 export interface ShareModalProps {
@@ -21,6 +21,7 @@ export default function ShareModal({ canvasId, isOpen, onClose }: ShareModalProp
     collaborators,
     loadingCollaborators,
   } = useShareCanvas(canvasId);
+  const { showError } = useError();
 
   const [copyButtonText, setCopyButtonText] = useState('Copy Link');
   const [isCopyButtonGreen, setIsCopyButtonGreen] = useState(false);
@@ -32,7 +33,6 @@ export default function ShareModal({ canvasId, isOpen, onClose }: ShareModalProp
     if (success) {
       setCopyButtonText('✓ Copied!');
       setIsCopyButtonGreen(true);
-      toast.success('Link copied to clipboard!');
       
       // Reset button after 2 seconds
       setTimeout(() => {
@@ -40,9 +40,9 @@ export default function ShareModal({ canvasId, isOpen, onClose }: ShareModalProp
         setIsCopyButtonGreen(false);
       }, 2000);
     } else {
-      toast.error('Failed to copy link. Please copy manually.');
+      showError('Failed to copy link. Please copy manually.');
     }
-  }, [copyLinkToClipboard]);
+  }, [copyLinkToClipboard, showError]);
 
   // Handle Escape key to close modal
   useEffect(() => {

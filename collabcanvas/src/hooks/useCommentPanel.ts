@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import toast from 'react-hot-toast';
 import type { CommentData } from '../services/canvasService';
 
 interface UseCommentPanelProps {
@@ -67,7 +66,6 @@ export function useCommentPanel(props: UseCommentPanelProps) {
         user.uid,
         user.displayName || user.email || 'Anonymous'
       );
-      toast.success('Comment added');
       
       // Mark replies as read after user takes action
       await markRepliesAsReadForShape(openCommentPanelShapeId);
@@ -87,7 +85,6 @@ export function useCommentPanel(props: UseCommentPanelProps) {
         user.displayName || user.email || 'Anonymous',
         text
       );
-      toast.success('Reply added');
       
       // Mark replies as read after user takes action
       await markRepliesAsReadForShape(openCommentPanelShapeId);
@@ -102,7 +99,6 @@ export function useCommentPanel(props: UseCommentPanelProps) {
     
     try {
       await resolveComment(commentId);
-      toast.success('Comment resolved');
     } catch (error) {
       console.error('Error resolving comment:', error);
       throw error;
@@ -114,7 +110,6 @@ export function useCommentPanel(props: UseCommentPanelProps) {
     
     try {
       await deleteComment(commentId, user.uid);
-      toast.success('Comment deleted');
     } catch (error) {
       console.error('Error deleting comment:', error);
       throw error;
@@ -126,7 +121,6 @@ export function useCommentPanel(props: UseCommentPanelProps) {
     
     try {
       await deleteReply(commentId, replyIndex, user.uid);
-      toast.success('Reply deleted');
     } catch (error) {
       console.error('Error deleting reply:', error);
       throw error;

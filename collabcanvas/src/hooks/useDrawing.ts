@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import toast from 'react-hot-toast';
 import { 
   CANVAS_WIDTH, 
   CANVAS_HEIGHT, 
@@ -26,6 +25,7 @@ interface UseDrawingProps {
   setMarqueeStart: (pos: { x: number; y: number } | null) => void;
   setMarqueeEnd: (pos: { x: number; y: number } | null) => void;
   setIsMarqueeActive: (active: boolean) => void;
+  showError: (message: string) => void;
 }
 
 export function useDrawing(props: UseDrawingProps) {
@@ -46,6 +46,7 @@ export function useDrawing(props: UseDrawingProps) {
     setMarqueeStart,
     setMarqueeEnd,
     setIsMarqueeActive,
+    showError,
   } = props;
 
   const [isDrawing, setIsDrawing] = useState(false);
@@ -89,7 +90,7 @@ export function useDrawing(props: UseDrawingProps) {
         enterEdit(newTextId);
       }).catch((error) => {
         console.error('❌ Failed to create text:', error);
-        toast.error('Failed to create text');
+        showError('Failed to create text');
       });
       return;
     }
@@ -195,7 +196,7 @@ export function useDrawing(props: UseDrawingProps) {
         });
       } catch (error) {
         console.error('❌ Failed to create path:', error);
-        toast.error('Failed to create path');
+        showError('Failed to create path');
       }
 
       // Clear pencil drawing state
@@ -217,7 +218,7 @@ export function useDrawing(props: UseDrawingProps) {
     // Handle rectangle creation
     if (activeTool === 'rectangle' && previewRect) {
       if (previewRect.width < MIN_SHAPE_SIZE || previewRect.height < MIN_SHAPE_SIZE) {
-        toast.error(`Minimum rectangle size is ${MIN_SHAPE_SIZE}×${MIN_SHAPE_SIZE} pixels`);
+        showError(`Minimum rectangle size is ${MIN_SHAPE_SIZE}×${MIN_SHAPE_SIZE} pixels`);
         setIsDrawing(false);
         setDrawStart(null);
         setPreviewRect(null);
@@ -241,13 +242,13 @@ export function useDrawing(props: UseDrawingProps) {
         });
       } catch (error) {
         console.error('❌ Failed to create rectangle:', error);
-        toast.error('Failed to create rectangle');
+        showError('Failed to create rectangle');
       }
     }
     // Handle circle creation
     else if (activeTool === 'circle' && previewCircle) {
       if (previewCircle.radius < MIN_CIRCLE_RADIUS) {
-        toast.error(`Minimum circle radius is ${MIN_CIRCLE_RADIUS} pixels`);
+        showError(`Minimum circle radius is ${MIN_CIRCLE_RADIUS} pixels`);
         setIsDrawing(false);
         setDrawStart(null);
         setPreviewCircle(null);
@@ -267,13 +268,13 @@ export function useDrawing(props: UseDrawingProps) {
         });
       } catch (error) {
         console.error('❌ Failed to create circle:', error);
-        toast.error('Failed to create circle');
+        showError('Failed to create circle');
       }
     }
     // Handle triangle creation
     else if (activeTool === 'triangle' && previewTriangle) {
       if (previewTriangle.width < MIN_TRIANGLE_WIDTH || previewTriangle.height < MIN_TRIANGLE_HEIGHT) {
-        toast.error(`Minimum triangle size is ${MIN_TRIANGLE_WIDTH}×${MIN_TRIANGLE_HEIGHT} pixels`);
+        showError(`Minimum triangle size is ${MIN_TRIANGLE_WIDTH}×${MIN_TRIANGLE_HEIGHT} pixels`);
         setIsDrawing(false);
         setDrawStart(null);
         setPreviewTriangle(null);
@@ -303,7 +304,7 @@ export function useDrawing(props: UseDrawingProps) {
         });
       } catch (error) {
         console.error('❌ Failed to create triangle:', error);
-        toast.error('Failed to create triangle');
+        showError('Failed to create triangle');
       }
     }
 

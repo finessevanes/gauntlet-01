@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import type Konva from 'konva';
 import type { ShapeData } from '../services/canvasService';
-import toast from 'react-hot-toast';
 import {
   MIN_SHAPE_WIDTH,
   MIN_SHAPE_HEIGHT,
@@ -20,6 +19,7 @@ interface UseShapeResizeParams {
   resizeCircle: (id: string, radius: number) => Promise<void>;
   updateShape: (id: string, updates: Partial<ShapeData>) => Promise<void>;
   unlockShape: (id: string) => Promise<void>;
+  showError: (message: string) => void;
 }
 
 interface UseShapeResizeReturn {
@@ -46,6 +46,7 @@ export function useShapeResize({
   resizeCircle,
   updateShape,
   unlockShape,
+  showError,
 }: UseShapeResizeParams): UseShapeResizeReturn {
   // Resize state management
   const [isResizing, setIsResizing] = useState(false);
@@ -571,10 +572,7 @@ export function useShapeResize({
     if (shape.type === 'circle') {
       const newRadius = previewDimensions.width / 2;
       if (newRadius < MIN_CIRCLE_RADIUS) {
-        toast.error(`Minimum circle radius is ${MIN_CIRCLE_RADIUS} pixels`, {
-          duration: 2000,
-          position: 'top-center',
-        });
+        showError(`Minimum circle radius is ${MIN_CIRCLE_RADIUS} pixels`);
         setIsResizing(false);
         setActiveHandle(null);
         setResizeStart(null);
@@ -583,10 +581,7 @@ export function useShapeResize({
         return;
       }
     } else if (previewDimensions.width < MIN_SHAPE_WIDTH || previewDimensions.height < MIN_SHAPE_HEIGHT) {
-      toast.error(`Minimum size is ${MIN_SHAPE_WIDTH}×${MIN_SHAPE_HEIGHT} pixels`, {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError(`Minimum size is ${MIN_SHAPE_WIDTH}×${MIN_SHAPE_HEIGHT} pixels`);
       setIsResizing(false);
       setActiveHandle(null);
       setResizeStart(null);
@@ -703,7 +698,7 @@ export function useShapeResize({
       console.log('✅ Circle resize persized to Firestore with real-time sync');
     } catch (error) {
       console.error('❌ Failed to resize shape:', error);
-      toast.error('Failed to resize shape');
+      showError('Failed to resize shape');
       // Clear preview on error
       setPreviewDimensions(null);
       // On error, unlock the shape

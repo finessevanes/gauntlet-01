@@ -1,4 +1,3 @@
-import toast from 'react-hot-toast';
 import type Konva from 'konva';
 import type { ShapeData } from '../services/canvasService';
 import { selectionService } from '../services/selectionService';
@@ -18,6 +17,7 @@ interface UseShapeInteractionProps {
   lockShape: (shapeId: string, userId: string) => Promise<{ success: boolean; lockedByUsername?: string }>;
   unlockShape: (shapeId: string) => Promise<void>;
   updateShape: (shapeId: string, updates: Partial<ShapeData>) => Promise<void>;
+  showError: (message: string) => void;
 }
 
 export function useShapeInteraction(props: UseShapeInteractionProps) {
@@ -33,6 +33,7 @@ export function useShapeInteraction(props: UseShapeInteractionProps) {
     lockShape,
     unlockShape,
     updateShape,
+    showError,
   } = props;
 
   // Helper: Deselect shape and unlock
@@ -61,10 +62,7 @@ export function useShapeInteraction(props: UseShapeInteractionProps) {
     
     if (selectionLockStatus.locked) {
       // Shape is selected by another user - prevent interaction
-      toast.error(`Shape selected by ${selectionLockStatus.username}`, {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError(`Shape selected by ${selectionLockStatus.username}`);
       return;
     }
 
@@ -159,10 +157,7 @@ export function useShapeInteraction(props: UseShapeInteractionProps) {
       setSelectedShapeId(null);
       
       const username = result.lockedByUsername || 'another user';
-      toast.error(`Shape locked by ${username}`, {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError(`Shape locked by ${username}`);
     }
   };
 

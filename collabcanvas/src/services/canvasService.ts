@@ -4,6 +4,7 @@ import { zIndexService } from './zIndexService';
 import { groupService } from './groupService';
 import { alignmentService } from './alignmentService';
 import { commentService } from './commentService';
+import type { Path, CreatePathInput } from './types/canvasTypes';
 
 // Re-export types
 export type {
@@ -13,6 +14,8 @@ export type {
   CommentReply,
   ShapeCreateInput,
   ShapeUpdateInput,
+  Path,
+  CreatePathInput,
 } from './types/canvasTypes';
 
 /**
@@ -94,6 +97,22 @@ class CanvasService {
 
   async getShapes(canvasId: string) {
     return shapeService.getShapes(canvasId);
+  }
+
+  // ============================================
+  // Path Operations (delegates to shapeService)
+  // ============================================
+
+  async createPath(canvasId: string, pathInput: CreatePathInput, userId: string) {
+    return shapeService.createPath(canvasId, pathInput, userId);
+  }
+
+  async updatePath(canvasId: string, pathId: string, updates: Partial<Path>) {
+    return shapeService.updatePath(canvasId, pathId, updates);
+  }
+
+  subscribeToPaths(canvasId: string, callback: (paths: Path[]) => void): Unsubscribe {
+    return shapeService.subscribeToPaths(canvasId, callback);
   }
 
   // ============================================

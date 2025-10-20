@@ -10,13 +10,14 @@ import {
 } from '../utils/constants';
 
 interface UseDrawingProps {
-  activeTool: 'select' | 'rectangle' | 'circle' | 'triangle' | 'text' | 'pan' | 'bomb';
+  activeTool: 'select' | 'rectangle' | 'circle' | 'triangle' | 'text' | 'pencil' | 'pan' | 'bomb';
   selectedColor: string;
   user: { uid: string } | null;
   createShape: (data: any) => Promise<string>;
   createCircle: (data: { x: number; y: number; radius: number; color: string; createdBy: string }) => Promise<string>;
   createTriangle: (data: any) => Promise<string>;
   createText: (data: any) => Promise<string>;
+  createPath: (data: { points: { x: number; y: number }[]; strokeWidth: number; color: string; createdBy: string }) => Promise<string>;
   enterEdit: (shapeId: string) => void;
   handleBombClick: (x: number, y: number) => void;
   handleDeselectShape: () => Promise<void>;
@@ -36,6 +37,7 @@ export function useDrawing(props: UseDrawingProps) {
     createCircle,
     createTriangle,
     createText,
+    createPath,
     enterEdit,
     handleBombClick,
     handleDeselectShape,
@@ -65,6 +67,9 @@ export function useDrawing(props: UseDrawingProps) {
     width: number;
     height: number;
   } | null>(null);
+  const [isPencilDrawing, setIsPencilDrawing] = useState(false);
+  const [pencilPoints, setPencilPoints] = useState<{ x: number; y: number }[]>([]);
+  const [previewPath, setPreviewPath] = useState<{ x: number; y: number }[]>([]);
 
   const startDrawing = (x: number, y: number, isShiftHeld: boolean) => {
     // Handle bomb mode
@@ -86,6 +91,14 @@ export function useDrawing(props: UseDrawingProps) {
         console.error('❌ Failed to create text:', error);
         toast.error('Failed to create text');
       });
+      return;
+    }
+
+    // Handle pencil tool
+    if (activeTool === 'pencil' && user) {
+      setIsPencilDrawing(true);
+      setPencilPoints([{ x, y }]);
+      setPreviewPath([{ x, y }]);
       return;
     }
 
@@ -125,6 +138,14 @@ export function useDrawing(props: UseDrawingProps) {
   };
 
   const updateDrawing = (currentX: number, currentY: number) => {
+    // Handle pencil drawing
+    if (activeTool === 'pencil' && isPencilDrawing) {
+      const newPoint = { x: currentX, y: currentY };
+      setPencilPoints(prev => [...prev, newPoint]);
+      setPreviewPath(prev => [...prev, newPoint]);
+      return;
+    }
+
     if (!isDrawing || !drawStart) return;
 
     // Calculate preview based on active tool
@@ -155,6 +176,35 @@ export function useDrawing(props: UseDrawingProps) {
   };
 
   const finishDrawing = async () => {
+    // Handle pencil drawing finish
+    if (activeTool === 'pencil' && isPencilDrawing && user) {
+      if (pencilPoints.length < 2) {
+        // Don't create path with less than 2 points
+        setIsPencilDrawing(false);
+        setPencilPoints([]);
+        setPreviewPath([]);
+        return;
+      }
+
+      try {
+        await createPath({
+          points: pencilPoints,
+          strokeWidth: 2, // Default stroke width
+          color: selectedColor,
+          createdBy: user.uid,
+        });
+      } catch (error) {
+        console.error('❌ Failed to create path:', error);
+        toast.error('Failed to create path');
+      }
+
+      // Clear pencil drawing state
+      setIsPencilDrawing(false);
+      setPencilPoints([]);
+      setPreviewPath([]);
+      return;
+    }
+
     if (!isDrawing || !user) {
       setIsDrawing(false);
       setDrawStart(null);
@@ -271,6 +321,9 @@ export function useDrawing(props: UseDrawingProps) {
     setPreviewRect(null);
     setPreviewCircle(null);
     setPreviewTriangle(null);
+    setIsPencilDrawing(false);
+    setPencilPoints([]);
+    setPreviewPath([]);
   };
 
   return {
@@ -278,6 +331,9 @@ export function useDrawing(props: UseDrawingProps) {
     previewRect,
     previewCircle,
     previewTriangle,
+    isPencilDrawing,
+    pencilPoints,
+    previewPath,
     startDrawing,
     updateDrawing,
     finishDrawing,

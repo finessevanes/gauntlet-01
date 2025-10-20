@@ -8,7 +8,7 @@ import type { UserSelection } from '../services/selectionService';
 import { useAuth } from '../hooks/useAuth';
 import type { Unsubscribe } from 'firebase/firestore';
 
-export type ToolType = 'select' | 'pan' | 'rectangle' | 'circle' | 'triangle' | 'text' | 'bomb';
+export type ToolType = 'select' | 'pan' | 'rectangle' | 'circle' | 'triangle' | 'text' | 'pencil' | 'bomb';
 
 export interface TextFormattingDefaults {
   fontSize: number;
@@ -70,6 +70,7 @@ interface CanvasContextType {
   createCircle: (circleData: { x: number; y: number; radius: number; color: string; createdBy: string }) => Promise<string>;
   createTriangle: (triangleData: { x: number; y: number; width: number; height: number; color: string; createdBy: string }) => Promise<string>;
   createText: (textData: { x: number; y: number; color: string; createdBy: string }) => Promise<string>;
+  createPath: (pathData: { points: { x: number; y: number }[]; strokeWidth: number; color: string; createdBy: string }) => Promise<string>;
   updateShape: (shapeId: string, updates: Partial<ShapeData>) => Promise<void>;
   batchUpdateShapes: (updates: Array<{ shapeId: string; updates: Partial<ShapeData> }>) => Promise<void>;
   resizeShape: (shapeId: string, width: number, height: number) => Promise<void>;
@@ -274,6 +275,15 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
       textDecoration: textFormattingDefaults.textDecoration,
     });
   }, [currentCanvasId, textFormattingDefaults]);
+
+  const createPath = useCallback(async (pathData: { points: { x: number; y: number }[]; strokeWidth: number; color: string; createdBy: string }): Promise<string> => {
+    if (!currentCanvasId) throw new Error('No canvas selected');
+    return await canvasService.createPath(currentCanvasId, {
+      points: pathData.points,
+      strokeWidth: pathData.strokeWidth,
+      color: pathData.color,
+    }, pathData.createdBy);
+  }, [currentCanvasId]);
 
   const updateShape = useCallback(async (shapeId: string, updates: Partial<ShapeData>): Promise<void> => {
     if (!currentCanvasId) throw new Error('No canvas selected');
@@ -497,6 +507,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     createCircle,
     createTriangle,
     createText,
+    createPath,
     updateShape,
     batchUpdateShapes,
     resizeShape,
@@ -554,6 +565,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     createCircle,
     createTriangle,
     createText,
+    createPath,
     updateShape,
     batchUpdateShapes,
     resizeShape,

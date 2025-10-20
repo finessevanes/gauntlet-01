@@ -97,6 +97,12 @@ export default function CanvasShape({
     currentX = isBeingResized && previewDimensions ? previewDimensions.x : shape.x;
     currentY = isBeingResized && previewDimensions ? previewDimensions.y : shape.y;
     currentRadius = isBeingResized && previewDimensions ? previewDimensions.width / 2 : shape.radius;
+  } else if (shape.type === 'path') {
+    // Path shapes use their bounding box
+    currentX = shape.x;
+    currentY = shape.y;
+    currentWidth = shape.width;
+    currentHeight = shape.height;
   } else if (shape.type === 'text') {
     // Use actual HTML dimensions when available (most accurate)
     // Fall back to calculated dimensions when not in edit mode
@@ -139,6 +145,19 @@ export default function CanvasShape({
     groupY = currentY;
     offsetX = 0;
     offsetY = 0;
+  } else if (shape.type === 'path') {
+    // Path shapes use their bounding box center
+    if (currentWidth !== undefined && currentHeight !== undefined) {
+      groupX = currentX + currentWidth / 2;
+      groupY = currentY + currentHeight / 2;
+      offsetX = currentWidth / 2;
+      offsetY = currentHeight / 2;
+    } else {
+      groupX = currentX;
+      groupY = currentY;
+      offsetX = 0;
+      offsetY = 0;
+    }
   } else if (currentWidth !== undefined && currentHeight !== undefined) {
     groupX = currentX + currentWidth / 2;
     groupY = currentY + currentHeight / 2;
@@ -224,6 +243,27 @@ export default function CanvasShape({
           opacity={isLockedByOther ? 0.5 : 1}
           stroke={isMultiSelected ? '#60a5fa' : isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
           strokeWidth={isMultiSelected ? 4 : isLockedByMe || isLockedByOther ? 3 : 1}
+          shadowColor={isMultiSelected ? '#60a5fa' : undefined}
+          shadowBlur={isMultiSelected ? 10 : 0}
+          shadowOpacity={isMultiSelected ? 0.6 : 0}
+          onMouseEnter={() => {
+            if (activeTool === 'select' && !isLockedByOther) {
+              document.body.style.cursor = 'move';
+            }
+          }}
+          onMouseLeave={() => {
+            document.body.style.cursor = '';
+          }}
+        />
+      )}
+      {shape.type === 'path' && shape.points && shape.points.length > 1 && (
+        <Line
+          points={shape.points.flatMap(point => [point.x - currentX, point.y - currentY])}
+          stroke={shape.color}
+          strokeWidth={shape.strokeWidth || 2}
+          opacity={isLockedByOther ? 0.5 : 1}
+          lineCap="round"
+          lineJoin="round"
           shadowColor={isMultiSelected ? '#60a5fa' : undefined}
           shadowBlur={isMultiSelected ? 10 : 0}
           shadowOpacity={isMultiSelected ? 0.6 : 0}

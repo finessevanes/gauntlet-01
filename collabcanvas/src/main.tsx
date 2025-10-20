@@ -28,12 +28,12 @@ if (typeof window !== 'undefined') {
   };
   
   // Helper function for quick AI testing
-  (window as any).testAI = async (command: string) => {
+  (window as any).testAI = async (command: string, canvasId: string = 'test-canvas') => {
     const userId = (window as any).getCurrentUserId();
     if (!userId) return;
     
     const ai = new AIService();
-    const result = await ai.executeCommand(command, userId);
+    const result = await ai.executeCommand(command, userId, canvasId);
     console.log(result.message);
     
     // Show toast notification based on result

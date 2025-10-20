@@ -19,7 +19,7 @@ export class AIService {
     });
   }
   
-  async executeCommand(prompt: string, userId: string): Promise<CommandResult> {
+  async executeCommand(prompt: string, userId: string, canvasId: string): Promise<CommandResult> {
     try {
       // 1. Build conversation messages (don't pass shapes - let AI call getCanvasState for fresh data)
       const messages: any[] = [
@@ -52,7 +52,7 @@ export class AIService {
           messages.push(message);
           
           // Execute all tool calls
-          const results = await this.executeToolCalls(message.tool_calls, userId);
+          const results = await this.executeToolCalls(message.tool_calls, userId, canvasId);
           allResults.push(...results);
           
           // Add tool results to conversation for next iteration
@@ -120,14 +120,14 @@ export class AIService {
     }
   }
   
-  private async executeToolCalls(toolCalls: any[], userId: string) {
+  private async executeToolCalls(toolCalls: any[], userId: string, canvasId: string) {
     const results = [];
     console.log(`🤖 AI making ${toolCalls.length} tool call(s):`, toolCalls.map(c => c.function.name));
     
     for (const call of toolCalls) {
       try {
         console.log(`🔧 Executing: ${call.function.name}`, JSON.parse(call.function.arguments));
-        const result = await this.executeSingleTool(call, userId);
+        const result = await this.executeSingleTool(call, userId, canvasId);
         console.log(`✅ ${call.function.name} succeeded:`, result);
         results.push({
           tool: call.function.name,
@@ -154,14 +154,14 @@ export class AIService {
     }
   }
 
-  private async executeSingleTool(call: any, userId: string) {
+  private async executeSingleTool(call: any, userId: string, canvasId: string) {
     const { name, arguments: argsStr } = call.function;
     const args = JSON.parse(argsStr);
     
     switch (name) {
       case 'createRectangle':
         this.validatePosition(args.x, args.y, 'rectangle');
-        return await canvasService.createShape({
+        return await canvasService.createShape(canvasId, {
           type: 'rectangle',
           x: args.x,
           y: args.y,
@@ -174,7 +174,7 @@ export class AIService {
         
       case 'createCircle':
         this.validatePosition(args.x, args.y, 'circle');
-        return await canvasService.createCircle({
+        return await canvasService.createCircle(canvasId, {
           x: args.x,
           y: args.y,
           radius: args.radius,
@@ -184,7 +184,7 @@ export class AIService {
         
       case 'createTriangle':
         this.validatePosition(args.x, args.y, 'triangle');
-        return await canvasService.createTriangle({
+        return await canvasService.createTriangle(canvasId, {
           x: args.x,
           y: args.y,
           width: args.width,
@@ -195,7 +195,7 @@ export class AIService {
         
       case 'createText':
         this.validatePosition(args.x, args.y, 'text');
-        return await canvasService.createText({
+        return await canvasService.createText(canvasId, {
           x: args.x,
           y: args.y,
           color: args.color,
@@ -209,7 +209,7 @@ export class AIService {
       
       // MANIPULATION TOOLS
       case 'moveShape':
-        return await canvasService.updateShape(args.shapeId, {
+        return await canvasService.updateShape(canvasId, args.shapeId, {
           x: args.x,
           y: args.y
         });
@@ -217,10 +217,11 @@ export class AIService {
       case 'resizeShape':
         if (args.radius !== undefined) {
           // Circle resize
-          return await canvasService.resizeCircle(args.shapeId, args.radius);
+          return await canvasService.resizeCircle(canvasId, args.shapeId, args.radius);
         } else {
           // Rectangle/Triangle resize
           return await canvasService.resizeShape(
+            canvasId,
             args.shapeId,
             args.width,
             args.height
@@ -229,19 +230,20 @@ export class AIService {
         
       case 'rotateShape':
         return await canvasService.rotateShape(
+          canvasId,
           args.shapeId,
           args.rotation
         );
         
       case 'duplicateShape':
-        return await canvasService.duplicateShape(args.shapeId, userId);
+        return await canvasService.duplicateShape(canvasId, args.shapeId, userId);
         
       case 'deleteShape':
-        return await canvasService.deleteShape(args.shapeId);
+        return await canvasService.deleteShape(canvasId, args.shapeId);
         
       case 'getCanvasState':
         // Get shapes and sort by last interaction (updatedAt desc)
-        const shapes = await canvasService.getShapes();
+        const shapes = await canvasService.getShapes(canvasId);
         return shapes.sort((a, b) => {
           const timeA = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : (a.createdAt?.toMillis ? a.createdAt.toMillis() : 0);
           const timeB = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : (b.createdAt?.toMillis ? b.createdAt.toMillis() : 0);

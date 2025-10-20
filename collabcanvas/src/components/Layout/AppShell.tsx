@@ -153,7 +153,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
       
       // Call AI service with timeout
       const result = await Promise.race([
-        aiServiceRef.current!.executeCommand(trimmedContent, user.uid),
+        aiServiceRef.current!.executeCommand(trimmedContent, user.uid, currentCanvasId),
         timeoutPromise
       ]);
       

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useCanvasList } from '../../hooks/useCanvasList';
 import { CanvasCard } from './CanvasCard';
 import { CanvasEmptyState } from './CanvasEmptyState';

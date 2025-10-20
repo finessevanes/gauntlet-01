@@ -26,13 +26,6 @@ class ShapeService {
     return `canvases/${canvasId}/shapes`;
   }
 
-  /**
-   * Get canvas document path
-   */
-  private getCanvasPath(canvasId: string): string {
-    return `canvases/${canvasId}`;
-  }
-
   async createShape(canvasId: string, shapeInput: ShapeCreateInput): Promise<string> {
     const startTime = Date.now();
     

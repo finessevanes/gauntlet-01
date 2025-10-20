@@ -7,6 +7,7 @@ import AppShell from './components/Layout/AppShell';
 import Canvas from './components/Canvas/Canvas';
 import { CanvasGallery } from './components/CanvasGallery/CanvasGallery';
 import { CanvasProvider, useCanvasContext } from './contexts/CanvasContext';
+import { canvasListService } from './services/canvasListService';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 
@@ -55,6 +56,23 @@ function AppContent() {
       window.removeEventListener('popstate', handlePopState);
     };
   }, [setCurrentCanvasId]);
+
+  // Fetch canvas name and update document title
+  useEffect(() => {
+    if (currentView === 'canvas' && urlCanvasId) {
+      canvasListService.getCanvasById(urlCanvasId).then((metadata) => {
+        if (metadata) {
+          document.title = `CollabCanvas - ${metadata.name}`;
+        } else {
+          document.title = 'CollabCanvas';
+        }
+      });
+    } else if (currentView === 'gallery') {
+      document.title = 'CollabCanvas - Gallery';
+    } else {
+      document.title = 'CollabCanvas';
+    }
+  }, [currentView, urlCanvasId]);
 
   // Navigate to canvas
   const navigateToCanvas = (canvasId: string) => {

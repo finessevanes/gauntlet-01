@@ -1,18 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { CanvasMetadata } from '../../services/types/canvasTypes';
 import { formatRelativeTime } from '../../utils/formatRelativeTime';
+import { RenameCanvasInline } from './RenameCanvasInline';
 import './CanvasGallery.css';
 
 interface CanvasCardProps {
   canvas: CanvasMetadata;
   onClick: (canvasId: string) => void;
   isLoading?: boolean;
+  onRename?: (canvasId: string, newName: string) => Promise<void>;
 }
 
 /**
  * Canvas card component showing metadata for a single canvas
  */
-export function CanvasCard({ canvas, onClick, isLoading = false }: CanvasCardProps) {
+export function CanvasCard({ canvas, onClick, isLoading = false, onRename }: CanvasCardProps) {
+  const [isRenaming, setIsRenaming] = useState(false);
   const collaboratorText = canvas.collaboratorIds.length === 1
     ? 'Just you'
     : `${canvas.collaboratorIds.length} collaborators`;
@@ -22,15 +25,31 @@ export function CanvasCard({ canvas, onClick, isLoading = false }: CanvasCardPro
     : `${canvas.shapeCount} shapes`;
 
   const handleClick = () => {
-    if (!isLoading) {
+    if (!isLoading && !isRenaming) {
       onClick(canvas.id);
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !isLoading) {
+    if (e.key === 'Enter' && !isLoading && !isRenaming) {
       onClick(canvas.id);
     }
+  };
+
+  const handleRenameClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsRenaming(true);
+  };
+
+  const handleRenameSave = async (newName: string) => {
+    if (onRename) {
+      await onRename(canvas.id, newName);
+    }
+    setIsRenaming(false);
+  };
+
+  const handleRenameCancel = () => {
+    setIsRenaming(false);
   };
 
   return (
@@ -45,7 +64,29 @@ export function CanvasCard({ canvas, onClick, isLoading = false }: CanvasCardPro
       {isLoading && <div className="canvas-card-overlay">Loading...</div>}
       
       <div className="canvas-card-header">
-        <h3 className="canvas-card-title">🎨 {canvas.name}</h3>
+        {isRenaming ? (
+          <div onClick={(e) => e.stopPropagation()}>
+            <RenameCanvasInline
+              currentName={canvas.name}
+              onSave={handleRenameSave}
+              onCancel={handleRenameCancel}
+            />
+          </div>
+        ) : (
+          <>
+            <h3 className="canvas-card-title">🎨 {canvas.name}</h3>
+            {onRename && (
+              <button
+                className="canvas-card-rename-button"
+                onClick={handleRenameClick}
+                aria-label={`Rename canvas ${canvas.name}`}
+                title="Rename canvas"
+              >
+                ✏️
+              </button>
+            )}
+          </>
+        )}
       </div>
 
       <div className="canvas-card-metadata">

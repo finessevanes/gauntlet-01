@@ -101,13 +101,12 @@
     ```
   - Test Gate: No TypeScript errors when importing type
 
-- [ ] **Define ShareModalProps interface**
+- [x] **Define ShareModalProps interface** ✅
   - Location: Component file or shared types
   - Fields:
     ```typescript
     interface ShareModalProps {
       canvasId: string;
-      canvasName: string;
       isOpen: boolean;
       onClose: () => void;
     }

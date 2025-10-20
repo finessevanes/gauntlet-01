@@ -3,7 +3,6 @@ import ShareModal from './ShareModal';
 
 interface ShareButtonProps {
   canvasId: string;
-  canvasName: string;
   isOwner: boolean;
 }
 
@@ -11,7 +10,7 @@ interface ShareButtonProps {
  * ShareButton - Button to open share modal (90s/00s style)
  * Only visible to canvas owners
  */
-export default function ShareButton({ canvasId, canvasName, isOwner }: ShareButtonProps) {
+export default function ShareButton({ canvasId, isOwner }: ShareButtonProps) {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   // Don't render if user is not the owner
@@ -40,7 +39,6 @@ export default function ShareButton({ canvasId, canvasName, isOwner }: ShareButt
       {isShareModalOpen && (
         <ShareModal
           canvasId={canvasId}
-          canvasName={canvasName}
           isOpen={isShareModalOpen}
           onClose={() => setIsShareModalOpen(false)}
         />

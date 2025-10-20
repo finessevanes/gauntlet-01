@@ -101,7 +101,6 @@ export default function Navbar() {
           {canvasMetadata && userProfile && (
             <ShareButton
               canvasId={currentCanvasId || ''}
-              canvasName={canvasMetadata.name}
               isOwner={canvasMetadata.ownerId === userProfile.uid}
             />
           )}

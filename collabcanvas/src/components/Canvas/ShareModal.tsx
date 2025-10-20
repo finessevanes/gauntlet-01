@@ -6,7 +6,6 @@ import '../CanvasGallery/CanvasGallery.css';
 
 export interface ShareModalProps {
   canvasId: string;
-  canvasName: string;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -15,13 +14,12 @@ export interface ShareModalProps {
  * ShareModal - Modal for canvas sharing (90s/00s Windows style)
  * Displays shareable link, copy button, warning, and collaborators list
  */
-export default function ShareModal({ canvasId, canvasName, isOpen, onClose }: ShareModalProps) {
+export default function ShareModal({ canvasId, isOpen, onClose }: ShareModalProps) {
   const {
     shareableLink,
     copyLinkToClipboard,
     collaborators,
     loadingCollaborators,
-    refreshCollaborators,
   } = useShareCanvas(canvasId);
 
   const [copyButtonText, setCopyButtonText] = useState('Copy Link');

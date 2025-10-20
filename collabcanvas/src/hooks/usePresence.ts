@@ -1,122 +1,136 @@
 import { useState, useEffect, useRef } from 'react';
 import { presenceService, type PresenceMap } from '../services/presenceService';
 import { useAuth } from './useAuth';
+import { useCanvasContext } from '../contexts/CanvasContext';
 
 export function usePresence() {
   const { user, userProfile } = useAuth();
+  const { currentCanvasId } = useCanvasContext();
   const [presence, setPresence] = useState<PresenceMap>({});
   const isActiveRef = useRef(true); // Track if user is actively viewing the page
 
-  // Subscribe to presence updates
+  // Subscribe to presence updates (canvas-scoped)
   useEffect(() => {
-    if (!user) {
+    if (!user || !currentCanvasId) {
+      setPresence({});
       return;
     }
 
-    const unsubscribe = presenceService.subscribeToPresence((updatedPresence) => {
+    const unsubscribe = presenceService.subscribeToPresence(currentCanvasId, (updatedPresence) => {
       setPresence(updatedPresence);
     });
 
     return () => {
       unsubscribe();
     };
-  }, [user]);
+  }, [user, currentCanvasId]);
 
   // Set up presence and disconnect handler when user logs in
   // AND track page visibility/focus to show online only when actively viewing
   useEffect(() => {
-    if (!user || !userProfile) {
+    if (!user || !userProfile || !currentCanvasId) {
       return;
     }
 
     let hasSetupDisconnect = false;
+    let isMounted = true;
 
-    // Function to mark user as online
+    // Function to mark user as online (called on first mount)
     const markOnline = async () => {
+      if (!isMounted) return;
+      
       try {
-        console.log('✅ [Presence] User is now active - marking online');
-        await presenceService.setOnline(
-          user.uid,
-          userProfile.username,
-          userProfile.cursorColor
-        );
-
-        // Setup disconnect handler (only once)
-        if (!hasSetupDisconnect) {
-          await presenceService.setupDisconnectHandler(user.uid);
+        // CRITICAL: Setup disconnect handler FIRST, before marking online
+        // This ensures we have proper cleanup even if the user's connection drops
+        // immediately after logging in
+        if (!hasSetupDisconnect && isMounted) {
+          await presenceService.setupDisconnectHandler(currentCanvasId, user.uid);
           hasSetupDisconnect = true;
         }
+
+        // Now mark user as online
+        const isVisible = document.visibilityState === 'visible';
+        await presenceService.setOnline(
+          currentCanvasId,
+          user.uid,
+          userProfile.username,
+          userProfile.cursorColor,
+          isVisible  // active = true if visible, false if hidden
+        );
       } catch (error) {
         console.error('❌ [usePresence] Failed to mark online:', error);
       }
     };
 
-    // Function to mark user as offline
-    const markOffline = async () => {
+    // Function to mark user as active (tab visible)
+    const markActive = async () => {
+      if (!isMounted) return;
+      
       try {
-        console.log('👋 [Presence] User is now inactive - marking offline');
-        await presenceService.setOffline(user.uid);
+        await presenceService.setActive(currentCanvasId, user.uid);
       } catch (error) {
-        console.error('❌ [usePresence] Failed to mark offline:', error);
+        console.error('❌ [usePresence] Failed to mark active:', error);
       }
     };
 
-    // Check if user is currently active (page visible AND window focused)
-    const checkIsActive = () => {
-      const isVisible = document.visibilityState === 'visible';
-      const isFocused = document.hasFocus();
-      return isVisible && isFocused;
+    // Function to mark user as away (tab hidden)
+    const markAway = async () => {
+      if (!isMounted) return;
+      
+      try {
+        await presenceService.setAway(currentCanvasId, user.uid);
+      } catch (error) {
+        console.error('❌ [usePresence] Failed to mark away:', error);
+      }
     };
 
-    // Update presence based on active state
+    // Check if user is currently viewing the tab
+    const checkIsActive = () => {
+      return document.visibilityState === 'visible';
+    };
+
+    // Update presence based on visibility state
     const updatePresence = async () => {
       const isActive = checkIsActive();
       
+      // Only update if state actually changes
       if (isActive !== isActiveRef.current) {
         isActiveRef.current = isActive;
         
         if (isActive) {
-          await markOnline();
+          await markActive();
         } else {
-          await markOffline();
+          await markAway();
         }
       }
     };
 
-    // Event handlers for visibility and focus changes
+    // Event handler for visibility changes
     const handleVisibilityChange = () => {
       updatePresence();
     };
 
-    const handleFocus = () => {
-      updatePresence();
-    };
+    // Mark user as online (with active state based on tab visibility)
+    markOnline();
+    
+    // Set initial active ref state
+    isActiveRef.current = checkIsActive();
 
-    const handleBlur = () => {
-      updatePresence();
-    };
-
-    // Set initial presence state
-    updatePresence();
-
-    // Listen for visibility and focus changes
+    // Listen for visibility changes only (not focus)
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('blur', handleBlur);
 
-    // Cleanup on unmount or logout
+    // Cleanup on unmount or canvas change
     return () => {
+      isMounted = false;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('blur', handleBlur);
       
-      if (user) {
-        presenceService.setOffline(user.uid).catch((error) => {
-          console.error('❌ [usePresence] Failed to set offline:', error);
-        });
+      // Mark user as offline when leaving canvas or unmounting
+      if (currentCanvasId && user) {
+        presenceService.setOffline(currentCanvasId, user.uid).catch(console.error);
+        presenceService.cancelDisconnectHandler(currentCanvasId, user.uid).catch(console.error);
       }
     };
-  }, [user, userProfile]);
+  }, [user, userProfile, currentCanvasId]);
 
   // Get list of online users (including self)
   const onlineUsers = Object.entries(presence)
@@ -135,4 +149,3 @@ export function usePresence() {
     onlineCount,
   };
 }
-

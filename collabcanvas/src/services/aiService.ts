@@ -1,12 +1,20 @@
 import OpenAI from 'openai';
 import { canvasService } from './canvasService';
+import { groupService } from './groupService';
 import { getSystemPrompt } from '../utils/aiPrompts';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../utils/constants';
+import { generateCreativeDrawing } from '../utils/creativeDrawing';
 
 interface CommandResult {
   success: boolean;
   message: string;
   toolCalls: any[];
+}
+
+interface ViewportInfo {
+  centerX: number;
+  centerY: number;
+  scale: number;
 }
 
 export class AIService {
@@ -19,11 +27,17 @@ export class AIService {
     });
   }
   
-  async executeCommand(prompt: string, userId: string): Promise<CommandResult> {
+  async executeCommand(
+    prompt: string, 
+    userId: string, 
+    canvasId: string, 
+    viewport?: ViewportInfo,
+    onToolsExecuted?: () => void
+  ): Promise<CommandResult> {
     try {
       // 1. Build conversation messages (don't pass shapes - let AI call getCanvasState for fresh data)
       const messages: any[] = [
-        { role: "system", content: getSystemPrompt([]) }, // Empty array - AI will call getCanvasState
+        { role: "system", content: getSystemPrompt([], viewport) }, // Empty array - AI will call getCanvasState
         { role: "user", content: prompt }
       ];
       
@@ -52,8 +66,16 @@ export class AIService {
           messages.push(message);
           
           // Execute all tool calls
-          const results = await this.executeToolCalls(message.tool_calls, userId);
+          const results = await this.executeToolCalls(message.tool_calls, userId, canvasId);
           allResults.push(...results);
+          
+          // Call the callback to clear loading state - shapes are now visible!
+          if (onToolsExecuted && allResults.some(r => 
+            r.success && ['createRectangle', 'createCircle', 'createTriangle', 'createText', 'drawCreative'].includes(r.tool)
+          )) {
+            console.log(`🚀 Shapes created - calling onToolsExecuted callback to clear "thinking..." state`);
+            onToolsExecuted();
+          }
           
           // Add tool results to conversation for next iteration
           for (let i = 0; i < message.tool_calls.length; i++) {
@@ -85,10 +107,36 @@ export class AIService {
         } else {
           // No more tool calls - we have a final response
           if (allResults.length > 0) {
-            // We executed tools, return success
+            // Check if multiple shapes were created - auto-group them
+            const createdShapes = allResults.filter(r => 
+              r.success && r.result && ['createRectangle', 'createCircle', 'createTriangle', 'createText', 'drawCreative'].includes(r.tool)
+            );
+            
+            // Generate success message immediately
+            const messageGenStartTime = performance.now();
+            const successMessage = this.generateSuccessMessage(allResults);
+            const messageGenEndTime = performance.now();
+            console.log(`📝 Success message generated in ${(messageGenEndTime - messageGenStartTime).toFixed(2)}ms: "${successMessage}"`);
+            console.log(`✅ AI Service returning result - shapes are visible on canvas NOW`);
+            
+            // Group shapes in background (don't block the UI update)
+            if (createdShapes.length > 1) {
+              const shapeIds = createdShapes.map(r => r.result);
+              const groupStartTime = performance.now();
+              console.log(`🔗 Starting background grouping of ${shapeIds.length} shapes...`);
+              groupService.groupShapes(canvasId, shapeIds, userId, 'AI Drawing')
+                .then(() => {
+                  const groupEndTime = performance.now();
+                  console.log(`🔗 Background grouping completed in ${(groupEndTime - groupStartTime).toFixed(2)}ms`);
+                })
+                .catch((error) => {
+                  console.error('❌ Failed to group AI shapes:', error);
+                });
+            }
+            
             return {
               success: true,
-              message: this.generateSuccessMessage(allResults),
+              message: successMessage,
               toolCalls: allResults
             };
           } else {
@@ -103,7 +151,6 @@ export class AIService {
       }
       
       // If we hit max iterations, return what we have
-      console.warn('⚠️ Hit max iterations in function calling loop');
       return {
         success: allResults.length > 0,
         message: this.generateSuccessMessage(allResults),
@@ -120,15 +167,15 @@ export class AIService {
     }
   }
   
-  private async executeToolCalls(toolCalls: any[], userId: string) {
+  private async executeToolCalls(toolCalls: any[], userId: string, canvasId: string) {
     const results = [];
-    console.log(`🤖 AI making ${toolCalls.length} tool call(s):`, toolCalls.map(c => c.function.name));
     
     for (const call of toolCalls) {
       try {
-        console.log(`🔧 Executing: ${call.function.name}`, JSON.parse(call.function.arguments));
-        const result = await this.executeSingleTool(call, userId);
-        console.log(`✅ ${call.function.name} succeeded:`, result);
+        const toolStartTime = performance.now();
+        const result = await this.executeSingleTool(call, userId, canvasId);
+        const toolEndTime = performance.now();
+        console.log(`🔧 Tool "${call.function.name}" completed in ${(toolEndTime - toolStartTime).toFixed(2)}ms`);
         results.push({
           tool: call.function.name,
           success: true,
@@ -154,14 +201,14 @@ export class AIService {
     }
   }
 
-  private async executeSingleTool(call: any, userId: string) {
+  private async executeSingleTool(call: any, userId: string, canvasId: string) {
     const { name, arguments: argsStr } = call.function;
     const args = JSON.parse(argsStr);
     
     switch (name) {
       case 'createRectangle':
         this.validatePosition(args.x, args.y, 'rectangle');
-        return await canvasService.createShape({
+        return await canvasService.createShape(canvasId, {
           type: 'rectangle',
           x: args.x,
           y: args.y,
@@ -174,7 +221,7 @@ export class AIService {
         
       case 'createCircle':
         this.validatePosition(args.x, args.y, 'circle');
-        return await canvasService.createCircle({
+        return await canvasService.createCircle(canvasId, {
           x: args.x,
           y: args.y,
           radius: args.radius,
@@ -184,7 +231,7 @@ export class AIService {
         
       case 'createTriangle':
         this.validatePosition(args.x, args.y, 'triangle');
-        return await canvasService.createTriangle({
+        return await canvasService.createTriangle(canvasId, {
           x: args.x,
           y: args.y,
           width: args.width,
@@ -195,7 +242,7 @@ export class AIService {
         
       case 'createText':
         this.validatePosition(args.x, args.y, 'text');
-        return await canvasService.createText({
+        return await canvasService.createText(canvasId, {
           x: args.x,
           y: args.y,
           color: args.color,
@@ -207,9 +254,25 @@ export class AIService {
           textDecoration: args.textDecoration || 'none'
         });
       
+      case 'drawCreative':
+        this.validatePosition(args.x, args.y, 'drawing');
+        // Generate simple path drawing for the object
+        const points = generateCreativeDrawing(
+          args.objectName,
+          args.x,
+          args.y,
+          args.size || 100
+        );
+        
+        return await canvasService.createPath(canvasId, {
+          points,
+          strokeWidth: args.strokeWidth || 2,
+          color: args.color || '#000000'
+        }, userId);
+      
       // MANIPULATION TOOLS
       case 'moveShape':
-        return await canvasService.updateShape(args.shapeId, {
+        return await canvasService.updateShape(canvasId, args.shapeId, {
           x: args.x,
           y: args.y
         });
@@ -217,10 +280,11 @@ export class AIService {
       case 'resizeShape':
         if (args.radius !== undefined) {
           // Circle resize
-          return await canvasService.resizeCircle(args.shapeId, args.radius);
+          return await canvasService.resizeCircle(canvasId, args.shapeId, args.radius);
         } else {
           // Rectangle/Triangle resize
           return await canvasService.resizeShape(
+            canvasId,
             args.shapeId,
             args.width,
             args.height
@@ -229,19 +293,20 @@ export class AIService {
         
       case 'rotateShape':
         return await canvasService.rotateShape(
+          canvasId,
           args.shapeId,
           args.rotation
         );
         
       case 'duplicateShape':
-        return await canvasService.duplicateShape(args.shapeId, userId);
+        return await canvasService.duplicateShape(canvasId, args.shapeId, userId);
         
       case 'deleteShape':
-        return await canvasService.deleteShape(args.shapeId);
+        return await canvasService.deleteShape(canvasId, args.shapeId);
         
       case 'getCanvasState':
         // Get shapes and sort by last interaction (updatedAt desc)
-        const shapes = await canvasService.getShapes();
+        const shapes = await canvasService.getShapes(canvasId);
         return shapes.sort((a, b) => {
           const timeA = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : (a.createdAt?.toMillis ? a.createdAt.toMillis() : 0);
           const timeB = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : (b.createdAt?.toMillis ? b.createdAt.toMillis() : 0);
@@ -279,6 +344,7 @@ export class AIService {
         case 'createCircle': return '✓ Created 1 circle';
         case 'createTriangle': return '✓ Created 1 triangle';
         case 'createText': return '✓ Created 1 text element';
+        case 'drawCreative': return '✓ Drew your requested object';
         case 'moveShape': return '✓ Moved shape to new position';
         case 'resizeShape': return '✓ Resized shape';
         case 'rotateShape': return '✓ Rotated shape';
@@ -373,6 +439,25 @@ export class AIService {
               textDecoration: { type: "string", description: "Text decoration: 'none' or 'underline'" }
             },
             required: ["x", "y", "color", "text"]
+          }
+        }
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "drawCreative",
+          description: "Creates a simple, child-like drawing of common objects using pencil tool paths. Use this for creative drawing requests like 'draw a dog', 'draw a smiley face', 'draw a house', etc. Supported objects: dog, cat, face/smiley, house, tree, sun, star, flower, heart, car, stick figure. Be creative and have fun with any drawing requests!",
+          parameters: {
+            type: "object",
+            properties: {
+              objectName: { type: "string", description: "The object to draw (e.g., 'dog', 'cat', 'smiley face', 'house', 'tree', 'sun', 'star', 'flower', 'heart', 'car', or anything else the user requests)" },
+              x: { type: "number", description: "Top-left X position in pixels (0-5000)" },
+              y: { type: "number", description: "Top-left Y position in pixels (0-5000)" },
+              size: { type: "number", description: "Size of the drawing in pixels (default 100)" },
+              color: { type: "string", description: "Hex color code for the drawing (default #000000)" },
+              strokeWidth: { type: "number", description: "Stroke width in pixels 1-10 (default 2)" }
+            },
+            required: ["objectName", "x", "y"]
           }
         }
       },

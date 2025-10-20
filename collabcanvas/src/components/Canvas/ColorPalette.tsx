@@ -1,6 +1,6 @@
 import { useCanvasContext } from '../../contexts/CanvasContext';
+import { useError } from '../../contexts/ErrorContext';
 import { PAINT_COLORS } from '../../utils/constants';
-import toast from 'react-hot-toast';
 import { useMemo } from 'react';
 
 export default function ColorPalette() {
@@ -14,6 +14,7 @@ export default function ColorPalette() {
     batchUpdateShapes,
     editingTextId 
   } = useCanvasContext();
+  const { showError } = useError();
 
   // Check if any shapes are selected (either single selection or multi-selection)
   const hasSelectedShapes = () => {
@@ -76,21 +77,12 @@ export default function ColorPalette() {
           const editingShape = shapes.find(s => s.id === editingTextId);
           if (editingShape?.type === 'text') {
             await updateShape(editingTextId, { color });
-            toast.success('Text color changed', {
-              duration: 1000,
-              position: 'top-center',
-            });
           }
         } else if (selectedShapeId) {
           // Single shape selected
           const selectedShape = shapes.find(s => s.id === selectedShapeId);
           if (selectedShape) {
             await updateShape(selectedShapeId, { color });
-            const shapeType = selectedShape.type === 'text' ? 'text' : 'shape';
-            toast.success(`${shapeType.charAt(0).toUpperCase() + shapeType.slice(1)} color changed`, {
-              duration: 1000,
-              position: 'top-center',
-            });
           }
         } else if (selectedShapes.length > 0) {
           // Multiple shapes selected - update all selected shapes
@@ -103,18 +95,11 @@ export default function ColorPalette() {
             }));
             
             await batchUpdateShapes(updates);
-            toast.success(`Changed color of ${selectedShapesData.length} shape${selectedShapesData.length > 1 ? 's' : ''}`, {
-              duration: 1000,
-              position: 'top-center',
-            });
           }
         }
       } catch (error) {
         console.error('❌ Error changing shape color:', error);
-        toast.error('Failed to change shape color', {
-          duration: 2000,
-          position: 'top-center',
-        });
+        showError('Failed to change shape color');
       }
     } else {
       // No shapes selected - just update the selected color for new shapes

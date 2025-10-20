@@ -80,10 +80,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = async () => {
     setLoading(true);
     try {
+      // NOTE: Presence cleanup is now handled by RTDB disconnect handlers
+      // which automatically mark users offline when they disconnect.
+      // With multi-canvas architecture (PR #12), we rely on these handlers
+      // rather than explicit cleanup since users might be on different canvases.
+      
+      // Sign out from Firebase Auth
       await authService.logout();
+      
       setUser(null);
       setUserProfile(null);
     } catch (error) {
+      console.error('❌ [Auth] Logout error:', error);
       throw error;
     } finally {
       setLoading(false);

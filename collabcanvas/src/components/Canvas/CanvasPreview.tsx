@@ -19,6 +19,7 @@ interface CanvasPreviewProps {
     width: number;
     height: number;
   } | null;
+  previewPath: { x: number; y: number }[] | null;
   activeTool: string;
   selectedColor: string;
 }
@@ -27,6 +28,7 @@ export default function CanvasPreview({
   previewRect,
   previewCircle,
   previewTriangle,
+  previewPath,
   activeTool,
   selectedColor,
 }: CanvasPreviewProps) {
@@ -73,6 +75,19 @@ export default function CanvasPreview({
           stroke={selectedColor}
           strokeWidth={2}
           dash={[10, 5]}
+          listening={false}
+        />
+      )}
+
+      {/* Preview path while drawing with pencil */}
+      {previewPath && previewPath.length > 1 && activeTool === 'pencil' && (
+        <Line
+          points={previewPath.flatMap(point => [point.x, point.y])}
+          stroke={selectedColor}
+          strokeWidth={2}
+          opacity={0.7}
+          lineCap="round"
+          lineJoin="round"
           listening={false}
         />
       )}

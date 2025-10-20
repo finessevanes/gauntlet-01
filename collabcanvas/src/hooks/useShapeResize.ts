@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import type Konva from 'konva';
 import type { ShapeData } from '../services/canvasService';
-import toast from 'react-hot-toast';
 import {
   MIN_SHAPE_WIDTH,
   MIN_SHAPE_HEIGHT,
@@ -20,6 +19,7 @@ interface UseShapeResizeParams {
   resizeCircle: (id: string, radius: number) => Promise<void>;
   updateShape: (id: string, updates: Partial<ShapeData>) => Promise<void>;
   unlockShape: (id: string) => Promise<void>;
+  showError: (message: string) => void;
 }
 
 interface UseShapeResizeReturn {
@@ -46,6 +46,7 @@ export function useShapeResize({
   resizeCircle,
   updateShape,
   unlockShape,
+  showError,
 }: UseShapeResizeParams): UseShapeResizeReturn {
   // Resize state management
   const [isResizing, setIsResizing] = useState(false);
@@ -101,7 +102,7 @@ export function useShapeResize({
         width: shape.radius * 2,
         height: shape.radius * 2,
       });
-      } else if (shape.type === 'rectangle' || shape.type === 'triangle') {
+      } else if (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'path') {
       setResizeStart({
         x: canvasX,
         y: canvasY,
@@ -571,10 +572,7 @@ export function useShapeResize({
     if (shape.type === 'circle') {
       const newRadius = previewDimensions.width / 2;
       if (newRadius < MIN_CIRCLE_RADIUS) {
-        toast.error(`Minimum circle radius is ${MIN_CIRCLE_RADIUS} pixels`, {
-          duration: 2000,
-          position: 'top-center',
-        });
+        showError(`Minimum circle radius is ${MIN_CIRCLE_RADIUS} pixels`);
         setIsResizing(false);
         setActiveHandle(null);
         setResizeStart(null);
@@ -583,10 +581,7 @@ export function useShapeResize({
         return;
       }
     } else if (previewDimensions.width < MIN_SHAPE_WIDTH || previewDimensions.height < MIN_SHAPE_HEIGHT) {
-      toast.error(`Minimum size is ${MIN_SHAPE_WIDTH}×${MIN_SHAPE_HEIGHT} pixels`, {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError(`Minimum size is ${MIN_SHAPE_WIDTH}×${MIN_SHAPE_HEIGHT} pixels`);
       setIsResizing(false);
       setActiveHandle(null);
       setResizeStart(null);
@@ -639,9 +634,37 @@ export function useShapeResize({
           setPreviewDimensions(null);
         }, 100);
         
-        toast.success('Text resized', { duration: 1000 });
-        
         console.log('✅ Text resize persisted to Firestore with real-time sync');
+        return;
+      } else if (shape.type === 'path' && resizeStart) {
+        // Path resize - need to scale all points
+        const scaleX = newWidth / resizeStart.width;
+        const scaleY = newHeight / resizeStart.height;
+        
+        if (shape.points && shape.points.length > 0) {
+          // Scale all points relative to the bounding box
+          const scaledPoints = shape.points.map(point => ({
+            x: newX + (point.x - resizeStart.shapeX) * scaleX,
+            y: newY + (point.y - resizeStart.shapeY) * scaleY
+          }));
+          
+          // Update shape with new dimensions and scaled points
+          await updateShape(shapeIdToUpdate, {
+            x: newX,
+            y: newY,
+            width: newWidth,
+            height: newHeight,
+            points: scaledPoints
+          });
+          
+          // Wait a brief moment for real-time listener to receive the update
+          setTimeout(() => {
+            setPreviewDimensions(null);
+          }, 100);
+          
+          console.log('✅ Path resize persisted to Firestore with real-time sync');
+        }
+        
         return;
       } else {
         // Rectangle or triangle resize
@@ -658,8 +681,6 @@ export function useShapeResize({
           setPreviewDimensions(null);
         }, 100);
         
-        toast.success('Shape resized', { duration: 1000 });
-        
         console.log('✅ SUCCESS TASK [1.6]: Shape resize persisted to Firestore with real-time sync');
         
         // Keep shape selected and locked so user can resize again
@@ -674,12 +695,10 @@ export function useShapeResize({
         setPreviewDimensions(null);
       }, 100);
       
-      toast.success('Circle resized', { duration: 1000 });
-      
-      console.log('✅ Circle resize persisted to Firestore with real-time sync');
+      console.log('✅ Circle resize persized to Firestore with real-time sync');
     } catch (error) {
       console.error('❌ Failed to resize shape:', error);
-      toast.error('Failed to resize shape');
+      showError('Failed to resize shape');
       // Clear preview on error
       setPreviewDimensions(null);
       // On error, unlock the shape

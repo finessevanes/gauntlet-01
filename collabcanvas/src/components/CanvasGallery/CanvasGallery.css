@@ -1,0 +1,619 @@
+/* Canvas Gallery Container - Windows 95/98 Style */
+.canvas-gallery-container {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background-color: #c0c0c0;
+  font-family: 'MS Sans Serif', 'Microsoft Sans Serif', sans-serif;
+}
+
+.canvas-gallery-header {
+  margin-bottom: 24px;
+  background-color: #000080;
+  padding: 8px 12px;
+  border: 2px solid;
+  border-color: #dfdfdf #808080 #808080 #dfdfdf;
+  box-shadow: inset 1px 1px 0 0 #fff, inset -1px -1px 0 0 #000;
+}
+
+.canvas-gallery-header h1 {
+  font-size: 16px;
+  font-weight: bold;
+  color: #ffffff;
+  margin: 0 0 4px 0;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.canvas-gallery-subtitle {
+  color: #ffffff;
+  font-size: 11px;
+  margin: 0;
+}
+
+/* Gallery Grid */
+.canvas-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+/* Canvas Card - Windows 95 Window Style */
+.canvas-card {
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #ffffff #808080 #808080 #ffffff;
+  box-shadow: inset 1px 1px 0 0 #dfdfdf, inset -1px -1px 0 0 #000;
+  padding: 2px;
+  cursor: pointer;
+  position: relative;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+}
+
+.canvas-card:hover {
+  border-color: #dfdfdf #404040 #404040 #dfdfdf;
+}
+
+.canvas-card:focus {
+  outline: 1px dotted #000;
+  outline-offset: -4px;
+}
+
+.canvas-card:active {
+  border-color: #808080 #ffffff #ffffff #808080;
+  box-shadow: inset -1px -1px 0 0 #dfdfdf, inset 1px 1px 0 0 #000;
+}
+
+.canvas-card-loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.canvas-card-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #c0c0c0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #000;
+  font-size: 12px;
+}
+
+/* Card Title Bar - Windows Style */
+.canvas-card-header {
+  background: linear-gradient(to right, #000080, #1084d0);
+  padding: 3px 6px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.canvas-card-title {
+  font-size: 11px;
+  font-weight: bold;
+  color: #ffffff;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* Card Content Area */
+.canvas-card-metadata {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid;
+  border-color: #808080 #dfdfdf #dfdfdf #808080;
+  margin: 0 4px;
+}
+
+.canvas-card-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #000;
+}
+
+.canvas-card-meta-label {
+  font-weight: bold;
+  color: #000;
+}
+
+.canvas-card-meta-value {
+  color: #000;
+}
+
+.canvas-card-footer {
+  margin-top: 8px;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.canvas-card-action {
+  color: #000080;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+/* Empty State - Windows Dialog Style */
+.canvas-empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  max-width: 500px;
+  margin: 40px auto;
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #ffffff #808080 #808080 #ffffff;
+  box-shadow: inset 1px 1px 0 0 #dfdfdf, inset -1px -1px 0 0 #000;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  filter: grayscale(20%);
+}
+
+.empty-state-title {
+  font-size: 13px;
+  font-weight: bold;
+  color: #000;
+  margin: 0 0 12px 0;
+}
+
+.empty-state-description {
+  font-size: 11px;
+  color: #000;
+  line-height: 1.5;
+  margin: 0 0 20px 0;
+}
+
+.empty-state-button {
+  background: #c0c0c0;
+  color: #000;
+  border: 2px solid;
+  border-color: #ffffff #000000 #000000 #ffffff;
+  box-shadow: inset 1px 1px 0 0 #dfdfdf, inset -1px -1px 0 0 #808080;
+  padding: 6px 16px;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: 'MS Sans Serif', sans-serif;
+}
+
+.empty-state-button:hover:not(:disabled) {
+  background: #dfdfdf;
+}
+
+.empty-state-button:active:not(:disabled) {
+  border-color: #000000 #ffffff #ffffff #000000;
+  box-shadow: inset -1px -1px 0 0 #dfdfdf, inset 1px 1px 0 0 #808080;
+  padding: 7px 15px 5px 17px; /* Shift content down-right when pressed */
+}
+
+.empty-state-button:disabled {
+  color: #808080;
+  text-shadow: 1px 1px 0 #fff;
+  cursor: not-allowed;
+}
+
+.empty-state-hint {
+  margin-top: 12px;
+  font-size: 10px;
+  color: #808080;
+  font-style: normal;
+}
+
+/* Loading State - Windows Style */
+.canvas-gallery-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #ffffff #808080 #808080 #ffffff;
+  max-width: 400px;
+  margin: 40px auto;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 4px solid #c0c0c0;
+  border-top: 4px solid #000080;
+  border-radius: 0; /* Square for retro look */
+  animation: spin 1s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.canvas-gallery-loading p {
+  color: #000;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+/* Error State - Windows Error Dialog */
+.canvas-gallery-error {
+  text-align: center;
+  padding: 20px;
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #ffffff #808080 #808080 #ffffff;
+  box-shadow: inset 1px 1px 0 0 #dfdfdf, inset -1px -1px 0 0 #000;
+  color: #000;
+  max-width: 500px;
+  margin: 40px auto;
+}
+
+.canvas-gallery-error p {
+  font-size: 11px;
+  margin: 0;
+}
+
+/* Create Canvas Button - Windows 95 Style */
+.create-canvas-button {
+  background: #c0c0c0;
+  color: #000;
+  border: 2px solid;
+  border-color: #ffffff #000000 #000000 #ffffff;
+  box-shadow: inset 1px 1px 0 0 #dfdfdf, inset -1px -1px 0 0 #808080;
+  padding: 8px 16px;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: 'MS Sans Serif', sans-serif;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.create-canvas-button:hover:not(:disabled) {
+  background: #dfdfdf;
+}
+
+.create-canvas-button:active:not(:disabled) {
+  border-color: #000000 #ffffff #ffffff #000000;
+  box-shadow: inset -1px -1px 0 0 #dfdfdf, inset 1px 1px 0 0 #808080;
+  padding: 9px 15px 7px 17px;
+}
+
+.create-canvas-button:disabled {
+  color: #808080;
+  text-shadow: 1px 1px 0 #fff;
+  cursor: not-allowed;
+}
+
+.create-canvas-icon {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.spinner-small {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #c0c0c0;
+  border-top: 2px solid #000080;
+  border-radius: 0;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+/* Canvas Card Rename Button */
+.canvas-card-rename-button {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+  color: #ffffff;
+  transition: all 0.2s;
+  border-radius: 2px;
+}
+
+.canvas-card-rename-button:hover {
+  background: rgba(255, 255, 255, 0.4);
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: scale(1.05);
+}
+
+.canvas-card-rename-button:active {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(0.98);
+}
+
+/* Rename Canvas Inline - Windows Input Style */
+.rename-canvas-inline {
+  width: 100%;
+}
+
+.rename-canvas-input {
+  width: 100%;
+  background: #ffffff;
+  color: #000;
+  border: 1px solid;
+  border-color: #808080 #dfdfdf #dfdfdf #808080;
+  box-shadow: inset -1px -1px 0 0 #ffffff, inset 1px 1px 0 0 #000000;
+  padding: 3px 4px;
+  font-size: 11px;
+  font-family: 'MS Sans Serif', sans-serif;
+  outline: none;
+}
+
+.rename-canvas-input:focus {
+  background: #ffffff;
+  outline: 1px dotted #000;
+  outline-offset: -2px;
+}
+
+.rename-canvas-input-error {
+  border-color: #ff0000 #ff0000 #ff0000 #ff0000;
+  background: #ffcccc;
+}
+
+.rename-canvas-error {
+  color: #ff0000;
+  font-size: 10px;
+  margin-top: 4px;
+  font-weight: bold;
+}
+
+.rename-canvas-counter {
+  font-size: 9px;
+  color: #808080;
+  margin-top: 2px;
+  text-align: right;
+}
+
+/* Modal Styles - Windows 95 Dialog */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-content {
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #ffffff #000000 #000000 #ffffff;
+  box-shadow: inset 1px 1px 0 0 #dfdfdf, inset -1px -1px 0 0 #808080;
+  min-width: 400px;
+  max-width: 500px;
+}
+
+.modal-title-bar {
+  background: linear-gradient(to right, #000080, #1084d0);
+  padding: 3px 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-title {
+  font-size: 11px;
+  font-weight: bold;
+  color: #ffffff;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.modal-close-button {
+  background: #c0c0c0;
+  border: 1px solid;
+  border-color: #ffffff #000000 #000000 #ffffff;
+  width: 16px;
+  height: 14px;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: #000;
+  font-weight: bold;
+}
+
+.modal-close-button:hover:not(:disabled) {
+  background: #dfdfdf;
+}
+
+.modal-close-button:active:not(:disabled) {
+  border-color: #000000 #ffffff #ffffff #000000;
+}
+
+.modal-body {
+  padding: 16px;
+}
+
+.modal-label {
+  display: block;
+  font-size: 11px;
+  font-weight: bold;
+  color: #000;
+  margin-bottom: 6px;
+}
+
+.modal-input {
+  width: 100%;
+  background: #ffffff;
+  color: #000;
+  border: 1px solid;
+  border-color: #808080 #dfdfdf #dfdfdf #808080;
+  box-shadow: inset -1px -1px 0 0 #ffffff, inset 1px 1px 0 0 #000000;
+  padding: 4px 6px;
+  font-size: 11px;
+  font-family: 'MS Sans Serif', sans-serif;
+  outline: none;
+  margin-bottom: 4px;
+}
+
+.modal-input:focus {
+  outline: 1px dotted #000;
+  outline-offset: -2px;
+}
+
+.modal-input-error {
+  border-color: #ff0000 #ff0000 #ff0000 #ff0000;
+  background: #ffcccc;
+}
+
+.modal-error {
+  color: #ff0000;
+  font-size: 10px;
+  margin-bottom: 4px;
+  font-weight: bold;
+}
+
+.modal-character-count {
+  font-size: 9px;
+  color: #808080;
+  margin-bottom: 8px;
+}
+
+.modal-hint {
+  font-size: 10px;
+  color: #808080;
+  font-style: italic;
+  margin-top: 8px;
+}
+
+.modal-footer {
+  padding: 12px 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid #808080;
+}
+
+.modal-button {
+  background: #c0c0c0;
+  color: #000;
+  border: 2px solid;
+  border-color: #ffffff #000000 #000000 #ffffff;
+  box-shadow: inset 1px 1px 0 0 #dfdfdf, inset -1px -1px 0 0 #808080;
+  padding: 6px 16px;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: 'MS Sans Serif', sans-serif;
+  min-width: 80px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.modal-button:hover:not(:disabled) {
+  background: #dfdfdf;
+}
+
+.modal-button:active:not(:disabled) {
+  border-color: #000000 #ffffff #ffffff #000000;
+  box-shadow: inset -1px -1px 0 0 #dfdfdf, inset 1px 1px 0 0 #808080;
+  padding: 7px 15px 5px 17px;
+}
+
+.modal-button:disabled {
+  color: #808080;
+  text-shadow: 1px 1px 0 #fff;
+  cursor: not-allowed;
+}
+
+.modal-button-primary {
+  background: #000080;
+  color: #ffffff;
+  border-color: #1084d0 #000040 #000040 #1084d0;
+}
+
+.modal-button-primary:hover:not(:disabled) {
+  background: #0000a0;
+}
+
+.modal-button-primary:active:not(:disabled) {
+  background: #000060;
+  border-color: #000040 #1084d0 #1084d0 #000040;
+}
+
+/* Shared Canvas Styling (90s/00s style) */
+.canvas-card-shared {
+  border-width: 3px;
+  border-color: #dfdfdf #404040 #404040 #dfdfdf;
+  background: #e8e8e8;
+  box-shadow: inset 1px 1px 0 0 #fff, inset -2px -2px 0 0 #808080, 2px 2px 0 0 #000;
+}
+
+.canvas-card-shared:hover {
+  border-color: #ffffff #000000 #000000 #ffffff;
+  background: #f0f0f0;
+}
+
+.canvas-card-shared .canvas-card-header {
+  background: linear-gradient(to right, #008080, #20a0a0);
+}
+
+.canvas-card-shared .canvas-card-title {
+  text-shadow: 1px 1px 0 #004040;
+}
+
+/* Canvas Card Header Buttons Container */
+.canvas-card-header-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .canvas-gallery-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .canvas-gallery-container {
+    padding: 12px;
+  }
+
+  .canvas-gallery-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .canvas-gallery-header h1 {
+    font-size: 14px;
+  }
+
+  .canvas-card {
+    min-height: 140px;
+  }
+
+  .modal-content {
+    min-width: 90%;
+    max-width: 90%;
+  }
+}

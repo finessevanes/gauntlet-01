@@ -27,7 +27,13 @@ export class AIService {
     });
   }
   
-  async executeCommand(prompt: string, userId: string, canvasId: string, viewport?: ViewportInfo): Promise<CommandResult> {
+  async executeCommand(
+    prompt: string, 
+    userId: string, 
+    canvasId: string, 
+    viewport?: ViewportInfo,
+    onToolsExecuted?: () => void
+  ): Promise<CommandResult> {
     try {
       // 1. Build conversation messages (don't pass shapes - let AI call getCanvasState for fresh data)
       const messages: any[] = [
@@ -62,6 +68,14 @@ export class AIService {
           // Execute all tool calls
           const results = await this.executeToolCalls(message.tool_calls, userId, canvasId);
           allResults.push(...results);
+          
+          // Call the callback to clear loading state - shapes are now visible!
+          if (onToolsExecuted && allResults.some(r => 
+            r.success && ['createRectangle', 'createCircle', 'createTriangle', 'createText', 'drawCreative'].includes(r.tool)
+          )) {
+            console.log(`🚀 Shapes created - calling onToolsExecuted callback to clear "thinking..." state`);
+            onToolsExecuted();
+          }
           
           // Add tool results to conversation for next iteration
           for (let i = 0; i < message.tool_calls.length; i++) {
@@ -98,24 +112,28 @@ export class AIService {
               r.success && r.result && ['createRectangle', 'createCircle', 'createTriangle', 'createText', 'drawCreative'].includes(r.tool)
             );
             
-            if (createdShapes.length > 1) {
-              const shapeIds = createdShapes.map(r => r.result);
-              try {
-                const groupStartTime = performance.now();
-                await groupService.groupShapes(canvasId, shapeIds, userId, 'AI Drawing');
-                const groupEndTime = performance.now();
-                console.log(`🔗 Grouping ${shapeIds.length} shapes completed in ${(groupEndTime - groupStartTime).toFixed(2)}ms`);
-              } catch (error) {
-                console.error('❌ Failed to group AI shapes:', error);
-              }
-            }
-            
-            // We executed tools, return success
+            // Generate success message immediately
             const messageGenStartTime = performance.now();
             const successMessage = this.generateSuccessMessage(allResults);
             const messageGenEndTime = performance.now();
             console.log(`📝 Success message generated in ${(messageGenEndTime - messageGenStartTime).toFixed(2)}ms: "${successMessage}"`);
             console.log(`✅ AI Service returning result - shapes are visible on canvas NOW`);
+            
+            // Group shapes in background (don't block the UI update)
+            if (createdShapes.length > 1) {
+              const shapeIds = createdShapes.map(r => r.result);
+              const groupStartTime = performance.now();
+              console.log(`🔗 Starting background grouping of ${shapeIds.length} shapes...`);
+              groupService.groupShapes(canvasId, shapeIds, userId, 'AI Drawing')
+                .then(() => {
+                  const groupEndTime = performance.now();
+                  console.log(`🔗 Background grouping completed in ${(groupEndTime - groupStartTime).toFixed(2)}ms`);
+                })
+                .catch((error) => {
+                  console.error('❌ Failed to group AI shapes:', error);
+                });
+            }
+            
             return {
               success: true,
               message: successMessage,

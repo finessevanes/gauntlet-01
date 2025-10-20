@@ -170,7 +170,18 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
       // Call AI service with timeout and viewport info
       const aiStartTime = performance.now();
       const result = await Promise.race([
-        aiServiceRef.current!.executeCommand(trimmedContent, user.uid, currentCanvasId, viewport),
+        aiServiceRef.current!.executeCommand(
+          trimmedContent, 
+          user.uid, 
+          currentCanvasId, 
+          viewport,
+          // Callback: clear loading state immediately when shapes are drawn
+          () => {
+            const shapesDrawnTime = performance.now();
+            console.log(`🎨 Shapes drawn at ${(shapesDrawnTime - aiStartTime).toFixed(2)}ms - clearing "thinking..." state NOW`);
+            setIsChatLoading(false);
+          }
+        ),
         timeoutPromise
       ]);
       const aiEndTime = performance.now();
@@ -189,10 +200,8 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
       console.log(`💬 UI updated with message in ${(uiUpdateEndTime - uiUpdateStartTime).toFixed(2)}ms`);
       console.log(`⏱️ Total delay from AI completion to UI update: ${(uiUpdateEndTime - aiEndTime).toFixed(2)}ms`);
       
-      // Clear loading state immediately after UI update
-      const loadingClearTime = performance.now();
+      // Clear loading state (in case callback didn't fire - e.g., for non-drawing operations)
       setIsChatLoading(false);
-      console.log(`🔄 Loading state cleared in ${(performance.now() - loadingClearTime).toFixed(2)}ms`);
       
       // Save AI response to Firestore (canvas-scoped) - don't await, let it happen in background
       saveMessage(currentCanvasId, {

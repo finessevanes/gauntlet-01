@@ -9,6 +9,7 @@ import {
   limit,
   onSnapshot,
   updateDoc,
+  setDoc,
   serverTimestamp,
 } from 'firebase/firestore';
 import type { Unsubscribe, Timestamp } from 'firebase/firestore';
@@ -174,6 +175,95 @@ class CanvasListService {
       console.log(`✅ Updated canvas metadata: ${canvasId}`, updates);
     } catch (error) {
       console.error('❌ Error updating canvas metadata:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Validate canvas name
+   * @param name - Canvas name to validate
+   * @returns Validation result with error message if invalid
+   */
+  validateCanvasName(name: string): { valid: boolean; error?: string } {
+    const trimmed = name.trim();
+
+    if (trimmed.length === 0) {
+      return { valid: false, error: 'Canvas name cannot be empty' };
+    }
+
+    if (trimmed.length > 100) {
+      return { valid: false, error: 'Canvas name too long (max 100 characters)' };
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * Create a new blank canvas
+   * @param userId - Authenticated user ID (owner)
+   * @param name - Optional canvas name (defaults to "Untitled Canvas")
+   * @returns Promise resolving to new canvas ID
+   */
+  async createCanvas(userId: string, name?: string): Promise<string> {
+    try {
+      // Validate and sanitize name
+      const canvasName = name?.trim() || 'Untitled Canvas';
+      const validation = this.validateCanvasName(canvasName);
+      
+      if (!validation.valid) {
+        throw new Error(validation.error);
+      }
+
+      // Create new canvas document
+      const canvasRef = doc(collection(firestore, this.canvasesCollectionPath));
+      const canvasId = canvasRef.id;
+
+      const canvasData: CanvasDocument = {
+        id: canvasId,
+        name: canvasName,
+        ownerId: userId,
+        collaboratorIds: [userId],
+        createdAt: serverTimestamp() as any,
+        updatedAt: serverTimestamp() as any,
+        lastAccessedAt: serverTimestamp() as any,
+        shapeCount: 0,
+      };
+
+      await setDoc(canvasRef, canvasData);
+
+      console.log(`✅ Canvas created: ${canvasId} - "${canvasName}"`);
+      return canvasId;
+    } catch (error) {
+      console.error('❌ Error creating canvas:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Rename an existing canvas
+   * @param canvasId - Canvas document ID
+   * @param newName - New canvas name (1-100 characters, trimmed)
+   * @returns Promise resolving when rename complete
+   * @throws Error if canvas not found or user lacks permission
+   */
+  async renameCanvas(canvasId: string, newName: string): Promise<void> {
+    try {
+      // Validate and sanitize name
+      const trimmedName = newName.trim();
+      const validation = this.validateCanvasName(trimmedName);
+      
+      if (!validation.valid) {
+        throw new Error(validation.error);
+      }
+
+      // Update canvas name using existing updateCanvasMetadata
+      await this.updateCanvasMetadata(canvasId, {
+        name: trimmedName,
+      });
+
+      console.log(`✅ Canvas renamed: ${canvasId} → "${trimmedName}"`);
+    } catch (error) {
+      console.error('❌ Error renaming canvas:', error);
       throw error;
     }
   }

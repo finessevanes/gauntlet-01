@@ -198,6 +198,10 @@ export function useShapeInteraction(props: UseShapeInteractionProps) {
     } else if (shape.type === 'rectangle' || shape.type === 'triangle') {
       width = shape.width;
       height = shape.height;
+    } else if (shape.type === 'path') {
+      // For paths, use bounding box dimensions
+      width = shape.width;
+      height = shape.height;
     } else if (shape.type === 'circle' && shape.radius !== undefined) {
       // Circle: constrain center to stay within canvas minus radius
       centerX = Math.max(shape.radius, Math.min(CANVAS_WIDTH - shape.radius, centerX));
@@ -244,6 +248,16 @@ export function useShapeInteraction(props: UseShapeInteractionProps) {
       node.y(newY);
     } else if (shape.type === 'rectangle' || shape.type === 'triangle') {
       // For rectangles/triangles, convert center to top-left
+      newX = centerX - shape.width / 2;
+      newY = centerY - shape.height / 2;
+      newX = Math.max(0, Math.min(CANVAS_WIDTH - shape.width, newX));
+      newY = Math.max(0, Math.min(CANVAS_HEIGHT - shape.height, newY));
+      const finalCenterX = newX + shape.width / 2;
+      const finalCenterY = newY + shape.height / 2;
+      node.x(finalCenterX);
+      node.y(finalCenterY);
+    } else if (shape.type === 'path') {
+      // For paths, convert center to top-left (like rectangles)
       newX = centerX - shape.width / 2;
       newY = centerY - shape.height / 2;
       newX = Math.max(0, Math.min(CANVAS_WIDTH - shape.width, newX));

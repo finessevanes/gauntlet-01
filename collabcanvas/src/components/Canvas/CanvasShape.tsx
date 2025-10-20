@@ -99,10 +99,11 @@ export default function CanvasShape({
     currentRadius = isBeingResized && previewDimensions ? previewDimensions.width / 2 : shape.radius;
   } else if (shape.type === 'path') {
     // Path shapes use their bounding box
-    currentX = shape.x;
-    currentY = shape.y;
-    currentWidth = shape.width;
-    currentHeight = shape.height;
+    // Use preview dimensions during resize
+    currentX = isBeingResized && previewDimensions ? previewDimensions.x : shape.x;
+    currentY = isBeingResized && previewDimensions ? previewDimensions.y : shape.y;
+    currentWidth = isBeingResized && previewDimensions ? previewDimensions.width : shape.width;
+    currentHeight = isBeingResized && previewDimensions ? previewDimensions.height : shape.height;
   } else if (shape.type === 'text') {
     // Use actual HTML dimensions when available (most accurate)
     // Fall back to calculated dimensions when not in edit mode
@@ -256,27 +257,72 @@ export default function CanvasShape({
           }}
         />
       )}
-      {shape.type === 'path' && shape.points && shape.points.length > 1 && (
-        <Line
-          points={shape.points.flatMap(point => [point.x - currentX, point.y - currentY])}
-          stroke={shape.color}
-          strokeWidth={shape.strokeWidth || 2}
-          opacity={isLockedByOther ? 0.5 : 1}
-          lineCap="round"
-          lineJoin="round"
-          shadowColor={isMultiSelected ? '#60a5fa' : undefined}
-          shadowBlur={isMultiSelected ? 10 : 0}
-          shadowOpacity={isMultiSelected ? 0.6 : 0}
-          onMouseEnter={() => {
-            if (activeTool === 'select' && !isLockedByOther) {
-              document.body.style.cursor = 'move';
-            }
-          }}
-          onMouseLeave={() => {
-            document.body.style.cursor = '';
-          }}
-        />
-      )}
+      {shape.type === 'path' && shape.points && shape.points.length > 1 && currentWidth !== undefined && currentHeight !== undefined && (() => {
+        // Calculate scale factors if resizing
+        const scaleX = isBeingResized && shape.width ? currentWidth / shape.width : 1;
+        const scaleY = isBeingResized && shape.height ? currentHeight / shape.height : 1;
+        
+        // Calculate scaled points for preview
+        const displayPoints = shape.points.flatMap(point => {
+          // First, get point relative to original bounding box
+          const relX = point.x - shape.x;
+          const relY = point.y - shape.y;
+          
+          // Scale relative to the new bounding box size
+          const scaledRelX = relX * scaleX;
+          const scaledRelY = relY * scaleY;
+          
+          // Convert back to local Group coordinates (relative to currentX, currentY)
+          return [scaledRelX, scaledRelY];
+        });
+        
+        return (
+          <>
+            {/* Invisible hitbox to make path easier to click/grab */}
+            <Rect
+              x={0}
+              y={0}
+              width={currentWidth}
+              height={currentHeight}
+              fill="transparent"
+              listening={true}
+              onMouseEnter={() => {
+                if (activeTool === 'select' && !isLockedByOther) {
+                  document.body.style.cursor = 'move';
+                }
+              }}
+              onMouseLeave={() => {
+                document.body.style.cursor = '';
+              }}
+            />
+            {/* Main path drawing */}
+            <Line
+              points={displayPoints}
+              stroke={shape.color}
+              strokeWidth={shape.strokeWidth || 2}
+              opacity={isLockedByOther ? 0.5 : 1}
+              lineCap="round"
+              lineJoin="round"
+              listening={false}
+            />
+            {/* Selection/Lock indicator - outline around the path */}
+            {(isSelected || isMultiSelected || isLockedByMe || isLockedByOther) && (
+              <Line
+                points={displayPoints}
+                stroke={isMultiSelected ? '#60a5fa' : isLockedByMe ? '#10b981' : isLockedByOther ? '#ef4444' : '#000000'}
+                strokeWidth={(shape.strokeWidth || 2) + (isMultiSelected ? 6 : 4)}
+                opacity={0.4}
+                lineCap="round"
+                lineJoin="round"
+                shadowColor={isMultiSelected ? '#60a5fa' : undefined}
+                shadowBlur={isMultiSelected ? 10 : 0}
+                shadowOpacity={isMultiSelected ? 0.6 : 0}
+                listening={false}
+              />
+            )}
+          </>
+        );
+      })()}
       {shape.type === 'text' && currentWidth !== undefined && currentHeight !== undefined && (() => {
         // Use editingTextContent when in edit mode for dynamic border updates
         const textContent = (editingTextId === shape.id && editingTextContent !== undefined) 
@@ -423,8 +469,8 @@ export default function CanvasShape({
         </Group>
       )}
 
-      {/* Resize handles for rectangles, triangles, and text (8 total: 4 corners + 4 edges) */}
-      {isSelected && isLockedByMe && !isResizing && !isRotating && editingTextId !== shape.id && (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text') && currentWidth !== undefined && currentHeight !== undefined && (
+      {/* Resize handles for rectangles, triangles, text, and paths (8 total: 4 corners + 4 edges) */}
+      {isSelected && isLockedByMe && !isResizing && !isRotating && editingTextId !== shape.id && (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text' || shape.type === 'path') && currentWidth !== undefined && currentHeight !== undefined && (
         <Group>
           {(() => {
             // Scale handles inversely with zoom so they appear constant size on screen
@@ -529,7 +575,7 @@ export default function CanvasShape({
           centerX = 0;
           centerY = 0;
           handleY = -currentRadius - handleDistance;
-        } else if ((shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text') && currentWidth !== undefined && currentHeight !== undefined) {
+        } else if ((shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text' || shape.type === 'path') && currentWidth !== undefined && currentHeight !== undefined) {
           centerX = currentWidth / 2;
           centerY = currentHeight / 2;
           handleY = -handleDistance;

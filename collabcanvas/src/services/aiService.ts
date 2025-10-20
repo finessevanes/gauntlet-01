@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { canvasService } from './canvasService';
+import { groupService } from './groupService';
 import { getSystemPrompt } from '../utils/aiPrompts';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../utils/constants';
 import { generateCreativeDrawing } from '../utils/creativeDrawing';
@@ -92,6 +93,20 @@ export class AIService {
         } else {
           // No more tool calls - we have a final response
           if (allResults.length > 0) {
+            // Check if multiple shapes were created - auto-group them
+            const createdShapes = allResults.filter(r => 
+              r.success && r.result && ['createRectangle', 'createCircle', 'createTriangle', 'createText', 'drawCreative'].includes(r.tool)
+            );
+            
+            if (createdShapes.length > 1) {
+              const shapeIds = createdShapes.map(r => r.result);
+              try {
+                await groupService.groupShapes(canvasId, shapeIds, userId, 'AI Drawing');
+              } catch (error) {
+                console.error('❌ Failed to group AI shapes:', error);
+              }
+            }
+            
             // We executed tools, return success
             return {
               success: true,

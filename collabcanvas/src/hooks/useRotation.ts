@@ -41,7 +41,7 @@ export function useRotation(props: UseRotationProps) {
     if (shape.type === 'circle') {
       centerX = shape.x;
       centerY = shape.y;
-    } else if (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text') {
+    } else if (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text' || shape.type === 'path') {
       centerX = shape.x + shape.width / 2;
       centerY = shape.y + shape.height / 2;
     } else {
@@ -84,7 +84,7 @@ export function useRotation(props: UseRotationProps) {
     if (shape.type === 'circle') {
       centerX = shape.x;
       centerY = shape.y;
-    } else if (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text') {
+    } else if (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text' || shape.type === 'path') {
       centerX = shape.x + shape.width / 2;
       centerY = shape.y + shape.height / 2;
     } else {

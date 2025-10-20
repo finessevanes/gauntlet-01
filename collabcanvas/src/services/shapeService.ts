@@ -70,6 +70,55 @@ class ShapeService {
     try {
       const shapesPath = this.getShapesPath(canvasId);
       const shapeRef = doc(firestore, shapesPath, shapeId);
+      
+      // Check if this is a path and position is being updated
+      if (updates.x !== undefined || updates.y !== undefined) {
+        const shapeSnap = await getDoc(shapeRef);
+        if (shapeSnap.exists()) {
+          const shapeData = shapeSnap.data() as ShapeData;
+          
+          if (shapeData.type === 'path' && shapeData.points) {
+            // If points are explicitly provided (from resize), use them directly
+            if (updates.points) {
+              // This is a resize operation - points are already scaled correctly
+              await updateDoc(shapeRef, {
+                ...updates,
+                updatedAt: serverTimestamp(),
+              });
+              
+              const latency = Date.now() - startTime;
+              requirementsMonitor.trackObjectSync(latency);
+              return;
+            }
+            
+            // Otherwise, this is a move operation - recalculate points based on delta
+            const oldX = shapeData.x;
+            const oldY = shapeData.y;
+            const newX = updates.x !== undefined ? updates.x : oldX;
+            const newY = updates.y !== undefined ? updates.y : oldY;
+            const deltaX = newX - oldX;
+            const deltaY = newY - oldY;
+            
+            // Update all points
+            const updatedPoints = shapeData.points.map(p => ({
+              x: p.x + deltaX,
+              y: p.y + deltaY
+            }));
+            
+            await updateDoc(shapeRef, {
+              ...updates,
+              points: updatedPoints,
+              updatedAt: serverTimestamp(),
+            });
+            
+            const latency = Date.now() - startTime;
+            requirementsMonitor.trackObjectSync(latency);
+            return;
+          }
+        }
+      }
+      
+      // Default behavior for other shapes
       await updateDoc(shapeRef, {
         ...updates,
         updatedAt: serverTimestamp(),

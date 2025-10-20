@@ -101,7 +101,7 @@ export function useShapeResize({
         width: shape.radius * 2,
         height: shape.radius * 2,
       });
-      } else if (shape.type === 'rectangle' || shape.type === 'triangle') {
+      } else if (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'path') {
       setResizeStart({
         x: canvasX,
         y: canvasY,
@@ -640,6 +640,36 @@ export function useShapeResize({
         }, 100);
         
         console.log('✅ Text resize persisted to Firestore with real-time sync');
+        return;
+      } else if (shape.type === 'path' && resizeStart) {
+        // Path resize - need to scale all points
+        const scaleX = newWidth / resizeStart.width;
+        const scaleY = newHeight / resizeStart.height;
+        
+        if (shape.points && shape.points.length > 0) {
+          // Scale all points relative to the bounding box
+          const scaledPoints = shape.points.map(point => ({
+            x: newX + (point.x - resizeStart.shapeX) * scaleX,
+            y: newY + (point.y - resizeStart.shapeY) * scaleY
+          }));
+          
+          // Update shape with new dimensions and scaled points
+          await updateShape(shapeIdToUpdate, {
+            x: newX,
+            y: newY,
+            width: newWidth,
+            height: newHeight,
+            points: scaledPoints
+          });
+          
+          // Wait a brief moment for real-time listener to receive the update
+          setTimeout(() => {
+            setPreviewDimensions(null);
+          }, 100);
+          
+          console.log('✅ Path resize persisted to Firestore with real-time sync');
+        }
+        
         return;
       } else {
         // Rectangle or triangle resize

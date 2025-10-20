@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { canvasListService } from '../../services/canvasListService';
 import { clipboardService } from '../../services/clipboardService';
-import toast from 'react-hot-toast';
+import { useError } from '../../contexts/ErrorContext';
 
 interface CopyLinkButtonProps {
   canvasId: string;
@@ -14,6 +14,7 @@ interface CopyLinkButtonProps {
 export function CopyLinkButton({ canvasId }: CopyLinkButtonProps) {
   const [copyButtonText, setCopyButtonText] = useState('📋 Copy');
   const [isCopied, setIsCopied] = useState(false);
+  const { showError } = useError();
 
   const handleCopyLink = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
@@ -24,7 +25,6 @@ export function CopyLinkButton({ canvasId }: CopyLinkButtonProps) {
     if (success) {
       setCopyButtonText('✓ Copied!');
       setIsCopied(true);
-      toast.success('Link copied to clipboard!');
       
       // Reset button after 2 seconds
       setTimeout(() => {
@@ -32,9 +32,9 @@ export function CopyLinkButton({ canvasId }: CopyLinkButtonProps) {
         setIsCopied(false);
       }, 2000);
     } else {
-      toast.error('Failed to copy link');
+      showError('Failed to copy link');
     }
-  }, [canvasId]);
+  }, [canvasId, showError]);
 
   return (
     <button

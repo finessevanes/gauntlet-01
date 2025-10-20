@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import toast from 'react-hot-toast';
 import type Konva from 'konva';
 import type { ShapeData } from '../services/canvasService';
 
@@ -8,10 +7,11 @@ interface UseRotationProps {
   shapes: ShapeData[];
   selectedShapeId: string | null;
   rotateShape: (shapeId: string, rotation: number) => Promise<void>;
+  showError: (message: string) => void;
 }
 
 export function useRotation(props: UseRotationProps) {
-  const { stageRef, shapes, selectedShapeId, rotateShape } = props;
+  const { stageRef, shapes, selectedShapeId, rotateShape, showError } = props;
 
   const [isRotating, setIsRotating] = useState(false);
   const [rotationStart, setRotationStart] = useState<{
@@ -41,7 +41,7 @@ export function useRotation(props: UseRotationProps) {
     if (shape.type === 'circle') {
       centerX = shape.x;
       centerY = shape.y;
-    } else if (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text') {
+    } else if (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text' || shape.type === 'path') {
       centerX = shape.x + shape.width / 2;
       centerY = shape.y + shape.height / 2;
     } else {
@@ -84,7 +84,7 @@ export function useRotation(props: UseRotationProps) {
     if (shape.type === 'circle') {
       centerX = shape.x;
       centerY = shape.y;
-    } else if (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text') {
+    } else if (shape.type === 'rectangle' || shape.type === 'triangle' || shape.type === 'text' || shape.type === 'path') {
       centerX = shape.x + shape.width / 2;
       centerY = shape.y + shape.height / 2;
     } else {
@@ -117,7 +117,7 @@ export function useRotation(props: UseRotationProps) {
       await rotateShape(selectedShapeId, previewRotation);
     } catch (error) {
       console.error('❌ Failed to rotate shape:', error);
-      toast.error('Failed to rotate shape');
+      showError('Failed to rotate shape');
     } finally {
       setIsRotating(false);
       setRotationStart(null);

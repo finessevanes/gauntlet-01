@@ -1,6 +1,6 @@
 import { useCanvasContext } from '../../contexts/CanvasContext';
+import { useError } from '../../contexts/ErrorContext';
 import { PAINT_COLORS } from '../../utils/constants';
-import toast from 'react-hot-toast';
 import { useMemo } from 'react';
 
 export default function ColorPalette() {
@@ -14,6 +14,7 @@ export default function ColorPalette() {
     batchUpdateShapes,
     editingTextId 
   } = useCanvasContext();
+  const { showError } = useError();
 
   // Check if any shapes are selected (either single selection or multi-selection)
   const hasSelectedShapes = () => {
@@ -98,10 +99,7 @@ export default function ColorPalette() {
         }
       } catch (error) {
         console.error('❌ Error changing shape color:', error);
-        toast.error('Failed to change shape color', {
-          duration: 2000,
-          position: 'top-center',
-        });
+        showError('Failed to change shape color');
       }
     } else {
       // No shapes selected - just update the selected color for new shapes

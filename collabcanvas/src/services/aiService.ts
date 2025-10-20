@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { canvasService } from './canvasService';
+import { groupService } from './groupService';
 import { getSystemPrompt } from '../utils/aiPrompts';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../utils/constants';
 import { generateCreativeDrawing } from '../utils/creativeDrawing';
@@ -26,7 +27,13 @@ export class AIService {
     });
   }
   
-  async executeCommand(prompt: string, userId: string, canvasId: string, viewport?: ViewportInfo): Promise<CommandResult> {
+  async executeCommand(
+    prompt: string, 
+    userId: string, 
+    canvasId: string, 
+    viewport?: ViewportInfo,
+    onToolsExecuted?: () => void
+  ): Promise<CommandResult> {
     try {
       // 1. Build conversation messages (don't pass shapes - let AI call getCanvasState for fresh data)
       const messages: any[] = [
@@ -62,6 +69,14 @@ export class AIService {
           const results = await this.executeToolCalls(message.tool_calls, userId, canvasId);
           allResults.push(...results);
           
+          // Call the callback to clear loading state - shapes are now visible!
+          if (onToolsExecuted && allResults.some(r => 
+            r.success && ['createRectangle', 'createCircle', 'createTriangle', 'createText', 'drawCreative'].includes(r.tool)
+          )) {
+            console.log(`🚀 Shapes created - calling onToolsExecuted callback to clear "thinking..." state`);
+            onToolsExecuted();
+          }
+          
           // Add tool results to conversation for next iteration
           for (let i = 0; i < message.tool_calls.length; i++) {
             const toolCall = message.tool_calls[i];
@@ -92,10 +107,36 @@ export class AIService {
         } else {
           // No more tool calls - we have a final response
           if (allResults.length > 0) {
-            // We executed tools, return success
+            // Check if multiple shapes were created - auto-group them
+            const createdShapes = allResults.filter(r => 
+              r.success && r.result && ['createRectangle', 'createCircle', 'createTriangle', 'createText', 'drawCreative'].includes(r.tool)
+            );
+            
+            // Generate success message immediately
+            const messageGenStartTime = performance.now();
+            const successMessage = this.generateSuccessMessage(allResults);
+            const messageGenEndTime = performance.now();
+            console.log(`📝 Success message generated in ${(messageGenEndTime - messageGenStartTime).toFixed(2)}ms: "${successMessage}"`);
+            console.log(`✅ AI Service returning result - shapes are visible on canvas NOW`);
+            
+            // Group shapes in background (don't block the UI update)
+            if (createdShapes.length > 1) {
+              const shapeIds = createdShapes.map(r => r.result);
+              const groupStartTime = performance.now();
+              console.log(`🔗 Starting background grouping of ${shapeIds.length} shapes...`);
+              groupService.groupShapes(canvasId, shapeIds, userId, 'AI Drawing')
+                .then(() => {
+                  const groupEndTime = performance.now();
+                  console.log(`🔗 Background grouping completed in ${(groupEndTime - groupStartTime).toFixed(2)}ms`);
+                })
+                .catch((error) => {
+                  console.error('❌ Failed to group AI shapes:', error);
+                });
+            }
+            
             return {
               success: true,
-              message: this.generateSuccessMessage(allResults),
+              message: successMessage,
               toolCalls: allResults
             };
           } else {
@@ -131,7 +172,10 @@ export class AIService {
     
     for (const call of toolCalls) {
       try {
+        const toolStartTime = performance.now();
         const result = await this.executeSingleTool(call, userId, canvasId);
+        const toolEndTime = performance.now();
+        console.log(`🔧 Tool "${call.function.name}" completed in ${(toolEndTime - toolStartTime).toFixed(2)}ms`);
         results.push({
           tool: call.function.name,
           success: true,

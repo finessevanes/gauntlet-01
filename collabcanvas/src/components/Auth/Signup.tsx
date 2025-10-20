@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import toast from 'react-hot-toast';
+import { useError } from '../../contexts/ErrorContext';
 import PasswordRequirements from './PasswordRequirements';
 import {
   validatePassword,
@@ -22,31 +22,32 @@ export default function Signup({ onSwitchToLogin }: SignupProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const { signup, loginWithGoogle } = useAuth();
+  const { showError } = useError();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     // Validation
     if (!username || !email || !password || !confirmPassword) {
-      toast.error('Please fill in all fields');
+      showError('Please fill in all fields');
       return;
     }
 
     if (username.trim().length < 2) {
-      toast.error('Username must be at least 2 characters');
+      showError('Username must be at least 2 characters');
       return;
     }
 
     // Validate password requirements
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.isValid) {
-      toast.error('Password does not meet all requirements');
+      showError('Password does not meet all requirements');
       return;
     }
 
     // Validate password match
     if (!validatePasswordMatch(password, confirmPassword)) {
-      toast.error('Passwords do not match');
+      showError('Passwords do not match');
       return;
     }
 
@@ -54,9 +55,8 @@ export default function Signup({ onSwitchToLogin }: SignupProps) {
 
     try {
       await signup(email, password, username.trim());
-      toast.success('Account created successfully!');
     } catch (error: any) {
-      toast.error(error.message || 'Signup failed');
+      showError(error.message || 'Signup failed');
     } finally {
       setIsSubmitting(false);
     }
@@ -67,11 +67,10 @@ export default function Signup({ onSwitchToLogin }: SignupProps) {
 
     try {
       await loginWithGoogle();
-      toast.success('Account created successfully!');
     } catch (error: any) {
-      // Don't show error toast if user cancelled
+      // Don't show error if user cancelled
       if (error.message !== 'Sign-in cancelled') {
-        toast.error(error.message || 'Google sign-in failed');
+        showError(error.message || 'Google sign-in failed');
       }
     } finally {
       setIsGoogleLoading(false);

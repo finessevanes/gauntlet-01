@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import toast from 'react-hot-toast';
+import { useError } from '../contexts/ErrorContext';
 import type { ShapeData } from '../services/canvasService';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../utils/constants';
 
@@ -80,6 +80,7 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
     bringForward,
     sendBackward,
   } = props;
+  const { showError } = useError();
 
   // Helper: Deselect shape and unlock
   const handleDeselectShape = async () => {
@@ -167,10 +168,7 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
             console.log('✅ Grouped shapes:', groupId);
           } catch (error) {
             console.error('Failed to group shapes:', error);
-            toast.error('Failed to group shapes', {
-              duration: 2000,
-              position: 'top-center',
-            });
+            showError('Failed to group shapes');
           }
         }
         return;
@@ -202,10 +200,7 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
             }
           } catch (error) {
             console.error('Failed to ungroup shapes:', error);
-            toast.error('Failed to ungroup shapes', {
-              duration: 2000,
-              position: 'top-center',
-            });
+            showError('Failed to ungroup shapes');
           }
         }
         return;
@@ -319,10 +314,7 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
           setSelectedShapes(newShapeIds.filter(Boolean) as string[]);
         } catch (error) {
           console.error('❌ PASTE ERROR - Failed to paste shapes:', error);
-          toast.error('Failed to paste shapes', {
-            duration: 2000,
-            position: 'top-center',
-          });
+          showError('Failed to paste shapes');
         }
         return;
       }
@@ -597,10 +589,7 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
             setSelectedShapes([]);
           } catch (error) {
             console.error('❌ BATCH DELETE ERROR - Failed to delete shapes:', error);
-            toast.error('Failed to delete shapes', {
-              duration: 2000,
-              position: 'top-center',
-            });
+            showError('Failed to delete shapes');
           }
           return;
         }
@@ -612,10 +601,7 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
             setSelectedShapeId(null);
           } catch (error) {
             console.error('Failed to delete shape:', error);
-            toast.error('Failed to delete shape', {
-              duration: 2000,
-              position: 'top-center',
-            });
+            showError('Failed to delete shape');
           }
         } else {
           console.log('⚠️ DELETE KEY PRESSED - No shapes selected');
@@ -644,10 +630,7 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
             setSelectedShapes(newShapeIds);
           } catch (error) {
             console.error('❌ BATCH DUPLICATE ERROR - Failed to duplicate shapes:', error);
-            toast.error('Failed to duplicate shapes', {
-              duration: 2000,
-              position: 'top-center',
-            });
+            showError('Failed to duplicate shapes');
           }
           return;
         }
@@ -666,10 +649,7 @@ export function useKeyboardShortcuts(props: UseKeyboardShortcutsProps) {
             await lockShape(newShapeId, user.uid);
           } catch (error) {
             console.error('Failed to duplicate shape:', error);
-            toast.error('Failed to duplicate shape', {
-              duration: 2000,
-              position: 'top-center',
-            });
+            showError('Failed to duplicate shape');
           }
         }
       }

@@ -11,9 +11,9 @@ import type { ChatMessage } from '../Chat/types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../../utils/constants';
 import { useCanvasContext } from '../../contexts/CanvasContext';
 import { useAuth } from '../../hooks/useAuth';
+import { useError } from '../../contexts/ErrorContext';
 import { AIService } from '../../services/aiService';
 import { saveMessage, loadChatHistory, deleteMessage } from '../../services/chatService';
-import toast from 'react-hot-toast';
 
 interface AppShellProps {
   children: ReactNode;
@@ -22,6 +22,7 @@ interface AppShellProps {
 
 export default function AppShell({ children, onNavigateToGallery }: AppShellProps) {
   const { user } = useAuth();
+  const { showError } = useError();
   const canvasContext = useCanvasContext();
   const { currentCanvasId, stagePosition, stageScale: canvasStageScale } = canvasContext;
   const [isPerformancePanelOpen, setIsPerformancePanelOpen] = useState(false);
@@ -137,10 +138,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
       });
     } catch (error) {
       console.error('Failed to save user message:', error);
-      toast.error('⚠️ Message not saved. Check your connection.', {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError('⚠️ Message not saved. Check your connection.');
     }
     
     // Set loading state
@@ -168,12 +166,27 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
       };
       
       // Call AI service with timeout and viewport info
+      const aiStartTime = performance.now();
       const result = await Promise.race([
-        aiServiceRef.current!.executeCommand(trimmedContent, user.uid, currentCanvasId, viewport),
+        aiServiceRef.current!.executeCommand(
+          trimmedContent, 
+          user.uid, 
+          currentCanvasId, 
+          viewport,
+          // Callback: clear loading state immediately when shapes are drawn
+          () => {
+            const shapesDrawnTime = performance.now();
+            console.log(`🎨 Shapes drawn at ${(shapesDrawnTime - aiStartTime).toFixed(2)}ms - clearing "thinking..." state NOW`);
+            setIsChatLoading(false);
+          }
+        ),
         timeoutPromise
       ]);
+      const aiEndTime = performance.now();
+      console.log(`🎨 AI Service completed in ${(aiEndTime - aiStartTime).toFixed(2)}ms`);
       
       // Create AI response message
+      const uiUpdateStartTime = performance.now();
       const aiMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -181,19 +194,21 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
         timestamp: new Date()
       };
       setChatMessages(prev => [...prev, aiMessage]);
+      const uiUpdateEndTime = performance.now();
+      console.log(`💬 UI updated with message in ${(uiUpdateEndTime - uiUpdateStartTime).toFixed(2)}ms`);
+      console.log(`⏱️ Total delay from AI completion to UI update: ${(uiUpdateEndTime - aiEndTime).toFixed(2)}ms`);
       
-      // Save AI response to Firestore (canvas-scoped)
-      try {
-        if (currentCanvasId) {
-          await saveMessage(currentCanvasId, {
-            userId: user.uid,
-            role: 'assistant',
-            content: result.message
-          });
-        }
-      } catch (error) {
+      // Clear loading state (in case callback didn't fire - e.g., for non-drawing operations)
+      setIsChatLoading(false);
+      
+      // Save AI response to Firestore (canvas-scoped) - don't await, let it happen in background
+      saveMessage(currentCanvasId, {
+        userId: user.uid,
+        role: 'assistant',
+        content: result.message
+      }).catch(error => {
         console.error('Failed to save AI response:', error);
-      }
+      });
       
     } catch (error: any) {
       console.error('AI error:', error);
@@ -229,8 +244,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
         console.error('Failed to save error message:', saveError);
       }
       
-    } finally {
-      // Always clear loading state
+      // Clear loading state after error handling
       setIsChatLoading(false);
     }
   };
@@ -259,10 +273,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
         }]);
       }
       
-      toast.error('Failed to delete message', {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError('Failed to delete message');
     }
   };
   
@@ -349,10 +360,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
           await updateTextFormatting(selectedShapeId, { fontWeight: newWeight });
         } catch (error) {
           console.error('❌ Error toggling bold:', error);
-          toast.error('Failed to update text formatting', {
-            duration: 2000,
-            position: 'top-center',
-          });
+          showError('Failed to update text formatting');
         }
         return;
       }
@@ -382,10 +390,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
           await updateTextFormatting(selectedShapeId, { fontStyle: newStyle });
         } catch (error) {
           console.error('❌ Error toggling italic:', error);
-          toast.error('Failed to update text formatting', {
-            duration: 2000,
-            position: 'top-center',
-          });
+          showError('Failed to update text formatting');
         }
         return;
       }
@@ -415,10 +420,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
           await updateTextFormatting(selectedShapeId, { textDecoration: newDecoration });
         } catch (error) {
           console.error('❌ Error toggling underline:', error);
-          toast.error('Failed to update text formatting', {
-            duration: 2000,
-            position: 'top-center',
-          });
+          showError('Failed to update text formatting');
         }
         return;
       }
@@ -445,10 +447,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
           await updateTextFormatting(selectedShapeId, { fontSize });
         } catch (error) {
           console.error('❌ Error changing font size:', error);
-          toast.error('Failed to update font size', {
-            duration: 2000,
-            position: 'top-center',
-          });
+          showError('Failed to update font size');
         }
         return;
       }
@@ -524,10 +523,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
         setSelectedShapes([]);
       } catch (error) {
         console.error('❌ BATCH DELETE ERROR (Button):', error);
-        toast.error('Failed to delete shapes', {
-          duration: 2000,
-          position: 'top-center',
-        });
+        showError('Failed to delete shapes');
       }
       return;
     }
@@ -539,10 +535,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
         setSelectedShapeId(null);
       } catch (error) {
         console.error('❌ Failed to delete shape:', error);
-        toast.error('Failed to delete shape', {
-          duration: 2000,
-          position: 'top-center',
-        });
+        showError('Failed to delete shape');
       }
     }
   };
@@ -564,10 +557,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
         setSelectedShapes(newShapeIds);
       } catch (error) {
         console.error('❌ BATCH DUPLICATE ERROR (Button):', error);
-        toast.error('Failed to duplicate shapes', {
-          duration: 2000,
-          position: 'top-center',
-        });
+        showError('Failed to duplicate shapes');
       }
       return;
     }
@@ -586,10 +576,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
         await lockShape(newShapeId, user.uid);
       } catch (error) {
         console.error('❌ Failed to duplicate shape:', error);
-        toast.error('Failed to duplicate shape', {
-          duration: 2000,
-          position: 'top-center',
-        });
+        showError('Failed to duplicate shape');
       }
     }
   };
@@ -603,10 +590,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
       console.log('✅ Group created:', groupId);
     } catch (error) {
       console.error('❌ Failed to group shapes:', error);
-      toast.error('Failed to group shapes', {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError('Failed to group shapes');
     }
   };
 
@@ -616,10 +600,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
     // Find groupId from selected shapes
     const groupId = shapes.find(s => selectedShapes.includes(s.id))?.groupId;
     if (!groupId) {
-      toast.error('No group to ungroup', {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError('No group to ungroup');
       return;
     }
     
@@ -637,10 +618,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
       }
     } catch (error) {
       console.error('❌ Failed to ungroup shapes:', error);
-      toast.error('Failed to ungroup shapes', {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError('Failed to ungroup shapes');
     }
   };
 
@@ -676,10 +654,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
       }
     } catch (error) {
       console.error('❌ Failed to bring to front:', error);
-      toast.error('Failed to bring to front', {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError('Failed to bring to front');
     }
   };
 
@@ -714,10 +689,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
       }
     } catch (error) {
       console.error('❌ Failed to send to back:', error);
-      toast.error('Failed to send to back', {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError('Failed to send to back');
     }
   };
 
@@ -752,10 +724,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
       }
     } catch (error) {
       console.error('❌ Failed to bring forward:', error);
-      toast.error('Failed to bring forward', {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError('Failed to bring forward');
     }
   };
 
@@ -790,10 +759,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
       }
     } catch (error) {
       console.error('❌ Failed to send backward:', error);
-      toast.error('Failed to send backward', {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError('Failed to send backward');
     }
   };
 

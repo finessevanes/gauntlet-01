@@ -1,4 +1,3 @@
-import toast from 'react-hot-toast';
 import type Konva from 'konva';
 import type { ShapeData } from '../services/canvasService';
 import { selectionService } from '../services/selectionService';
@@ -18,6 +17,7 @@ interface UseShapeInteractionProps {
   lockShape: (shapeId: string, userId: string) => Promise<{ success: boolean; lockedByUsername?: string }>;
   unlockShape: (shapeId: string) => Promise<void>;
   updateShape: (shapeId: string, updates: Partial<ShapeData>) => Promise<void>;
+  showError: (message: string) => void;
 }
 
 export function useShapeInteraction(props: UseShapeInteractionProps) {
@@ -33,6 +33,7 @@ export function useShapeInteraction(props: UseShapeInteractionProps) {
     lockShape,
     unlockShape,
     updateShape,
+    showError,
   } = props;
 
   // Helper: Deselect shape and unlock
@@ -61,10 +62,7 @@ export function useShapeInteraction(props: UseShapeInteractionProps) {
     
     if (selectionLockStatus.locked) {
       // Shape is selected by another user - prevent interaction
-      toast.error(`Shape selected by ${selectionLockStatus.username}`, {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError(`Shape selected by ${selectionLockStatus.username}`);
       return;
     }
 
@@ -159,10 +157,7 @@ export function useShapeInteraction(props: UseShapeInteractionProps) {
       setSelectedShapeId(null);
       
       const username = result.lockedByUsername || 'another user';
-      toast.error(`Shape locked by ${username}`, {
-        duration: 2000,
-        position: 'top-center',
-      });
+      showError(`Shape locked by ${username}`);
     }
   };
 
@@ -196,6 +191,10 @@ export function useShapeInteraction(props: UseShapeInteractionProps) {
       width = estimatedWidth + padding * 2;
       height = estimatedHeight + padding * 2;
     } else if (shape.type === 'rectangle' || shape.type === 'triangle') {
+      width = shape.width;
+      height = shape.height;
+    } else if (shape.type === 'path') {
+      // For paths, use bounding box dimensions
       width = shape.width;
       height = shape.height;
     } else if (shape.type === 'circle' && shape.radius !== undefined) {
@@ -244,6 +243,16 @@ export function useShapeInteraction(props: UseShapeInteractionProps) {
       node.y(newY);
     } else if (shape.type === 'rectangle' || shape.type === 'triangle') {
       // For rectangles/triangles, convert center to top-left
+      newX = centerX - shape.width / 2;
+      newY = centerY - shape.height / 2;
+      newX = Math.max(0, Math.min(CANVAS_WIDTH - shape.width, newX));
+      newY = Math.max(0, Math.min(CANVAS_HEIGHT - shape.height, newY));
+      const finalCenterX = newX + shape.width / 2;
+      const finalCenterY = newY + shape.height / 2;
+      node.x(finalCenterX);
+      node.y(finalCenterY);
+    } else if (shape.type === 'path') {
+      // For paths, convert center to top-left (like rectangles)
       newX = centerX - shape.width / 2;
       newY = centerY - shape.height / 2;
       newX = Math.max(0, Math.min(CANVAS_WIDTH - shape.width, newX));

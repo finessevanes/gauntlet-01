@@ -1,6 +1,6 @@
 import { useCanvasContext } from '../../contexts/CanvasContext';
+import { useError } from '../../contexts/ErrorContext';
 import { COLORS } from '../../utils/constants';
-import toast from 'react-hot-toast';
 import { useMemo } from 'react';
 
 export default function ColorToolbar() {
@@ -16,6 +16,7 @@ export default function ColorToolbar() {
     batchUpdateShapes,
     editingTextId
   } = useCanvasContext();
+  const { showError } = useError();
 
   // Get the current color to display - either selected shape color or default selected color
   // Use useMemo to recalculate when shapes, selections, or editing state changes
@@ -100,10 +101,7 @@ export default function ColorToolbar() {
         }
       } catch (error) {
         console.error('❌ Error changing shape color:', error);
-        toast.error('Failed to change shape color', {
-          duration: 2000,
-          position: 'top-center',
-        });
+        showError('Failed to change shape color');
       }
     } else {
       // No shapes selected - just update the selected color for new shapes

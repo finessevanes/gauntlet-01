@@ -4,7 +4,7 @@ import { useCanvas } from '../../hooks/useCanvas';
 import { useCanvasRename } from '../../hooks/useCanvasRename';
 import { canvasListService } from '../../services/canvasListService';
 import type { CanvasMetadata } from '../../services/types/canvasTypes';
-import toast from 'react-hot-toast';
+import { useError } from '../../contexts/ErrorContext';
 import NavbarPresence from '../Collaboration/NavbarPresence';
 import ShareButton from '../Canvas/ShareButton';
 
@@ -12,6 +12,7 @@ export default function Navbar() {
   const { userProfile, logout } = useAuth();
   const { currentCanvasId } = useCanvas();
   const { renameCanvas } = useCanvasRename();
+  const { showError } = useError();
   const [canvasMetadata, setCanvasMetadata] = useState<CanvasMetadata | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
 
@@ -29,9 +30,8 @@ export default function Navbar() {
   const handleLogout = async () => {
     try {
       await logout();
-      toast.success('Logged out successfully');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to logout');
+      showError(error.message || 'Failed to logout');
     }
   };
 

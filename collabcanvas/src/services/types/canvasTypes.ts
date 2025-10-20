@@ -66,7 +66,7 @@ export type ShapeCreateInput = Omit<ShapeData, 'id' | 'createdAt' | 'updatedAt' 
   zIndex?: number;
 };
 
-export type ShapeUpdateInput = Partial<Pick<ShapeData, 'x' | 'y' | 'width' | 'height' | 'color' | 'rotation'>>;
+export type ShapeUpdateInput = Partial<Pick<ShapeData, 'x' | 'y' | 'width' | 'height' | 'color' | 'rotation' | 'points'>>;
 
 // Path-specific interfaces
 export interface Path {

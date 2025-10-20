@@ -6,7 +6,7 @@ interface UseCommentPanelProps {
   user: { uid: string; displayName?: string | null; email?: string | null } | null;
   addComment: (shapeId: string, text: string, userId: string, username: string) => Promise<string>;
   addReply: (commentId: string, userId: string, username: string, text: string) => Promise<void>;
-  resolveComment: (commentId: string, userId: string) => Promise<void>;
+  resolveComment: (commentId: string) => Promise<void>;
   deleteComment: (commentId: string, userId: string) => Promise<void>;
   deleteReply: (commentId: string, replyIndex: number, userId: string) => Promise<void>;
   markRepliesAsRead: (commentId: string, userId: string) => Promise<void>;
@@ -101,7 +101,7 @@ export function useCommentPanel(props: UseCommentPanelProps) {
     if (!user) return;
     
     try {
-      await resolveComment(commentId, user.uid);
+      await resolveComment(commentId);
       toast.success('Comment resolved');
     } catch (error) {
       console.error('Error resolving comment:', error);

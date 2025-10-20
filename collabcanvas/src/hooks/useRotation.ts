@@ -58,11 +58,6 @@ export function useRotation(props: UseRotationProps) {
       rotation: shape.rotation || 0,
     });
     setPreviewRotation(shape.rotation || 0);
-    
-    console.log('✅ Rotation started:', {
-      initialAngle: (initialAngle * 180 / Math.PI).toFixed(2) + '°',
-      currentRotation: (shape.rotation || 0).toFixed(2) + '°',
-    });
   };
 
   const handleRotationMove = (_e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -108,17 +103,6 @@ export function useRotation(props: UseRotationProps) {
 
     // Update preview
     setPreviewRotation(newRotation);
-    
-    // Log for debugging
-    if (Math.random() < 0.05) {
-      const normalizedAngle = ((newRotation % 360) + 360) % 360;
-      console.log('✅ SUCCESS TASK [2.5]: Angle tooltip displayed during rotation');
-      console.log('🔄 Rotating:', {
-        currentAngle: (currentAngle * 180 / Math.PI).toFixed(2) + '°',
-        delta: deltaInDegrees.toFixed(2) + '°',
-        displayedAngle: Math.round(normalizedAngle) + '°',
-      });
-    }
   };
 
   const handleRotationEnd = async () => {
@@ -131,10 +115,6 @@ export function useRotation(props: UseRotationProps) {
 
     try {
       await rotateShape(selectedShapeId, previewRotation);
-      
-      console.log('✅ SUCCESS TASK [2.4]: Rotation persisted to Firestore', {
-        finalRotation: previewRotation.toFixed(2) + '°',
-      });
     } catch (error) {
       console.error('❌ Failed to rotate shape:', error);
       toast.error('Failed to rotate shape');

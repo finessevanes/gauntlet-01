@@ -44,7 +44,6 @@ class CommentService {
       const commentRef = doc(firestore, commentsPath, commentId);
       await setDoc(commentRef, commentData);
 
-      console.log(`✅ Comment created: ${commentId} on shape ${shapeId}`);
       return commentId;
     } catch (error) {
       console.error('❌ Error creating comment:', error);
@@ -73,8 +72,6 @@ class CommentService {
         replies: arrayUnion(newReply),
         lastReplyAt: FirestoreTimestamp.now(),
       });
-
-      console.log(`✅ Reply added to comment: ${commentId}`);
     } catch (error) {
       console.error('❌ Error adding reply:', error);
       throw error;
@@ -88,21 +85,18 @@ class CommentService {
       const commentSnap = await getDoc(commentRef);
       
       if (!commentSnap.exists()) {
-        console.warn('⚠️ Comment not found:', commentId);
         return;
       }
 
       await updateDoc(commentRef, {
         [`replyReadStatus.${userId}`]: FirestoreTimestamp.now(),
       });
-
-      console.log(`✅ Replies marked as read for user ${userId} on comment ${commentId}`);
     } catch (error) {
       console.error('❌ Error marking replies as read:', error);
     }
   }
 
-  async resolveComment(canvasId: string, commentId: string, userId: string): Promise<void> {
+  async resolveComment(canvasId: string, commentId: string): Promise<void> {
     try {
       const commentsPath = this.getCommentsPath(canvasId);
       const commentRef = doc(firestore, commentsPath, commentId);
@@ -112,17 +106,9 @@ class CommentService {
         throw new Error('Comment not found');
       }
 
-      const comment = commentSnap.data() as CommentData;
-      
-      if (comment.userId !== userId) {
-        console.log('⚠️ User is not comment author, but allowing resolution for MVP');
-      }
-
       await updateDoc(commentRef, {
         resolved: true,
       });
-
-      console.log(`✅ Comment resolved: ${commentId}`);
     } catch (error) {
       console.error('❌ Error resolving comment:', error);
       throw error;
@@ -146,7 +132,6 @@ class CommentService {
       }
 
       await deleteDoc(commentRef);
-      console.log(`✅ Comment deleted: ${commentId}`);
     } catch (error) {
       console.error('❌ Error deleting comment:', error);
       throw error;
@@ -180,8 +165,6 @@ class CommentService {
       await updateDoc(commentRef, {
         replies: updatedReplies,
       });
-
-      console.log(`✅ Reply deleted from comment: ${commentId}`);
     } catch (error) {
       console.error('❌ Error deleting reply:', error);
       throw error;

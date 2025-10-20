@@ -195,8 +195,8 @@ class CanvasService {
     return commentService.markRepliesAsRead(canvasId, commentId, userId);
   }
 
-  async resolveComment(canvasId: string, commentId: string, userId: string) {
-    return commentService.resolveComment(canvasId, commentId, userId);
+  async resolveComment(canvasId: string, commentId: string) {
+    return commentService.resolveComment(canvasId, commentId);
   }
 
   async deleteComment(canvasId: string, commentId: string, userId: string) {

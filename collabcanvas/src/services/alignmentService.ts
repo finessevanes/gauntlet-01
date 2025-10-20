@@ -107,7 +107,6 @@ class AlignmentService {
       });
 
       await batch.commit();
-      console.log(`✅ Aligned ${shapes.length} shapes: ${alignment}`);
     } catch (error) {
       console.error('❌ Error aligning shapes:', error);
       throw error;
@@ -212,7 +211,6 @@ class AlignmentService {
       }
 
       await batch.commit();
-      console.log(`✅ Distributed ${shapes.length} shapes (center-based): ${direction}`);
     } catch (error) {
       console.error('❌ Error distributing shapes:', error);
       throw error;

@@ -57,7 +57,6 @@ class ShapeService {
       const latency = Date.now() - startTime;
       requirementsMonitor.trackObjectSync(latency);
 
-      console.log(`✅ Shape created with zIndex: ${zIndex} (${latency}ms)`);
       return shapeId;
     } catch (error) {
       console.error('❌ Error creating shape:', error);
@@ -92,7 +91,6 @@ class ShapeService {
         text: text,
         updatedAt: serverTimestamp()
       });
-      console.log('✅ Text updated:', shapeId);
     } catch (error) {
       console.error('❌ Error updating text:', error);
       throw error;
@@ -116,7 +114,6 @@ class ShapeService {
         ...formatting,
         updatedAt: serverTimestamp()
       });
-      console.log('✅ Text formatting updated:', shapeId, formatting);
     } catch (error) {
       console.error('❌ Error updating text formatting:', error);
       throw error;
@@ -142,8 +139,6 @@ class ShapeService {
       
       const latency = Date.now() - startTime;
       requirementsMonitor.trackObjectSync(latency);
-      
-      console.log(`✅ Batch updated ${updates.length} shapes atomically (${latency}ms)`);
     } catch (error) {
       console.error('❌ Error batch updating shapes:', error);
       throw error;
@@ -170,16 +165,12 @@ class ShapeService {
         const LOCK_TIMEOUT_MS = 5000;
 
         if (lockAge < LOCK_TIMEOUT_MS) {
-          console.log(`🔒 Shape locked by another user (${lockAge}ms ago)`);
-          
           const usersRef = collection(firestore, 'users');
           const userDocRef = doc(usersRef, shapeData.lockedBy);
           const userSnap = await getDoc(userDocRef);
           const lockedByUsername = userSnap.exists() ? userSnap.data().username : 'another user';
           
           return { success: false, lockedByUsername };
-        } else {
-          console.log(`⏰ Lock expired (${lockAge}ms), acquiring lock`);
         }
       }
 
@@ -224,8 +215,6 @@ class ShapeService {
         height: height,
         updatedAt: serverTimestamp()
       });
-
-      console.log(`✅ SUCCESS TASK [1.1]: Shape resized to ${width}×${height}`);
     } catch (error) {
       console.error('❌ Error resizing shape:', error);
       throw error;
@@ -242,8 +231,6 @@ class ShapeService {
         rotation: normalizedRotation,
         updatedAt: serverTimestamp()
       });
-
-      console.log(`✅ SUCCESS TASK [2.2]: Shape rotated to ${normalizedRotation}°`);
     } catch (error) {
       console.error('❌ Error rotating shape:', error);
       throw error;
@@ -260,8 +247,6 @@ class ShapeService {
         height: radius * 2,
         updatedAt: serverTimestamp()
       });
-
-      console.log(`✅ Circle resized to radius ${radius}`);
     } catch (error) {
       console.error('❌ Error resizing circle:', error);
       throw error;
@@ -273,7 +258,6 @@ class ShapeService {
       const shapesPath = this.getShapesPath(canvasId);
       const shapeRef = doc(firestore, shapesPath, shapeId);
       await deleteDoc(shapeRef);
-      console.log('✅ Shape deleted:', shapeId);
     } catch (error) {
       console.error('❌ Error deleting shape:', error);
       throw error;
@@ -291,8 +275,6 @@ class ShapeService {
       );
       
       await Promise.all(deletePromises);
-      
-      console.log(`💣 Bomb: Deleted ${snapshot.docs.length} shape(s)`);
     } catch (error) {
       console.error('❌ Error deleting all shapes:', error);
       throw error;
@@ -337,7 +319,6 @@ class ShapeService {
       }
 
       const newShapeId = await this.createShape(canvasId, newShapeInput);
-      console.log('✅ Shape duplicated:', shapeId, '->', newShapeId);
       return newShapeId;
     } catch (error) {
       console.error('❌ Error duplicating shape:', error);
@@ -381,7 +362,6 @@ class ShapeService {
       const shapeRef = doc(firestore, shapesPath, shapeId);
       await setDoc(shapeRef, shapeData);
 
-      console.log('✅ Circle shape created:', shapeId);
       return shapeId;
     } catch (error) {
       console.error('❌ Error creating circle shape:', error);
@@ -425,7 +405,6 @@ class ShapeService {
       const shapeRef = doc(firestore, shapesPath, shapeId);
       await setDoc(shapeRef, shapeData);
 
-      console.log('✅ Triangle shape created:', shapeId);
       return shapeId;
     } catch (error) {
       console.error('❌ Error creating triangle shape:', error);
@@ -485,7 +464,6 @@ class ShapeService {
       const shapeRef = doc(firestore, shapesPath, shapeId);
       await setDoc(shapeRef, shapeData);
 
-      console.log('✅ Text shape created above and to the right of cursor:', shapeId);
       return shapeId;
     } catch (error) {
       console.error('❌ Error creating text shape:', error);
@@ -546,7 +524,6 @@ class ShapeService {
       const latency = Date.now() - startTime;
       requirementsMonitor.trackObjectSync(latency);
 
-      console.log(`✅ Path created with ${pathInput.points.length} points (${latency}ms)`);
       return shapeId;
     } catch (error) {
       console.error('❌ Error creating path:', error);
@@ -587,8 +564,6 @@ class ShapeService {
       
       const latency = Date.now() - startTime;
       requirementsMonitor.trackObjectSync(latency);
-      
-      console.log(`✅ Path updated (${latency}ms)`);
     } catch (error) {
       console.error('❌ Error updating path:', error);
       throw error;

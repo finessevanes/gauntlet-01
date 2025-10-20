@@ -208,6 +208,12 @@ This document provides high-level briefs for all planned Pull Requests. These br
 
 **Brief:** Enhance AI capabilities to generate shapes on the canvas based on natural language prompts from users. This PR extends the AI chat functionality to parse shape generation requests (e.g., "draw a red circle in the center"), implements shape creation from AI prompts with appropriate parameters, adds special UI for shape generation confirmations, handles complex multi-shape generations, updates chat UI to show shape creation actions, and provides feedback when shapes are created. This makes the AI assistant more interactive and useful for canvas creation.
 
+**Additional Requirements:**
+- Create a login form with username and password fields
+- Build a navigation bar with 4 menu items
+- Make a card layout with title, image, and description
+- Should be able to draw a penis, boobs, smiley faces, dogs, or cats
+
 **Dependencies:** PR #10, PR #11, PR #2
 
 **Complexity:** Complex

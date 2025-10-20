@@ -2,11 +2,18 @@ import OpenAI from 'openai';
 import { canvasService } from './canvasService';
 import { getSystemPrompt } from '../utils/aiPrompts';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../utils/constants';
+import { generateCreativeDrawing } from '../utils/creativeDrawing';
 
 interface CommandResult {
   success: boolean;
   message: string;
   toolCalls: any[];
+}
+
+interface ViewportInfo {
+  centerX: number;
+  centerY: number;
+  scale: number;
 }
 
 export class AIService {
@@ -19,11 +26,11 @@ export class AIService {
     });
   }
   
-  async executeCommand(prompt: string, userId: string, canvasId: string): Promise<CommandResult> {
+  async executeCommand(prompt: string, userId: string, canvasId: string, viewport?: ViewportInfo): Promise<CommandResult> {
     try {
       // 1. Build conversation messages (don't pass shapes - let AI call getCanvasState for fresh data)
       const messages: any[] = [
-        { role: "system", content: getSystemPrompt([]) }, // Empty array - AI will call getCanvasState
+        { role: "system", content: getSystemPrompt([], viewport) }, // Empty array - AI will call getCanvasState
         { role: "user", content: prompt }
       ];
       
@@ -103,7 +110,6 @@ export class AIService {
       }
       
       // If we hit max iterations, return what we have
-      console.warn('⚠️ Hit max iterations in function calling loop');
       return {
         success: allResults.length > 0,
         message: this.generateSuccessMessage(allResults),
@@ -122,13 +128,10 @@ export class AIService {
   
   private async executeToolCalls(toolCalls: any[], userId: string, canvasId: string) {
     const results = [];
-    console.log(`🤖 AI making ${toolCalls.length} tool call(s):`, toolCalls.map(c => c.function.name));
     
     for (const call of toolCalls) {
       try {
-        console.log(`🔧 Executing: ${call.function.name}`, JSON.parse(call.function.arguments));
         const result = await this.executeSingleTool(call, userId, canvasId);
-        console.log(`✅ ${call.function.name} succeeded:`, result);
         results.push({
           tool: call.function.name,
           success: true,
@@ -207,6 +210,22 @@ export class AIService {
           textDecoration: args.textDecoration || 'none'
         });
       
+      case 'drawCreative':
+        this.validatePosition(args.x, args.y, 'drawing');
+        // Generate simple path drawing for the object
+        const points = generateCreativeDrawing(
+          args.objectName,
+          args.x,
+          args.y,
+          args.size || 100
+        );
+        
+        return await canvasService.createPath(canvasId, {
+          points,
+          strokeWidth: args.strokeWidth || 2,
+          color: args.color || '#000000'
+        }, userId);
+      
       // MANIPULATION TOOLS
       case 'moveShape':
         return await canvasService.updateShape(canvasId, args.shapeId, {
@@ -281,6 +300,7 @@ export class AIService {
         case 'createCircle': return '✓ Created 1 circle';
         case 'createTriangle': return '✓ Created 1 triangle';
         case 'createText': return '✓ Created 1 text element';
+        case 'drawCreative': return '✓ Drew your requested object';
         case 'moveShape': return '✓ Moved shape to new position';
         case 'resizeShape': return '✓ Resized shape';
         case 'rotateShape': return '✓ Rotated shape';
@@ -375,6 +395,25 @@ export class AIService {
               textDecoration: { type: "string", description: "Text decoration: 'none' or 'underline'" }
             },
             required: ["x", "y", "color", "text"]
+          }
+        }
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "drawCreative",
+          description: "Creates a simple, child-like drawing of common objects using pencil tool paths. Use this for creative drawing requests like 'draw a dog', 'draw a smiley face', 'draw a house', etc. Supported objects: dog, cat, face/smiley, house, tree, sun, star, flower, heart, car, stick figure. Be creative and have fun with any drawing requests!",
+          parameters: {
+            type: "object",
+            properties: {
+              objectName: { type: "string", description: "The object to draw (e.g., 'dog', 'cat', 'smiley face', 'house', 'tree', 'sun', 'star', 'flower', 'heart', 'car', or anything else the user requests)" },
+              x: { type: "number", description: "Top-left X position in pixels (0-5000)" },
+              y: { type: "number", description: "Top-left Y position in pixels (0-5000)" },
+              size: { type: "number", description: "Size of the drawing in pixels (default 100)" },
+              color: { type: "string", description: "Hex color code for the drawing (default #000000)" },
+              strokeWidth: { type: "number", description: "Stroke width in pixels 1-10 (default 2)" }
+            },
+            required: ["objectName", "x", "y"]
           }
         }
       },

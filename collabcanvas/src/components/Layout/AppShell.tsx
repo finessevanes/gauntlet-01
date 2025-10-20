@@ -22,7 +22,8 @@ interface AppShellProps {
 
 export default function AppShell({ children, onNavigateToGallery }: AppShellProps) {
   const { user } = useAuth();
-  const { currentCanvasId } = useCanvasContext();
+  const canvasContext = useCanvasContext();
+  const { currentCanvasId, stagePosition, stageScale: canvasStageScale } = canvasContext;
   const [isPerformancePanelOpen, setIsPerformancePanelOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   
@@ -151,9 +152,24 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
         setTimeout(() => reject(new Error('TIMEOUT')), 30000);
       });
       
-      // Call AI service with timeout
+      // Calculate viewport center for AI positioning
+      // Viewport dimensions (assume 1920x1080 as typical, but AI will place at center regardless)
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      // Calculate canvas position at viewport center
+      const viewportCenterX = (-stagePosition.x + viewportWidth / 2) / canvasStageScale;
+      const viewportCenterY = (-stagePosition.y + viewportHeight / 2) / canvasStageScale;
+      
+      const viewport = {
+        centerX: viewportCenterX,
+        centerY: viewportCenterY,
+        scale: canvasStageScale
+      };
+      
+      // Call AI service with timeout and viewport info
       const result = await Promise.race([
-        aiServiceRef.current!.executeCommand(trimmedContent, user.uid, currentCanvasId),
+        aiServiceRef.current!.executeCommand(trimmedContent, user.uid, currentCanvasId, viewport),
         timeoutPromise
       ]);
       

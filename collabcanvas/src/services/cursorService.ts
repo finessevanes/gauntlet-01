@@ -107,7 +107,6 @@ class CursorService {
     const cursorsPath = this.getCursorsPath(canvasId);
     const cursorRef = ref(database, `${cursorsPath}/${userId}/cursor`);
     await remove(cursorRef);
-    console.log(`✅ Cursor removed for user ${userId} on canvas ${canvasId}`);
   }
 }
 

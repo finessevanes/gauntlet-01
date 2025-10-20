@@ -59,7 +59,6 @@ class GroupService {
       
       await batch.commit();
       
-      console.log(`✅ Group created: ${groupId} with ${shapeIds.length} shapes`);
       return groupId;
     } catch (error) {
       console.error('❌ Error creating group:', error);
@@ -93,8 +92,6 @@ class GroupService {
       batch.delete(groupRef);
       
       await batch.commit();
-      
-      console.log(`✅ Group ungrouped: ${groupId} (${groupData.shapeIds.length} shapes)`);
     } catch (error) {
       console.error('❌ Error ungrouping shapes:', error);
       throw error;

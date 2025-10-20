@@ -46,8 +46,6 @@ export function useShapeInteraction(props: UseShapeInteractionProps) {
         } catch (error) {
           console.error('Failed to unlock shape:', error);
         }
-      } else {
-        console.log('⚠️ Shape no longer exists, skipping unlock:', selectedShapeId);
       }
       
       setSelectedShapeId(null);
@@ -67,16 +65,11 @@ export function useShapeInteraction(props: UseShapeInteractionProps) {
         duration: 2000,
         position: 'top-center',
       });
-      console.log('🔒 Shape selected by another user, preventing interaction:', {
-        shapeId,
-        lockedBy: selectionLockStatus.username,
-      });
       return;
     }
 
     // IMPORTANT: Check if clicking on a shape that's already part of a multi-selection FIRST
     if (selectedShapes.includes(shapeId) && selectedShapes.length > 1 && !event?.shiftKey) {
-      console.log('🔵 Clicked on multi-selected shape, keeping multi-selection for drag');
       // Track which shape was actually clicked
       setLastClickedShapeId(shapeId);
       return;
@@ -89,12 +82,6 @@ export function useShapeInteraction(props: UseShapeInteractionProps) {
     // If shape is part of a group, select entire group
     if (groupId && !event?.shiftKey) {
       const groupShapes = shapes.filter(s => s.groupId === groupId).map(s => s.id);
-      console.log('🔵 GROUP SELECT - Selecting entire group:', {
-        groupId,
-        shapeCount: groupShapes.length,
-        shapeIds: groupShapes,
-        lastClickedShapeId: shapeId,
-      });
       
       // Clear single selection if any
       if (selectedShapeId) {
@@ -118,7 +105,6 @@ export function useShapeInteraction(props: UseShapeInteractionProps) {
       
       // If there's a currently selected shape (selectedShapeId), add it to multi-selection first
       if (selectedShapeId && !newSelection.includes(selectedShapeId)) {
-        console.log('🔵 Adding currently selected shape to multi-selection:', selectedShapeId);
         newSelection.push(selectedShapeId);
         // Unlock and clear single selection
         try {
@@ -132,27 +118,15 @@ export function useShapeInteraction(props: UseShapeInteractionProps) {
       // Toggle the clicked shape
       if (newSelection.includes(shapeId)) {
         // Remove from selection
-        console.log('🔵 Removing shape from multi-selection:', shapeId);
         newSelection = newSelection.filter(id => id !== shapeId);
       } else {
         // Add to selection
-        console.log('🔵 Adding shape to multi-selection:', shapeId);
         newSelection.push(shapeId);
       }
       
       // Track the last clicked shape
       setLastClickedShapeId(shapeId);
       setSelectedShapes(newSelection);
-      
-      // Log final selection state
-      if (newSelection.length > 1) {
-        console.log('✅ MULTI-SELECT ACTIVE - Selected shapes:', newSelection);
-        console.log(`   📊 Total: ${newSelection.length} shapes selected`);
-      } else if (newSelection.length === 1) {
-        console.log('🔵 Single shape in multi-selection:', newSelection[0]);
-      } else {
-        console.log('⚪ Multi-selection cleared');
-      }
       
       return;
     }
@@ -165,7 +139,6 @@ export function useShapeInteraction(props: UseShapeInteractionProps) {
 
     // Clear multi-selection when single-selecting a different shape
     if (selectedShapes.length > 0) {
-      console.log('🔵 Clearing multi-selection for single select');
       setSelectedShapes([]);
     }
 

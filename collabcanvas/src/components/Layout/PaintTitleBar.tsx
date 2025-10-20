@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useCanvasContext } from '../../contexts/CanvasContext';
-import toast from 'react-hot-toast';
+import { useError } from '../../contexts/ErrorContext';
 import NavbarPresence from '../Collaboration/NavbarPresence';
+import { canvasListService } from '../../services/canvasListService';
+import type { CanvasMetadata } from '../../services/types/canvasTypes';
 
 interface PaintTitleBarProps {
   onNavigateToGallery?: () => void;
@@ -11,14 +13,35 @@ interface PaintTitleBarProps {
 export default function PaintTitleBar({ onNavigateToGallery }: PaintTitleBarProps = {}) {
   const { logout } = useAuth();
   const { currentCanvasId } = useCanvasContext();
+  const { showError } = useError();
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [canvasMetadata, setCanvasMetadata] = useState<CanvasMetadata | null>(null);
+
+  // Fetch canvas metadata when currentCanvasId changes
+  useEffect(() => {
+    const fetchCanvasMetadata = async () => {
+      if (!currentCanvasId) {
+        setCanvasMetadata(null);
+        return;
+      }
+      
+      try {
+        const metadata = await canvasListService.getCanvasById(currentCanvasId);
+        setCanvasMetadata(metadata);
+      } catch (error) {
+        console.error('Failed to fetch canvas metadata:', error);
+        setCanvasMetadata(null);
+      }
+    };
+
+    fetchCanvasMetadata();
+  }, [currentCanvasId]);
 
   const handleLogout = async () => {
     try {
       await logout();
-      toast.success('Logged out successfully');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to logout');
+      showError(error.message || 'Failed to logout');
     }
   };
 
@@ -33,8 +56,10 @@ export default function PaintTitleBar({ onNavigateToGallery }: PaintTitleBarProp
     <div style={styles.titleBarContainer}>
       {/* Title Bar */}
       <div style={styles.titleBar}>
-        {/* Title */}
-        <div style={styles.title}>untitled - Paint</div>
+        {/* Title - Centered */}
+        <div style={styles.title}>
+          {canvasMetadata ? `${canvasMetadata.name} - Paint` : 'untitled - Paint'}
+        </div>
 
         {/* Right Controls */}
         <div style={styles.rightControls}>
@@ -223,7 +248,7 @@ const styles = {
     background: 'linear-gradient(to bottom, #2c5fa8 0%, #1e4785 100%)',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     padding: '0 10px',
     position: 'relative' as const,
   },
@@ -260,6 +285,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
+    position: 'absolute' as const,
+    right: '10px',
   },
   logoutButton: {
     background: '#c0c0c0',

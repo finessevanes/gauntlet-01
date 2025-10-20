@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import type { CanvasMetadata } from '../../services/types/canvasTypes';
 import { formatRelativeTime } from '../../utils/formatRelativeTime';
 import { RenameCanvasInline } from './RenameCanvasInline';
+import { useAuth } from '../../hooks/useAuth';
+import { CopyLinkButton } from './CopyLinkButton';
 import './CanvasGallery.css';
 
 interface CanvasCardProps {
@@ -15,7 +17,13 @@ interface CanvasCardProps {
  * Canvas card component showing metadata for a single canvas
  */
 export function CanvasCard({ canvas, onClick, isLoading = false, onRename }: CanvasCardProps) {
+  const { userProfile } = useAuth();
   const [isRenaming, setIsRenaming] = useState(false);
+  
+  // Check if current user is the owner
+  const isOwner = userProfile?.uid === canvas.ownerId;
+  const isShared = !isOwner; // Canvas is shared with user if they're not the owner
+  
   const collaboratorText = canvas.collaboratorIds.length === 1
     ? 'Just you'
     : `${canvas.collaboratorIds.length} collaborators`;
@@ -54,7 +62,7 @@ export function CanvasCard({ canvas, onClick, isLoading = false, onRename }: Can
 
   return (
     <div
-      className={`canvas-card ${isLoading ? 'canvas-card-loading' : ''}`}
+      className={`canvas-card ${isLoading ? 'canvas-card-loading' : ''} ${isShared ? 'canvas-card-shared' : ''}`}
       onClick={handleClick}
       onKeyPress={handleKeyPress}
       role="button"
@@ -74,17 +82,26 @@ export function CanvasCard({ canvas, onClick, isLoading = false, onRename }: Can
           </div>
         ) : (
           <>
-            <h3 className="canvas-card-title">🎨 {canvas.name}</h3>
-            {onRename && (
-              <button
-                className="canvas-card-rename-button"
-                onClick={handleRenameClick}
-                aria-label={`Rename canvas ${canvas.name}`}
-                title="Rename canvas"
-              >
-                ✏️
-              </button>
-            )}
+            <h3 className="canvas-card-title">
+              {isShared ? '👥' : '🎨'} {canvas.name}
+            </h3>
+            <div className="canvas-card-header-buttons">
+              {onRename && isOwner && (
+                <button
+                  className="canvas-card-rename-button"
+                  onClick={handleRenameClick}
+                  aria-label={`Rename canvas ${canvas.name}`}
+                  title="Rename canvas"
+                >
+                  ✏️
+                </button>
+              )}
+              {isOwner && (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <CopyLinkButton canvasId={canvas.id} />
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>

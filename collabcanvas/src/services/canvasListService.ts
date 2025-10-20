@@ -11,10 +11,11 @@ import {
   updateDoc,
   setDoc,
   serverTimestamp,
+  arrayUnion,
 } from 'firebase/firestore';
 import type { Unsubscribe, Timestamp } from 'firebase/firestore';
 import { firestore } from '../firebase';
-import type { CanvasMetadata, CanvasDocument } from './types/canvasTypes';
+import type { CanvasMetadata, CanvasDocument, CollaboratorInfo } from './types/canvasTypes';
 
 /**
  * Canvas List Service
@@ -266,6 +267,103 @@ class CanvasListService {
       console.error('❌ Error renaming canvas:', error);
       throw error;
     }
+  }
+
+  /**
+   * Add user to canvas collaborators via shareable link
+   * Uses arrayUnion to prevent duplicates (idempotent)
+   * @param canvasId - Canvas to add user to
+   * @param userId - User to add as collaborator
+   * @returns Promise resolving to updated canvas metadata
+   * @throws Error if canvas doesn't exist or Firestore write fails
+   */
+  async addCollaborator(canvasId: string, userId: string): Promise<CanvasMetadata> {
+    try {
+      const canvasRef = doc(firestore, this.canvasesCollectionPath, canvasId);
+      
+      // Use arrayUnion to prevent duplicates (atomic operation)
+      await updateDoc(canvasRef, {
+        collaboratorIds: arrayUnion(userId),
+        updatedAt: serverTimestamp(),
+      });
+      
+      console.log(`✅ Added collaborator ${userId} to canvas ${canvasId}`);
+      
+      // Return updated canvas metadata
+      const updatedCanvas = await this.getCanvasById(canvasId);
+      if (!updatedCanvas) {
+        throw new Error('Canvas not found after collaborator addition');
+      }
+      
+      return updatedCanvas;
+    } catch (error) {
+      console.error('❌ Error adding collaborator:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get collaborator info for a canvas
+   * Fetches user details for all collaborators
+   * @param canvasId - Canvas to fetch collaborators for
+   * @returns Promise resolving to array of collaborator info (owner first)
+   */
+  async getCollaborators(canvasId: string): Promise<CollaboratorInfo[]> {
+    try {
+      // 1. Get canvas document
+      const canvas = await this.getCanvasById(canvasId);
+      if (!canvas) {
+        console.warn(`⚠️ Canvas not found: ${canvasId}`);
+        return [];
+      }
+      
+      // 2. Fetch user documents for all collaborators
+      const collaboratorPromises = canvas.collaboratorIds.map(async (userId) => {
+        try {
+          const userRef = doc(firestore, 'users', userId);
+          const userDoc = await getDoc(userRef);
+          const userData = userDoc.exists() ? userDoc.data() : null;
+          
+          return {
+            userId,
+            email: userData?.email || 'Unknown',
+            displayName: userData?.displayName || null,
+            isOwner: userId === canvas.ownerId,
+          };
+        } catch (error) {
+          console.warn(`⚠️ Could not fetch user ${userId}:`, error);
+          return {
+            userId,
+            email: 'Unknown',
+            displayName: null,
+            isOwner: userId === canvas.ownerId,
+          };
+        }
+      });
+      
+      // 3. Resolve all promises
+      const collaborators = await Promise.all(collaboratorPromises);
+      
+      // 4. Sort: owner first, then alphabetically
+      return collaborators.sort((a, b) => {
+        if (a.isOwner) return -1;
+        if (b.isOwner) return 1;
+        return (a.displayName || a.email).localeCompare(b.displayName || b.email);
+      });
+    } catch (error) {
+      console.error('❌ Error fetching collaborators:', error);
+      return []; // Return empty array on error
+    }
+  }
+
+  /**
+   * Generate shareable link for canvas
+   * @param canvasId - Canvas ID to generate link for
+   * @returns Shareable URL string
+   */
+  generateShareableLink(canvasId: string): string {
+    const baseUrl = window.location.origin; // e.g., https://app.collabcanvas.com
+    return `${baseUrl}/canvas/${canvasId}?share=true`;
   }
 }
 

@@ -6,6 +6,7 @@ import { canvasListService } from '../../services/canvasListService';
 import type { CanvasMetadata } from '../../services/types/canvasTypes';
 import toast from 'react-hot-toast';
 import NavbarPresence from '../Collaboration/NavbarPresence';
+import ShareButton from '../Canvas/ShareButton';
 
 export default function Navbar() {
   const { userProfile, logout } = useAuth();
@@ -97,6 +98,13 @@ export default function Navbar() {
 
         <div style={styles.rightSection}>
           <NavbarPresence />
+          {canvasMetadata && userProfile && (
+            <ShareButton
+              canvasId={currentCanvasId || ''}
+              canvasName={canvasMetadata.name}
+              isOwner={canvasMetadata.ownerId === userProfile.uid}
+            />
+          )}
           <button onClick={handleLogout} style={styles.logoutButton}>
             Log Out
           </button>

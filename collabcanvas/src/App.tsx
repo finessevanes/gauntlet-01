@@ -9,6 +9,7 @@ import { CanvasGallery } from './components/CanvasGallery/CanvasGallery';
 import { CanvasProvider, useCanvasContext } from './contexts/CanvasContext';
 import { canvasListService } from './services/canvasListService';
 import ErrorBoundary from './components/ErrorBoundary';
+import toast from 'react-hot-toast';
 import './App.css';
 
 type View = 'gallery' | 'canvas';
@@ -17,6 +18,7 @@ type View = 'gallery' | 'canvas';
  * Inner app component that has access to CanvasContext
  */
 function AppContent() {
+  const { userProfile } = useAuth();
   const { setCurrentCanvasId } = useCanvasContext();
   const [currentView, setCurrentView] = useState<View>('gallery');
   const [urlCanvasId, setUrlCanvasId] = useState<string | null>(null);
@@ -56,6 +58,64 @@ function AppContent() {
       window.removeEventListener('popstate', handlePopState);
     };
   }, [setCurrentCanvasId]);
+
+  // Handle shared canvas access - add user as collaborator if needed
+  useEffect(() => {
+    const handleSharedCanvasAccess = async () => {
+      // Only process if on canvas view with canvas ID
+      if (currentView !== 'canvas' || !urlCanvasId) {
+        return;
+      }
+
+      // If user is not authenticated, they need to login first
+      // The main App component will handle showing login screen
+      if (!userProfile) {
+        return;
+      }
+
+      try {
+        console.log(`🔍 Checking canvas access for: ${urlCanvasId}`);
+        
+        // Check if canvas exists and get metadata
+        const canvas = await canvasListService.getCanvasById(urlCanvasId);
+        
+        if (!canvas) {
+          console.error('❌ Canvas not found');
+          toast.error('Canvas not found or you don\'t have access');
+          // Redirect to gallery after 2 seconds
+          setTimeout(() => {
+            navigateToGallery();
+          }, 2000);
+          return;
+        }
+
+        console.log(`✅ Canvas found: ${canvas.name}`);
+        console.log(`👥 Current collaborators:`, canvas.collaboratorIds);
+        console.log(`👤 Current user: ${userProfile.uid}`);
+
+        // Check if user is already a collaborator
+        const isCollaborator = canvas.collaboratorIds.includes(userProfile.uid);
+        
+        if (!isCollaborator) {
+          console.log('➕ Adding user as collaborator...');
+          // Add user as collaborator (via shared link)
+          await canvasListService.addCollaborator(urlCanvasId, userProfile.uid);
+          console.log('✅ User added as collaborator');
+          toast.success(`You've been added to "${canvas.name}"!`);
+        } else {
+          console.log('✅ User is already a collaborator');
+        }
+
+        // Update last accessed timestamp
+        await canvasListService.updateCanvasAccess(urlCanvasId);
+      } catch (error) {
+        console.error('❌ Error handling shared canvas access:', error);
+        toast.error('Unable to join canvas. Please try again.');
+      }
+    };
+
+    handleSharedCanvasAccess();
+  }, [currentView, urlCanvasId, userProfile]);
 
   // Fetch canvas name and update document title
   useEffect(() => {
@@ -158,6 +218,7 @@ function App() {
   }
 
   // If not authenticated or no user profile, show login/signup
+  // The URL will be preserved, so after login they'll return to the same page
   if (!user || !userProfile) {
     return showLogin ? (
       <Login onSwitchToSignup={() => setShowLogin(false)} />

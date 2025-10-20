@@ -94,3 +94,12 @@ export interface CanvasCardProps {
   isLoading?: boolean;
 }
 
+// Canvas sharing types
+export interface CollaboratorInfo {
+  userId: string;
+  email: string;
+  displayName: string | null;
+  isOwner: boolean;
+  isOnline?: boolean; // SHOULD-HAVE: from presence data
+}
+

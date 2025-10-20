@@ -560,6 +560,24 @@
   border-color: #000040 #1084d0 #1084d0 #000040;
 }
 
+/* Shared Canvas Styling (90s/00s style) */
+.canvas-card-shared {
+  border-width: 3px;
+  border-color: #dfdfdf #404040 #404040 #dfdfdf;
+  background: #f5f5f5;
+}
+
+.canvas-card-shared:hover {
+  border-color: #ffffff #000000 #000000 #ffffff;
+}
+
+/* Canvas Card Header Buttons Container */
+.canvas-card-header-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
   .canvas-gallery-grid {

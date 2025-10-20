@@ -15,7 +15,10 @@ service cloud.firestore {
     // Canvases collection - users can access canvases they're collaborators on
     match /canvases/{canvasId} {
       // Users can read canvases they have access to
-      allow read: if request.auth != null && 
+      // For queries: allow if authenticated (query filters by collaboratorIds)
+      // For get: allow if user is in collaboratorIds
+      allow list: if request.auth != null;
+      allow get: if request.auth != null && 
         request.auth.uid in resource.data.collaboratorIds;
       
       // Users can create canvases (owner is creator)

@@ -221,13 +221,27 @@ export function CommentPanel({
           style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
         >
           <span className="comment-panel-title">💬 Comments</span>
-          <button
-            className="comment-panel-close"
-            onClick={onClose}
-            title="Close"
-          >
-            ✕
-          </button>
+          <div className="comment-panel-window-controls">
+            <button
+              className="comment-panel-window-button"
+              title="Minimize"
+            >
+              ─
+            </button>
+            <button
+              className="comment-panel-window-button"
+              title="Maximize"
+            >
+              □
+            </button>
+            <button
+              className="comment-panel-window-button"
+              onClick={onClose}
+              title="Close"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* New Comment Input */}

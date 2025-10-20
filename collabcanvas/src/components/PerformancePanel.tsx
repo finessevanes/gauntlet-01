@@ -143,7 +143,11 @@ export default function PerformancePanel({ isOpen, onClose }: PerformancePanelPr
               {requirements.filter(r => r.status === 'met').length}/{requirements.length}
             </span>
           </div>
-          <button onClick={onClose} style={styles.closeButton}>✕</button>
+          <div style={styles.windowControls}>
+            <button style={styles.windowButton} title="Minimize">─</button>
+            <button style={styles.windowButton} title="Maximize">□</button>
+            <button onClick={onClose} style={styles.windowButton} title="Close">✕</button>
+          </div>
         </div>
 
         {/* Toolbar (Windows 95 style) */}
@@ -375,7 +379,12 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 'bold',
     boxShadow: 'inset 1px 1px 0 #ffffff, inset -1px -1px 0 #808080',
   },
-  closeButton: {
+  windowControls: {
+    display: 'flex',
+    gap: '2px',
+    alignItems: 'center',
+  },
+  windowButton: {
     width: '16px',
     height: '14px',
     backgroundColor: '#c0c0c0',

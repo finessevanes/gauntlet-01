@@ -133,16 +133,34 @@ export default function AlignmentToolbar({
         onMouseDown={handleMouseDown}
       >
         <span style={styles.titleText}>Alignment Tools</span>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onMinimize?.();
-          }}
-          style={styles.minimizeButton}
-          title="Minimize"
-        >
-          −
-        </button>
+        <div style={styles.windowControls}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onMinimize?.();
+            }}
+            style={styles.windowButton}
+            title="Minimize"
+          >
+            ─
+          </button>
+          <button
+            style={styles.windowButton}
+            title="Maximize"
+          >
+            □
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onMinimize?.();
+            }}
+            style={styles.windowButton}
+            title="Close"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       <div style={styles.container}>
@@ -337,17 +355,22 @@ const styles = {
     fontWeight: 'bold' as const,
     letterSpacing: '0.5px',
   },
-  minimizeButton: {
+  windowControls: {
+    display: 'flex',
+    gap: '2px',
+    alignItems: 'center',
+  },
+  windowButton: {
     backgroundColor: '#c0c0c0',
-    border: '1px solid #808080',
-    borderRadius: '2px',
-    width: '20px',
-    height: '18px',
+    border: '1px solid',
+    borderColor: '#ffffff #000000 #000000 #ffffff',
+    width: '18px',
+    height: '16px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
-    fontSize: '16px',
+    fontSize: '11px',
     fontWeight: 'bold' as const,
     color: '#000000',
     padding: 0,

@@ -33,13 +33,6 @@ export default function PaintTitleBar({ onNavigateToGallery }: PaintTitleBarProp
     <div style={styles.titleBarContainer}>
       {/* Title Bar */}
       <div style={styles.titleBar}>
-        {/* macOS Window Controls */}
-        <div style={styles.windowControls}>
-          <div style={{ ...styles.windowButton, backgroundColor: '#ff5f56' }} />
-          <div style={{ ...styles.windowButton, backgroundColor: '#ffbd2e' }} />
-          <div style={{ ...styles.windowButton, backgroundColor: '#27c93f' }} />
-        </div>
-
         {/* Title */}
         <div style={styles.title}>untitled - Paint</div>
 
@@ -53,6 +46,13 @@ export default function PaintTitleBar({ onNavigateToGallery }: PaintTitleBarProp
           >
             ⚙️
           </button>
+          
+          {/* Window Controls - Windows Style */}
+          <div style={styles.windowControls}>
+            <button style={styles.windowButton} title="Minimize">─</button>
+            <button style={styles.windowButton} title="Maximize">□</button>
+            <button style={styles.windowButton} title="Close">✕</button>
+          </div>
         </div>
       </div>
 
@@ -87,18 +87,23 @@ export default function PaintTitleBar({ onNavigateToGallery }: PaintTitleBarProp
         <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
           {/* Modal Title Bar */}
           <div style={styles.modalTitleBar}>
+            <span style={styles.modalTitle}>Keyboard Shortcuts</span>
             <div style={styles.modalWindowControls}>
-              <div 
+              <button 
+                style={styles.modalWindowButton}
+                title="Minimize"
+              >─</button>
+              <button 
+                style={styles.modalWindowButton}
+                title="Maximize"
+              >□</button>
+              <button 
                 onClick={() => setShowShortcutsModal(false)}
-                style={styles.windowButtonRed}
+                style={styles.modalWindowButton}
                 className="modal-close-button"
                 title="Close"
-              />
-              <div style={styles.windowButtonYellow} />
-              <div style={styles.windowButtonGreen} />
+              >✕</button>
             </div>
-            <span style={styles.modalTitle}>Keyboard Shortcuts</span>
-            <div style={styles.modalTitleSpacer} />
           </div>
 
           {/* Modal Content */}
@@ -224,20 +229,27 @@ const styles = {
   },
   windowControls: {
     display: 'flex',
-    gap: '8px',
+    gap: '2px',
     alignItems: 'center',
+    marginLeft: '8px',
   },
   windowButton: {
-    width: '12px',
-    height: '12px',
-    borderRadius: '50%',
-    border: 'none',
+    width: '16px',
+    height: '14px',
+    backgroundColor: '#c0c0c0',
+    border: '1px solid',
+    borderColor: '#ffffff #000000 #000000 #ffffff',
+    color: '#000000',
+    fontSize: '10px',
+    fontWeight: 'bold' as const,
     cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '0',
+    padding: 0,
   },
   title: {
-    position: 'absolute' as const,
-    left: '50%',
-    transform: 'translateX(-50%)',
     color: '#ffffff',
     fontSize: '13px',
     fontFamily: 'system-ui, -apple-system, sans-serif',
@@ -250,18 +262,18 @@ const styles = {
     gap: '10px',
   },
   logoutButton: {
-    background: 'rgba(255, 255, 255, 0.1)',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    color: '#ffffff',
+    background: '#c0c0c0',
+    border: '2px solid',
+    borderColor: '#ffffff #808080 #808080 #ffffff',
+    color: '#000000',
     width: '24px',
     height: '24px',
-    borderRadius: '3px',
+    borderRadius: '0',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: '14px',
-    transition: 'background-color 0.15s',
   },
   menuBar: {
     display: 'flex',
@@ -286,14 +298,14 @@ const styles = {
     fontSize: '11px',
     fontFamily: 'system-ui, -apple-system, sans-serif',
     cursor: 'pointer',
-    border: 'none',
-    background: '#007bff',
-    color: '#ffffff',
+    border: '2px solid',
+    borderColor: '#ffffff #808080 #808080 #ffffff',
+    background: '#c0c0c0',
+    color: '#000000',
     fontWeight: 600,
-    borderRadius: '3px',
+    borderRadius: '0',
     marginLeft: '4px',
     marginRight: '8px',
-    transition: 'background-color 0.2s',
   },
   modalOverlay: {
     position: 'fixed' as const,
@@ -332,45 +344,31 @@ const styles = {
   },
   modalWindowControls: {
     display: 'flex',
-    gap: '8px',
+    gap: '2px',
     alignItems: 'center',
-    minWidth: '60px',
   },
-  windowButtonRed: {
-    width: '12px',
-    height: '12px',
-    borderRadius: '50%',
-    backgroundColor: '#ff5f56',
-    border: 'none',
+  modalWindowButton: {
+    width: '16px',
+    height: '14px',
+    backgroundColor: '#c0c0c0',
+    border: '1px solid',
+    borderColor: '#ffffff #000000 #000000 #ffffff',
+    color: '#000000',
+    fontSize: '10px',
+    fontWeight: 'bold' as const,
     cursor: 'pointer',
-    transition: 'all 0.1s',
-  },
-  windowButtonYellow: {
-    width: '12px',
-    height: '12px',
-    borderRadius: '50%',
-    backgroundColor: '#ffbd2e',
-    border: 'none',
-  },
-  windowButtonGreen: {
-    width: '12px',
-    height: '12px',
-    borderRadius: '50%',
-    backgroundColor: '#27c93f',
-    border: 'none',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0,
   },
   modalTitle: {
-    position: 'absolute' as const,
-    left: '50%',
-    transform: 'translateX(-50%)',
+    flex: 1,
     color: '#ffffff',
     fontSize: '13px',
     fontWeight: 'bold' as const,
     fontFamily: 'system-ui, -apple-system, sans-serif',
     letterSpacing: '0.3px',
-  },
-  modalTitleSpacer: {
-    minWidth: '60px',
   },
   modalContent: {
     padding: '20px',

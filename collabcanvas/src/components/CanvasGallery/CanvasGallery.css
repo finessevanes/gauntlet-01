@@ -1,26 +1,33 @@
-/* Canvas Gallery Container */
+/* Canvas Gallery Container - Windows 95/98 Style */
 .canvas-gallery-container {
-  padding: 40px;
+  padding: 20px;
   max-width: 1400px;
   margin: 0 auto;
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: #c0c0c0;
+  font-family: 'MS Sans Serif', 'Microsoft Sans Serif', sans-serif;
 }
 
 .canvas-gallery-header {
-  margin-bottom: 32px;
+  margin-bottom: 24px;
+  background-color: #000080;
+  padding: 8px 12px;
+  border: 2px solid;
+  border-color: #dfdfdf #808080 #808080 #dfdfdf;
+  box-shadow: inset 1px 1px 0 0 #fff, inset -1px -1px 0 0 #000;
 }
 
 .canvas-gallery-header h1 {
-  font-size: 32px;
-  font-weight: 600;
-  color: #333;
-  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: #ffffff;
+  margin: 0 0 4px 0;
+  text-shadow: 1px 1px 0 #000;
 }
 
 .canvas-gallery-subtitle {
-  color: #666;
-  font-size: 16px;
+  color: #ffffff;
+  font-size: 11px;
   margin: 0;
 }
 
@@ -28,37 +35,40 @@
 .canvas-gallery-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
+  gap: 16px;
 }
 
-/* Canvas Card */
+/* Canvas Card - Windows 95 Window Style */
 .canvas-card {
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 20px;
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #ffffff #808080 #808080 #ffffff;
+  box-shadow: inset 1px 1px 0 0 #dfdfdf, inset -1px -1px 0 0 #000;
+  padding: 2px;
   cursor: pointer;
-  transition: all 0.2s ease;
   position: relative;
-  min-height: 200px;
+  min-height: 160px;
   display: flex;
   flex-direction: column;
 }
 
 .canvas-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
-  border-color: #007bff;
+  border-color: #dfdfdf #404040 #404040 #dfdfdf;
 }
 
 .canvas-card:focus {
-  outline: 2px solid #007bff;
-  outline-offset: 2px;
+  outline: 1px dotted #000;
+  outline-offset: -4px;
+}
+
+.canvas-card:active {
+  border-color: #808080 #ffffff #ffffff #808080;
+  box-shadow: inset -1px -1px 0 0 #dfdfdf, inset 1px 1px 0 0 #000;
 }
 
 .canvas-card-loading {
   pointer-events: none;
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
 .canvas-card-overlay {
@@ -67,137 +77,165 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.9);
+  background: #c0c0c0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  font-weight: 500;
-  color: #007bff;
+  font-weight: bold;
+  color: #000;
+  font-size: 12px;
 }
 
+/* Card Title Bar - Windows Style */
 .canvas-card-header {
-  margin-bottom: 16px;
+  background: linear-gradient(to right, #000080, #1084d0);
+  padding: 3px 6px;
+  margin-bottom: 8px;
 }
 
 .canvas-card-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #333;
+  font-size: 11px;
+  font-weight: bold;
+  color: #ffffff;
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+  text-shadow: 1px 1px 0 #000;
 }
 
+/* Card Content Area */
 .canvas-card-metadata {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid;
+  border-color: #808080 #dfdfdf #dfdfdf #808080;
+  margin: 0 4px;
 }
 
 .canvas-card-meta-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: #666;
+  gap: 6px;
+  font-size: 11px;
+  color: #000;
 }
 
 .canvas-card-meta-label {
-  font-weight: 500;
-  color: #888;
+  font-weight: bold;
+  color: #000;
 }
 
 .canvas-card-meta-value {
-  color: #333;
+  color: #000;
 }
 
 .canvas-card-footer {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
+  margin-top: 8px;
+  padding: 6px 8px;
+  text-align: center;
 }
 
 .canvas-card-action {
-  color: #007bff;
-  font-size: 14px;
-  font-weight: 500;
+  color: #000080;
+  font-size: 11px;
+  font-weight: bold;
 }
 
-/* Empty State */
+/* Empty State - Windows Dialog Style */
 .canvas-empty-state {
   text-align: center;
-  padding: 60px 20px;
-  max-width: 600px;
-  margin: 0 auto;
+  padding: 40px 20px;
+  max-width: 500px;
+  margin: 40px auto;
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #ffffff #808080 #808080 #ffffff;
+  box-shadow: inset 1px 1px 0 0 #dfdfdf, inset -1px -1px 0 0 #000;
 }
 
 .empty-state-icon {
-  font-size: 64px;
-  margin-bottom: 24px;
+  font-size: 48px;
+  margin-bottom: 16px;
+  filter: grayscale(20%);
 }
 
 .empty-state-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: #333;
-  margin: 0 0 16px 0;
+  font-size: 13px;
+  font-weight: bold;
+  color: #000;
+  margin: 0 0 12px 0;
 }
 
 .empty-state-description {
-  font-size: 16px;
-  color: #666;
-  line-height: 1.6;
-  margin: 0 0 24px 0;
+  font-size: 11px;
+  color: #000;
+  line-height: 1.5;
+  margin: 0 0 20px 0;
 }
 
 .empty-state-button {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 12px 24px;
-  font-size: 16px;
-  font-weight: 500;
+  background: #c0c0c0;
+  color: #000;
+  border: 2px solid;
+  border-color: #ffffff #000000 #000000 #ffffff;
+  box-shadow: inset 1px 1px 0 0 #dfdfdf, inset -1px -1px 0 0 #808080;
+  padding: 6px 16px;
+  font-size: 11px;
+  font-weight: bold;
   cursor: pointer;
-  transition: background-color 0.2s;
+  font-family: 'MS Sans Serif', sans-serif;
 }
 
 .empty-state-button:hover:not(:disabled) {
-  background-color: #0056b3;
+  background: #dfdfdf;
+}
+
+.empty-state-button:active:not(:disabled) {
+  border-color: #000000 #ffffff #ffffff #000000;
+  box-shadow: inset -1px -1px 0 0 #dfdfdf, inset 1px 1px 0 0 #808080;
+  padding: 7px 15px 5px 17px; /* Shift content down-right when pressed */
 }
 
 .empty-state-button:disabled {
-  background-color: #ccc;
+  color: #808080;
+  text-shadow: 1px 1px 0 #fff;
   cursor: not-allowed;
 }
 
 .empty-state-hint {
-  margin-top: 16px;
-  font-size: 14px;
-  color: #999;
-  font-style: italic;
+  margin-top: 12px;
+  font-size: 10px;
+  color: #808080;
+  font-style: normal;
 }
 
-/* Loading State */
+/* Loading State - Windows Style */
 .canvas-gallery-loading {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 80px 20px;
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #ffffff #808080 #808080 #ffffff;
+  max-width: 400px;
+  margin: 40px auto;
 }
 
 .spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #007bff;
-  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  border: 4px solid #c0c0c0;
+  border-top: 4px solid #000080;
+  border-radius: 0; /* Square for retro look */
   animation: spin 1s linear infinite;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 @keyframes spin {
@@ -206,18 +244,27 @@
 }
 
 .canvas-gallery-loading p {
-  color: #666;
-  font-size: 16px;
+  color: #000;
+  font-size: 11px;
+  font-weight: bold;
 }
 
-/* Error State */
+/* Error State - Windows Error Dialog */
 .canvas-gallery-error {
   text-align: center;
-  padding: 40px 20px;
-  background-color: #fff3cd;
-  border: 1px solid #ffc107;
-  border-radius: 8px;
-  color: #856404;
+  padding: 20px;
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #ffffff #808080 #808080 #ffffff;
+  box-shadow: inset 1px 1px 0 0 #dfdfdf, inset -1px -1px 0 0 #000;
+  color: #000;
+  max-width: 500px;
+  margin: 40px auto;
+}
+
+.canvas-gallery-error p {
+  font-size: 11px;
+  margin: 0;
 }
 
 /* Responsive Design */
@@ -229,7 +276,7 @@
 
 @media (max-width: 640px) {
   .canvas-gallery-container {
-    padding: 20px;
+    padding: 12px;
   }
 
   .canvas-gallery-grid {
@@ -237,11 +284,10 @@
   }
 
   .canvas-gallery-header h1 {
-    font-size: 24px;
+    font-size: 14px;
   }
 
   .canvas-card {
-    min-height: 180px;
+    min-height: 140px;
   }
 }
-

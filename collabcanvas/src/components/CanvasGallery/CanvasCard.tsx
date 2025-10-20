@@ -107,6 +107,17 @@ export function CanvasCard({ canvas, onClick, isLoading = false, onRename }: Can
       </div>
 
       <div className="canvas-card-metadata">
+        {isShared && (
+          <div className="canvas-card-meta-item" style={{ 
+            fontWeight: 'bold',
+            borderBottom: '1px solid #808080',
+            paddingBottom: '6px',
+            marginBottom: '6px',
+          }}>
+            <span style={{ fontSize: '11px' }}>👥 Shared Canvas</span>
+          </div>
+        )}
+        
         <div className="canvas-card-meta-item">
           <span className="canvas-card-meta-label">Last edited:</span>
           <span className="canvas-card-meta-value">

@@ -101,16 +101,24 @@ export class AIService {
             if (createdShapes.length > 1) {
               const shapeIds = createdShapes.map(r => r.result);
               try {
+                const groupStartTime = performance.now();
                 await groupService.groupShapes(canvasId, shapeIds, userId, 'AI Drawing');
+                const groupEndTime = performance.now();
+                console.log(`🔗 Grouping ${shapeIds.length} shapes completed in ${(groupEndTime - groupStartTime).toFixed(2)}ms`);
               } catch (error) {
                 console.error('❌ Failed to group AI shapes:', error);
               }
             }
             
             // We executed tools, return success
+            const messageGenStartTime = performance.now();
+            const successMessage = this.generateSuccessMessage(allResults);
+            const messageGenEndTime = performance.now();
+            console.log(`📝 Success message generated in ${(messageGenEndTime - messageGenStartTime).toFixed(2)}ms: "${successMessage}"`);
+            console.log(`✅ AI Service returning result - shapes are visible on canvas NOW`);
             return {
               success: true,
-              message: this.generateSuccessMessage(allResults),
+              message: successMessage,
               toolCalls: allResults
             };
           } else {
@@ -146,7 +154,10 @@ export class AIService {
     
     for (const call of toolCalls) {
       try {
+        const toolStartTime = performance.now();
         const result = await this.executeSingleTool(call, userId, canvasId);
+        const toolEndTime = performance.now();
+        console.log(`🔧 Tool "${call.function.name}" completed in ${(toolEndTime - toolStartTime).toFixed(2)}ms`);
         results.push({
           tool: call.function.name,
           success: true,

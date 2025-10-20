@@ -168,12 +168,16 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
       };
       
       // Call AI service with timeout and viewport info
+      const aiStartTime = performance.now();
       const result = await Promise.race([
         aiServiceRef.current!.executeCommand(trimmedContent, user.uid, currentCanvasId, viewport),
         timeoutPromise
       ]);
+      const aiEndTime = performance.now();
+      console.log(`🎨 AI Service completed in ${(aiEndTime - aiStartTime).toFixed(2)}ms`);
       
       // Create AI response message
+      const uiUpdateStartTime = performance.now();
       const aiMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -181,19 +185,23 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
         timestamp: new Date()
       };
       setChatMessages(prev => [...prev, aiMessage]);
+      const uiUpdateEndTime = performance.now();
+      console.log(`💬 UI updated with message in ${(uiUpdateEndTime - uiUpdateStartTime).toFixed(2)}ms`);
+      console.log(`⏱️ Total delay from AI completion to UI update: ${(uiUpdateEndTime - aiEndTime).toFixed(2)}ms`);
       
-      // Save AI response to Firestore (canvas-scoped)
-      try {
-        if (currentCanvasId) {
-          await saveMessage(currentCanvasId, {
-            userId: user.uid,
-            role: 'assistant',
-            content: result.message
-          });
-        }
-      } catch (error) {
+      // Clear loading state immediately after UI update
+      const loadingClearTime = performance.now();
+      setIsChatLoading(false);
+      console.log(`🔄 Loading state cleared in ${(performance.now() - loadingClearTime).toFixed(2)}ms`);
+      
+      // Save AI response to Firestore (canvas-scoped) - don't await, let it happen in background
+      saveMessage(currentCanvasId, {
+        userId: user.uid,
+        role: 'assistant',
+        content: result.message
+      }).catch(error => {
         console.error('Failed to save AI response:', error);
-      }
+      });
       
     } catch (error: any) {
       console.error('AI error:', error);
@@ -229,8 +237,7 @@ export default function AppShell({ children, onNavigateToGallery }: AppShellProp
         console.error('Failed to save error message:', saveError);
       }
       
-    } finally {
-      // Always clear loading state
+      // Clear loading state after error handling
       setIsChatLoading(false);
     }
   };

@@ -24,7 +24,6 @@ import TextEditorOverlay from './TextEditorOverlay';
 import { getShapeLockStatus, getCursorStyle } from './canvasHelpers';
 import { selectionService } from '../../services/selectionService';
 import { calculateTextDimensions } from '../../utils/textEditingHelpers';
-import toast from 'react-hot-toast';
 import { 
   CANVAS_WIDTH, 
   CANVAS_HEIGHT, 
@@ -45,6 +44,7 @@ export default function Canvas() {
     setStagePosition,
     selectedColor,
     activeTool,
+    setActiveTool,
     isDrawMode,
     setIsDrawMode,
     isBombMode,
@@ -180,7 +180,6 @@ export default function Canvas() {
   
   // Bomb explosion state
   const [explosionPos, setExplosionPos] = useState<{ x: number; y: number } | null>(null);
-  const [previousMode, setPreviousMode] = useState<'draw' | 'pan'>('pan');
   
   // Space key panning state
   const [isSpacePressed, setIsSpacePressed] = useState(false);
@@ -195,27 +194,16 @@ export default function Canvas() {
     // Play explosion animation and delete all shapes
     try {
       await deleteAllShapes();
-      toast.success('💥 Boom! Canvas cleared!', {
-        duration: 2000,
-        position: 'top-center',
-      });
     } catch (error) {
       console.error('❌ Failed to delete shapes:', error);
-      toast.error('Failed to clear canvas', {
-        duration: 2000,
-        position: 'top-center',
-      });
     }
 
-    // Clear explosion effect and return to previous mode after animation
+    // Clear explosion effect and return to select mode after animation
     setTimeout(() => {
       setExplosionPos(null);
-      // Return to previous mode (draw or pan)
-      if (previousMode === 'draw') {
-        setIsDrawMode(true);
-      } else {
-        setIsDrawMode(false);
-      }
+      // Automatically switch back to select tool after bomb is used
+      setActiveTool('select');
+      setIsDrawMode(false);
       setIsBombMode(false);
     }, 800);
   };
@@ -472,17 +460,6 @@ export default function Canvas() {
     window.addEventListener('openCommentPanel', handleOpenCommentPanel);
     return () => window.removeEventListener('openCommentPanel', handleOpenCommentPanel);
   }, []);
-
-
-
-
-  // Track previous mode when switching to bomb mode
-  useEffect(() => {
-    if (isBombMode) {
-      // Save current mode before switching to bomb
-      setPreviousMode(isDrawMode ? 'draw' : 'pan');
-    }
-  }, [isBombMode, isDrawMode]);
 
   // Simplified mouse down handler - delegates to hooks
   const handleMouseDown = async (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -976,22 +953,12 @@ export default function Canvas() {
           {/* Explosion effect when bomb is placed */}
           {explosionPos && (
             <Group x={explosionPos.x} y={explosionPos.y}>
-              {/* Outer explosion ring */}
               <Text
                 text="💥"
-                fontSize={80}
-                x={-40}
-                y={-40}
-                opacity={0.9}
-                listening={false}
-              />
-              {/* Inner explosion */}
-              <Text
-                text="💣"
-                fontSize={40}
-                x={-20}
-                y={-20}
-                opacity={0.8}
+                fontSize={100}
+                x={-50}
+                y={-50}
+                opacity={0.95}
                 listening={false}
               />
             </Group>

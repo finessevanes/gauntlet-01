@@ -1,6 +1,7 @@
 import { useState, useEffect, Profiler } from 'react';
 import type { ProfilerOnRenderCallback } from 'react';
 import { useAuth } from './hooks/useAuth';
+import { useError } from './contexts/ErrorContext';
 import Login from './components/Auth/Login';
 import Signup from './components/Auth/Signup';
 import AppShell from './components/Layout/AppShell';
@@ -9,7 +10,6 @@ import { CanvasGallery } from './components/CanvasGallery/CanvasGallery';
 import { CanvasProvider, useCanvasContext } from './contexts/CanvasContext';
 import { canvasListService } from './services/canvasListService';
 import ErrorBoundary from './components/ErrorBoundary';
-import toast from 'react-hot-toast';
 import './App.css';
 
 type View = 'gallery' | 'canvas';
@@ -20,8 +20,10 @@ type View = 'gallery' | 'canvas';
 function AppContent() {
   const { userProfile } = useAuth();
   const { setCurrentCanvasId } = useCanvasContext();
+  const { showError } = useError();
   const [currentView, setCurrentView] = useState<View>('gallery');
   const [urlCanvasId, setUrlCanvasId] = useState<string | null>(null);
+  const [canvasAccessVerified, setCanvasAccessVerified] = useState(false);
 
   // Parse URL and determine current view
   useEffect(() => {
@@ -34,7 +36,8 @@ function AppContent() {
         const canvasId = canvasMatch[1];
         setUrlCanvasId(canvasId);
         setCurrentView('canvas');
-        setCurrentCanvasId(canvasId);
+        // DON'T set currentCanvasId yet - wait for access verification
+        setCanvasAccessVerified(false);
         return;
       }
       
@@ -42,6 +45,7 @@ function AppContent() {
       setCurrentView('gallery');
       setUrlCanvasId(null);
       setCurrentCanvasId(null);
+      setCanvasAccessVerified(false);
     };
 
     // Parse initial URL
@@ -81,7 +85,7 @@ function AppContent() {
         
         if (!canvas) {
           console.error('❌ Canvas not found');
-          toast.error('Canvas not found or you don\'t have access');
+          showError('Canvas not found or you don\'t have access');
           // Redirect to gallery after 2 seconds
           setTimeout(() => {
             navigateToGallery();
@@ -101,21 +105,26 @@ function AppContent() {
           // Add user as collaborator (via shared link)
           await canvasListService.addCollaborator(urlCanvasId, userProfile.uid);
           console.log('✅ User added as collaborator');
-          toast.success(`You've been added to "${canvas.name}"!`);
         } else {
           console.log('✅ User is already a collaborator');
         }
 
         // Update last accessed timestamp
         await canvasListService.updateCanvasAccess(urlCanvasId);
+        
+        // NOW it's safe to set currentCanvasId - user is confirmed as collaborator
+        setCurrentCanvasId(urlCanvasId);
+        setCanvasAccessVerified(true);
       } catch (error) {
         console.error('❌ Error handling shared canvas access:', error);
-        toast.error('Unable to join canvas. Please try again.');
+        showError('Unable to join canvas. Please try again.');
+        // Clear canvas ID on error to prevent subscription attempts
+        setCurrentCanvasId(null);
       }
     };
 
     handleSharedCanvasAccess();
-  }, [currentView, urlCanvasId, userProfile]);
+  }, [currentView, urlCanvasId, userProfile, setCurrentCanvasId, showError]);
 
   // Fetch canvas name and update document title
   useEffect(() => {
@@ -140,7 +149,8 @@ function AppContent() {
     window.history.pushState({}, '', newUrl);
     setUrlCanvasId(canvasId);
     setCurrentView('canvas');
-    setCurrentCanvasId(canvasId);
+    setCanvasAccessVerified(false);
+    // Don't set currentCanvasId here - let handleSharedCanvasAccess verify access first
   };
 
   // Navigate to gallery
@@ -150,6 +160,7 @@ function AppContent() {
     setUrlCanvasId(null);
     setCurrentView('gallery');
     setCurrentCanvasId(null);
+    setCanvasAccessVerified(false);
   };
 
   // Profiler callback to track Canvas render performance
@@ -186,6 +197,16 @@ function AppContent() {
 
   // Render canvas view
   if (currentView === 'canvas' && urlCanvasId) {
+    // Show loading state while verifying canvas access
+    if (!canvasAccessVerified) {
+      return (
+        <div style={styles.loadingContainer}>
+          <div style={styles.spinner}></div>
+          <p style={styles.loadingText}>Verifying canvas access...</p>
+        </div>
+      );
+    }
+    
     return (
       <AppShell onNavigateToGallery={navigateToGallery}>
         <Profiler id="Canvas" onRender={handleCanvasProfiler}>

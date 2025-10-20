@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 import type { User } from 'firebase/auth';
 import { authService } from '../services/authService';
 import type { UserProfile } from '../services/authService';
-import { presenceService } from '../services/presenceService';
 
 interface AuthContextType {
   user: User | null;
@@ -81,17 +80,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = async () => {
     setLoading(true);
     try {
-      // CRITICAL: Cancel disconnect handler FIRST to prevent race conditions
-      // Then mark offline, then sign out
-      if (user) {
-        // Step 1: Cancel the automatic disconnect handler
-        await presenceService.cancelDisconnectHandler(user.uid);
-        
-        // Step 2: Explicitly mark user as offline
-        await presenceService.setOffline(user.uid);
-      }
+      // NOTE: Presence cleanup is now handled by RTDB disconnect handlers
+      // which automatically mark users offline when they disconnect.
+      // With multi-canvas architecture (PR #12), we rely on these handlers
+      // rather than explicit cleanup since users might be on different canvases.
       
-      // Step 3: Sign out from Firebase Auth
+      // Sign out from Firebase Auth
       await authService.logout();
       
       setUser(null);

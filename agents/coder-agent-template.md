@@ -198,7 +198,35 @@ describe('Multi-User Collaboration Tests', () => {
 3. Re-run tests
 4. Don't proceed until all gates pass
 
-### Step 7: Create Pull Request & Handoff
+### Step 7: Verify With User (Before PR)
+
+**BEFORE creating the PR, verify with the user:**
+
+1. **Run the application:**
+   ```bash
+   npm run dev
+   ```
+
+2. **Test the feature end-to-end:**
+   - Does it work as described in the PRD?
+   - Are there any bugs or unexpected behaviors?
+   - Does it feel smooth and responsive?
+
+3. **Confirm with user:**
+   ```
+   "Feature is complete. All tests pass. All acceptance gates pass. 
+   No bugs found in my testing. Ready to create PR?"
+   ```
+
+4. **Wait for user approval** before proceeding to create the PR
+
+**If user finds issues:**
+- Document them
+- Fix the issues
+- Re-run tests
+- Verify again with user
+
+### Step 8: Create Pull Request & Handoff
 
 **IMPORTANT: PR must target `feat/agents` branch, NOT `main`**
 
@@ -455,7 +483,12 @@ npm run test
 # 6. Verify gates
 # Check PRD Section 12, all gates pass ✓
 
-# 7. Create PR (targeting feat/agents)
+# 7. IMPORTANT: Verify with user no bugs
+# Run the app, test the feature end-to-end
+# Confirm with user: "Feature is complete, all tests pass, no bugs found. Ready for PR?"
+# Wait for user approval before proceeding to next step
+
+# 8. Create PR (targeting feat/agents)
 git add .
 git commit -m "feat: add pencil tool for free-form drawing"
 git push origin feat/pr-1-pencil-tool

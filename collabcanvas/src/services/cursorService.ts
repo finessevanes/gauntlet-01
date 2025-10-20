@@ -15,12 +15,18 @@ export interface CursorsMap {
 }
 
 class CursorService {
-  private cursorsPath = '/sessions/main/users';
+  /**
+   * Get cursors path for a specific canvas
+   */
+  private getCursorsPath(canvasId: string): string {
+    return `/sessions/${canvasId}/users`;
+  }
 
   /**
-   * Update the current user's cursor position in RTDB
+   * Update the current user's cursor position in RTDB for a specific canvas
    */
   async updateCursorPosition(
+    canvasId: string,
     userId: string,
     x: number,
     y: number,
@@ -30,7 +36,8 @@ class CursorService {
     const startTime = Date.now();
     
     try {
-      const cursorRef = ref(database, `${this.cursorsPath}/${userId}/cursor`);
+      const cursorsPath = this.getCursorsPath(canvasId);
+      const cursorRef = ref(database, `${cursorsPath}/${userId}/cursor`);
       
       await set(cursorRef, {
         x,
@@ -51,12 +58,14 @@ class CursorService {
   }
 
   /**
-   * Subscribe to all users' cursor positions
+   * Subscribe to all users' cursor positions for a specific canvas
+   * @param canvasId - Canvas ID to subscribe to
    * @param callback - Called with updated cursors map whenever data changes
    * @returns Unsubscribe function
    */
-  subscribeToCursors(callback: (cursors: CursorsMap) => void): () => void {
-    const usersRef = ref(database, this.cursorsPath);
+  subscribeToCursors(canvasId: string, callback: (cursors: CursorsMap) => void): () => void {
+    const cursorsPath = this.getCursorsPath(canvasId);
+    const usersRef = ref(database, cursorsPath);
 
     const handleValue = (snapshot: any) => {
       const data = snapshot.val();
@@ -92,13 +101,14 @@ class CursorService {
   }
 
   /**
-   * Remove a user's cursor from RTDB
+   * Remove a user's cursor from RTDB for a specific canvas
    */
-  async removeCursor(userId: string): Promise<void> {
-    const cursorRef = ref(database, `${this.cursorsPath}/${userId}/cursor`);
+  async removeCursor(canvasId: string, userId: string): Promise<void> {
+    const cursorsPath = this.getCursorsPath(canvasId);
+    const cursorRef = ref(database, `${cursorsPath}/${userId}/cursor`);
     await remove(cursorRef);
+    console.log(`✅ Cursor removed for user ${userId} on canvas ${canvasId}`);
   }
 }
 
 export const cursorService = new CursorService();
-

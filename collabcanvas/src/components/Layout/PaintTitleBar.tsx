@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { useCanvasContext } from '../../contexts/CanvasContext';
 import toast from 'react-hot-toast';
 import NavbarPresence from '../Collaboration/NavbarPresence';
 
-export default function PaintTitleBar() {
+interface PaintTitleBarProps {
+  onNavigateToGallery?: () => void;
+}
+
+export default function PaintTitleBar({ onNavigateToGallery }: PaintTitleBarProps = {}) {
   const { logout } = useAuth();
+  const { currentCanvasId } = useCanvasContext();
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
 
   const handleLogout = async () => {
@@ -52,6 +58,16 @@ export default function PaintTitleBar() {
 
       {/* Menu Bar */}
       <div style={styles.menuBar}>
+        {/* Back to Gallery button (only show when on a canvas) */}
+        {currentCanvasId && onNavigateToGallery && (
+          <button
+            onClick={onNavigateToGallery}
+            style={styles.galleryButton}
+            title="Back to Gallery"
+          >
+            ← Gallery
+          </button>
+        )}
         {['File', 'Edit', 'View', 'Image', 'Options', 'Help'].map((menu) => (
           <div 
             key={menu} 
@@ -264,6 +280,20 @@ const styles = {
     alignItems: 'center',
     color: '#000000',
     transition: 'background-color 0.1s',
+  },
+  galleryButton: {
+    padding: '4px 12px',
+    fontSize: '11px',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+    cursor: 'pointer',
+    border: 'none',
+    background: '#007bff',
+    color: '#ffffff',
+    fontWeight: 600,
+    borderRadius: '3px',
+    marginLeft: '4px',
+    marginRight: '8px',
+    transition: 'background-color 0.2s',
   },
   modalOverlay: {
     position: 'fixed' as const,

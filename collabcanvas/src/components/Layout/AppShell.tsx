@@ -17,10 +17,12 @@ import toast from 'react-hot-toast';
 
 interface AppShellProps {
   children: ReactNode;
+  onNavigateToGallery?: () => void;
 }
 
-export default function AppShell({ children }: AppShellProps) {
+export default function AppShell({ children, onNavigateToGallery }: AppShellProps) {
   const { user } = useAuth();
+  const { currentCanvasId } = useCanvasContext();
   const [isPerformancePanelOpen, setIsPerformancePanelOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   
@@ -34,15 +36,17 @@ export default function AppShell({ children }: AppShellProps) {
     aiServiceRef.current = new AIService();
   }
   
-  // Load chat history from Firestore when user is authenticated
+  // Load chat history from Firestore when user is authenticated or canvas changes
   useEffect(() => {
     const loadHistory = async () => {
-      if (!user?.uid) return;
+      if (!user?.uid || !currentCanvasId) {
+        setChatMessages([]);
+        return;
+      }
       
       setIsChatLoading(true);
       try {
-        const canvasId = 'main'; // TODO: Get from routing in PR #12
-        const history = await loadChatHistory(canvasId, user.uid);
+        const history = await loadChatHistory(currentCanvasId, user.uid);
         
         // If history is empty, show welcome message
         if (history.length === 0) {
@@ -71,7 +75,7 @@ export default function AppShell({ children }: AppShellProps) {
     };
     
     loadHistory();
-  }, [user?.uid]);
+  }, [user?.uid, currentCanvasId]);
   
   // Handle sending messages to AI
   const handleSendMessage = async (content: string) => {
@@ -81,6 +85,18 @@ export default function AppShell({ children }: AppShellProps) {
         id: crypto.randomUUID(),
         role: 'assistant',
         content: '⚠️ You need to be logged in to chat with Clippy.',
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+      return;
+    }
+    
+    // Validate current canvas
+    if (!currentCanvasId) {
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: '⚠️ No canvas selected. Please select a canvas first.',
         timestamp: new Date()
       };
       setChatMessages(prev => [...prev, errorMessage]);
@@ -111,11 +127,9 @@ export default function AppShell({ children }: AppShellProps) {
     };
     setChatMessages(prev => [...prev, userMessage]);
     
-    // Save user message to Firestore
+    // Save user message to Firestore (canvas-scoped)
     try {
-      const canvasId = 'main'; // TODO: Get from routing in PR #12
-      await saveMessage({
-        canvasId,
+      await saveMessage(currentCanvasId, {
         userId: user.uid,
         role: 'user',
         content: trimmedContent
@@ -139,7 +153,7 @@ export default function AppShell({ children }: AppShellProps) {
       
       // Call AI service with timeout
       const result = await Promise.race([
-        aiServiceRef.current!.executeCommand(trimmedContent, user.uid),
+        aiServiceRef.current!.executeCommand(trimmedContent, user.uid, currentCanvasId),
         timeoutPromise
       ]);
       
@@ -152,15 +166,15 @@ export default function AppShell({ children }: AppShellProps) {
       };
       setChatMessages(prev => [...prev, aiMessage]);
       
-      // Save AI response to Firestore
+      // Save AI response to Firestore (canvas-scoped)
       try {
-        const canvasId = 'main'; // TODO: Get from routing in PR #12
-        await saveMessage({
-          canvasId,
-          userId: user.uid,
-          role: 'assistant',
-          content: result.message
-        });
+        if (currentCanvasId) {
+          await saveMessage(currentCanvasId, {
+            userId: user.uid,
+            role: 'assistant',
+            content: result.message
+          });
+        }
       } catch (error) {
         console.error('Failed to save AI response:', error);
       }
@@ -186,15 +200,15 @@ export default function AppShell({ children }: AppShellProps) {
       };
       setChatMessages(prev => [...prev, errorMessage]);
       
-      // Save error message to Firestore
+      // Save error message to Firestore (canvas-scoped)
       try {
-        const canvasId = 'main'; // TODO: Get from routing in PR #12
-        await saveMessage({
-          canvasId,
-          userId: user.uid,
-          role: 'assistant',
-          content: errorContent
-        });
+        if (currentCanvasId) {
+          await saveMessage(currentCanvasId, {
+            userId: user.uid,
+            role: 'assistant',
+            content: errorContent
+          });
+        }
       } catch (saveError) {
         console.error('Failed to save error message:', saveError);
       }
@@ -207,21 +221,20 @@ export default function AppShell({ children }: AppShellProps) {
   
   // Handle deleting a chat message
   const handleDeleteMessage = async (messageId: string) => {
-    if (!user?.uid) return;
+    if (!user?.uid || !currentCanvasId) return;
     
     try {
       // Optimistically remove from UI
       setChatMessages(prev => prev.filter(msg => msg.id !== messageId));
       
-      // Delete from Firestore
-      await deleteMessage(messageId);
+      // Delete from Firestore (canvas-scoped)
+      await deleteMessage(currentCanvasId, messageId);
     } catch (error) {
       console.error('Failed to delete message:', error);
       
       // Reload messages on error to restore state
-      if (user?.uid) {
-        const canvasId = 'main';
-        const history = await loadChatHistory(canvasId, user.uid);
+      if (user?.uid && currentCanvasId) {
+        const history = await loadChatHistory(currentCanvasId, user.uid);
         setChatMessages(history.length > 0 ? history : [{
           id: 'welcome',
           role: 'assistant',
@@ -770,7 +783,7 @@ export default function AppShell({ children }: AppShellProps) {
 
   return (
     <div style={styles.appShell}>
-      <PaintTitleBar />
+      <PaintTitleBar onNavigateToGallery={onNavigateToGallery} />
       <ToolPalette 
         selectedShape={selectedShape}
         selectedShapes={selectedShapes}

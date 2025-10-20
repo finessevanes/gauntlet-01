@@ -3,47 +3,56 @@ import { throttle } from 'lodash';
 import { cursorService, type CursorsMap } from '../services/cursorService';
 import { presenceService, type PresenceMap } from '../services/presenceService';
 import { useAuth } from './useAuth';
+import { useCanvasContext } from '../contexts/CanvasContext';
 import { CURSOR_UPDATE_INTERVAL, CANVAS_WIDTH, CANVAS_HEIGHT } from '../utils/constants';
 
 export function useCursors(stageRef: React.RefObject<any>) {
   const { user, userProfile } = useAuth();
+  const { currentCanvasId } = useCanvasContext();
   const [cursors, setCursors] = useState<CursorsMap>({});
   const [presence, setPresence] = useState<PresenceMap>({});
   const throttledUpdateRef = useRef<ReturnType<typeof throttle> | null>(null);
 
-  // Subscribe to all cursors
+  // Subscribe to all cursors (canvas-scoped)
   useEffect(() => {
-    if (!user) return;
+    if (!user || !currentCanvasId) {
+      setCursors({});
+      return;
+    }
 
-    const unsubscribe = cursorService.subscribeToCursors((updatedCursors) => {
+    const unsubscribe = cursorService.subscribeToCursors(currentCanvasId, (updatedCursors) => {
       setCursors(updatedCursors);
     });
 
     return () => {
       unsubscribe();
     };
-  }, [user]);
+  }, [user, currentCanvasId]);
 
-  // Subscribe to presence to filter out offline users' cursors
+  // Subscribe to presence to filter out offline users' cursors (canvas-scoped)
   useEffect(() => {
-    if (!user) return;
+    if (!user || !currentCanvasId) {
+      setPresence({});
+      return;
+    }
 
-    const unsubscribe = presenceService.subscribeToPresence((updatedPresence) => {
+    const unsubscribe = presenceService.subscribeToPresence(currentCanvasId, (updatedPresence) => {
       setPresence(updatedPresence);
     });
 
     return () => {
       unsubscribe();
     };
-  }, [user]);
+  }, [user, currentCanvasId]);
 
   // Create throttled update function
   useEffect(() => {
-    if (!user || !userProfile) return;
+    if (!user || !userProfile || !currentCanvasId) return;
 
     throttledUpdateRef.current = throttle(
       (x: number, y: number) => {
         cursorService.updateCursorPosition(
+          currentCanvasId,
           user.uid,
           x,
           y,
@@ -59,12 +68,12 @@ export function useCursors(stageRef: React.RefObject<any>) {
         throttledUpdateRef.current.cancel();
       }
     };
-  }, [user, userProfile]);
+  }, [user, userProfile, currentCanvasId]);
 
   // Handle mouse move on canvas
   const handleMouseMove = useCallback(
     (_e: any) => {
-      if (!user || !userProfile || !stageRef.current || !throttledUpdateRef.current) {
+      if (!user || !userProfile || !currentCanvasId || !stageRef.current || !throttledUpdateRef.current) {
         return;
       }
 
@@ -86,31 +95,31 @@ export function useCursors(stageRef: React.RefObject<any>) {
         canvasPos.y > CANVAS_HEIGHT
       ) {
         // Outside canvas bounds - remove cursor
-        cursorService.removeCursor(user.uid);
+        cursorService.removeCursor(currentCanvasId, user.uid);
         return;
       }
 
       // Inside canvas bounds - update cursor position via throttled function
       throttledUpdateRef.current(canvasPos.x, canvasPos.y);
     },
-    [user, userProfile, stageRef]
+    [user, userProfile, currentCanvasId, stageRef]
   );
 
   // Handle mouse leave - remove cursor
   const handleMouseLeave = useCallback(() => {
-    if (!user) return;
+    if (!user || !currentCanvasId) return;
     
-    cursorService.removeCursor(user.uid);
-  }, [user]);
+    cursorService.removeCursor(currentCanvasId, user.uid);
+  }, [user, currentCanvasId]);
 
-  // Cleanup cursor on unmount
+  // Cleanup cursor on unmount or canvas change
   useEffect(() => {
     return () => {
-      if (user) {
-        cursorService.removeCursor(user.uid);
+      if (user && currentCanvasId) {
+        cursorService.removeCursor(currentCanvasId, user.uid);
       }
     };
-  }, [user]);
+  }, [user, currentCanvasId]);
 
   // Filter out own cursor AND cursors from offline users
   const otherUsersCursors = Object.entries(cursors).reduce((acc, [userId, cursor]) => {
@@ -134,4 +143,3 @@ export function useCursors(stageRef: React.RefObject<any>) {
     handleMouseLeave,
   };
 }
-

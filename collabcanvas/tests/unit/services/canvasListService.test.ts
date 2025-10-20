@@ -96,8 +96,8 @@ describe('CanvasListService Unit Tests', () => {
   });
 
   describe('subscribeToUserCanvases', () => {
-    it('should subscribe with correct query parameters', () => {
-      const { onSnapshot } = vi.mocked(await import('firebase/firestore'));
+    it('should subscribe with correct query parameters', async () => {
+      const { onSnapshot } = await import('firebase/firestore');
       
       const callback = vi.fn();
       const unsubscribe = canvasListService.subscribeToUserCanvases('test-user-123', callback);
@@ -108,8 +108,8 @@ describe('CanvasListService Unit Tests', () => {
       // Gate: Subscription setup correctly ✓
     });
 
-    it('should call callback when data changes', () => {
-      const { onSnapshot } = vi.mocked(await import('firebase/firestore'));
+    it('should call callback when data changes', async () => {
+      const { onSnapshot } = await import('firebase/firestore');
       
       // Mock onSnapshot to immediately call callback
       (onSnapshot as any).mockImplementation((_query: any, successCallback: any) => {
@@ -128,8 +128,8 @@ describe('CanvasListService Unit Tests', () => {
       // Gate: Callback fires on updates ✓
     });
 
-    it('should return unsubscribe function', () => {
-      const { onSnapshot } = vi.mocked(await import('firebase/firestore'));
+    it('should return unsubscribe function', async () => {
+      const { onSnapshot } = await import('firebase/firestore');
       
       const mockUnsubscribe = vi.fn();
       (onSnapshot as any).mockReturnValue(mockUnsubscribe);

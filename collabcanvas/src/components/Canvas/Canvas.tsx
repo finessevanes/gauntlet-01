@@ -54,6 +54,7 @@ export default function Canvas() {
     createCircle,
     createTriangle,
     createText,
+    createPath,
     updateShape,
     batchUpdateShapes,
     resizeShape,
@@ -278,9 +279,11 @@ export default function Canvas() {
   // Drawing hook
   const {
     isDrawing,
+    isPencilDrawing,
     previewRect,
     previewCircle,
     previewTriangle,
+    previewPath,
     startDrawing,
     updateDrawing,
     finishDrawing,
@@ -293,6 +296,7 @@ export default function Canvas() {
     createCircle,
     createTriangle,
     createText,
+    createPath,
     enterEdit: handleEnterEdit,
     handleBombClick,
     handleDeselectShape,
@@ -485,6 +489,7 @@ export default function Canvas() {
     const stage = stageRef.current;
     if (!stage) return;
 
+
     // Check if we clicked on the background
     const clickedOnBackground = 
       e.target === stage || 
@@ -534,24 +539,25 @@ export default function Canvas() {
       return;
     }
 
-    // Handle drawing preview
-    if (isDrawing) {
-    const pointerPosition = stage.getPointerPosition();
-    if (!pointerPosition) return;
+    // Handle drawing preview (including pencil drawing)
+    if (isDrawing || isPencilDrawing) {
+      const pointerPosition = stage.getPointerPosition();
+      if (!pointerPosition) return;
 
-    // Convert screen coordinates to canvas coordinates
-    let currentX = (pointerPosition.x - stage.x()) / stage.scaleX();
-    let currentY = (pointerPosition.y - stage.y()) / stage.scaleY();
+      // Convert screen coordinates to canvas coordinates
+      let currentX = (pointerPosition.x - stage.x()) / stage.scaleX();
+      let currentY = (pointerPosition.y - stage.y()) / stage.scaleY();
 
-    // Clamp current position to canvas bounds
-    currentX = Math.max(0, Math.min(CANVAS_WIDTH, currentX));
-    currentY = Math.max(0, Math.min(CANVAS_HEIGHT, currentY));
+      // Clamp current position to canvas bounds
+      currentX = Math.max(0, Math.min(CANVAS_WIDTH, currentX));
+      currentY = Math.max(0, Math.min(CANVAS_HEIGHT, currentY));
 
       updateDrawing(currentX, currentY);
     }
   };
 
   const handleMouseUp = async () => {
+    
     // Handle rotation end if in progress
     if (isRotating) {
       await handleRotationEnd();
@@ -570,8 +576,8 @@ export default function Canvas() {
       return;
     }
 
-    // Handle drawing end
-    if (isDrawing) {
+    // Handle drawing end (including pencil drawing)
+    if (isDrawing || isPencilDrawing) {
       await finishDrawing();
     }
   };
@@ -935,6 +941,7 @@ export default function Canvas() {
             previewRect={previewRect}
             previewCircle={previewCircle}
             previewTriangle={previewTriangle}
+            previewPath={previewPath}
             activeTool={activeTool}
             selectedColor={selectedColor}
           />

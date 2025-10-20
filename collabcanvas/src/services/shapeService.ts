@@ -16,7 +16,7 @@ import { firestore } from '../firebase';
 import { MIN_SHAPE_WIDTH, MIN_SHAPE_HEIGHT } from '../utils/constants';
 import { calculateTextDimensions } from '../utils/textEditingHelpers';
 import { requirementsMonitor } from '../utils/performanceRequirements';
-import type { ShapeData, ShapeCreateInput, ShapeUpdateInput } from './types/canvasTypes';
+import type { ShapeData, ShapeCreateInput, ShapeUpdateInput, Path, CreatePathInput } from './types/canvasTypes';
 
 class ShapeService {
   /**
@@ -490,6 +490,143 @@ class ShapeService {
     } catch (error) {
       console.error('❌ Error creating text shape:', error);
       throw error;
+    }
+  }
+
+  async createPath(canvasId: string, pathInput: CreatePathInput, userId: string): Promise<string> {
+    const startTime = Date.now();
+    
+    try {
+      // Validate path input
+      if (!pathInput.points || pathInput.points.length < 2) {
+        throw new Error('Path must have at least 2 points');
+      }
+      
+      if (pathInput.strokeWidth < 1 || pathInput.strokeWidth > 10) {
+        throw new Error('Stroke width must be between 1 and 10');
+      }
+
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapeId = doc(collection(firestore, shapesPath)).id;
+      
+      const shapes = await this.getShapes(canvasId);
+      const maxZIndex = shapes.length > 0 ? Math.max(...shapes.map(s => s.zIndex || 0)) : -1;
+      const zIndex = maxZIndex + 1;
+      
+      // Calculate bounding box for the path
+      const xCoords = pathInput.points.map(p => p.x);
+      const yCoords = pathInput.points.map(p => p.y);
+      const minX = Math.min(...xCoords);
+      const minY = Math.min(...yCoords);
+      const maxX = Math.max(...xCoords);
+      const maxY = Math.max(...yCoords);
+      
+      const shapeData: Omit<ShapeData, 'id'> = {
+        type: 'path',
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY,
+        points: pathInput.points,
+        strokeWidth: pathInput.strokeWidth,
+        color: pathInput.color,
+        rotation: 0,
+        groupId: null,
+        zIndex,
+        createdBy: userId,
+        createdAt: serverTimestamp() as Timestamp,
+        lockedBy: null,
+        lockedAt: null,
+        updatedAt: serverTimestamp() as Timestamp,
+      };
+
+      const shapeRef = doc(firestore, shapesPath, shapeId);
+      await setDoc(shapeRef, shapeData);
+
+      const latency = Date.now() - startTime;
+      requirementsMonitor.trackObjectSync(latency);
+
+      console.log(`✅ Path created with ${pathInput.points.length} points (${latency}ms)`);
+      return shapeId;
+    } catch (error) {
+      console.error('❌ Error creating path:', error);
+      throw error;
+    }
+  }
+
+  async updatePath(canvasId: string, pathId: string, updates: Partial<Path>): Promise<void> {
+    const startTime = Date.now();
+    
+    try {
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapeRef = doc(firestore, shapesPath, pathId);
+      
+      // If points are being updated, recalculate bounding box
+      if (updates.points && updates.points.length >= 2) {
+        const xCoords = updates.points.map(p => p.x);
+        const yCoords = updates.points.map(p => p.y);
+        const minX = Math.min(...xCoords);
+        const minY = Math.min(...yCoords);
+        const maxX = Math.max(...xCoords);
+        const maxY = Math.max(...yCoords);
+        
+        await updateDoc(shapeRef, {
+          ...updates,
+          x: minX,
+          y: minY,
+          width: maxX - minX,
+          height: maxY - minY,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await updateDoc(shapeRef, {
+          ...updates,
+          updatedAt: serverTimestamp(),
+        });
+      }
+      
+      const latency = Date.now() - startTime;
+      requirementsMonitor.trackObjectSync(latency);
+      
+      console.log(`✅ Path updated (${latency}ms)`);
+    } catch (error) {
+      console.error('❌ Error updating path:', error);
+      throw error;
+    }
+  }
+
+  subscribeToPaths(canvasId: string, callback: (paths: Path[]) => void): Unsubscribe {
+    try {
+      const shapesPath = this.getShapesPath(canvasId);
+      const shapesRef = collection(firestore, shapesPath);
+      const q = query(shapesRef);
+
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const paths: Path[] = [];
+          
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            if (data.type === 'path') {
+              paths.push({
+                id: doc.id,
+                ...data,
+              } as Path);
+            }
+          });
+
+          callback(paths);
+        },
+        (error) => {
+          console.error('❌ Error in paths subscription:', error);
+        }
+      );
+
+      return unsubscribe;
+    } catch (error) {
+      console.error('❌ Error subscribing to paths:', error);
+      return () => {};
     }
   }
 

@@ -3,7 +3,7 @@ import type { Timestamp } from 'firebase/firestore';
 // Shape data types
 export interface ShapeData {
   id: string;
-  type: 'rectangle' | 'text' | 'circle' | 'triangle';
+  type: 'rectangle' | 'text' | 'circle' | 'triangle' | 'path';
   x: number;
   y: number;
   width: number;
@@ -18,6 +18,9 @@ export interface ShapeData {
   fontWeight?: 'normal' | 'bold';
   fontStyle?: 'normal' | 'italic';
   textDecoration?: 'none' | 'underline';
+  // Path-specific fields
+  points?: { x: number; y: number }[];
+  strokeWidth?: number;
   // Grouping and layering fields
   groupId: string | null;
   zIndex: number;
@@ -64,6 +67,27 @@ export type ShapeCreateInput = Omit<ShapeData, 'id' | 'createdAt' | 'updatedAt' 
 };
 
 export type ShapeUpdateInput = Partial<Pick<ShapeData, 'x' | 'y' | 'width' | 'height' | 'color' | 'rotation'>>;
+
+// Path-specific interfaces
+export interface Path {
+  id: string;
+  type: 'path';
+  points: { x: number; y: number }[];
+  strokeWidth: number;
+  color: string;
+  createdBy: string;
+  createdAt: Timestamp | null;
+  updatedAt: Timestamp | null;
+  zIndex: number;
+  lockedBy?: string | null;
+  lockedAt?: Timestamp | null;
+}
+
+export interface CreatePathInput {
+  points: { x: number; y: number }[];
+  strokeWidth: number;
+  color: string;
+}
 
 // Canvas metadata types
 export interface CanvasMetadata {

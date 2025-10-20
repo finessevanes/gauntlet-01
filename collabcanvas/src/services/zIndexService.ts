@@ -23,8 +23,6 @@ class ZIndexService {
         zIndex: maxZIndex + 1,
         updatedAt: serverTimestamp(),
       });
-
-      console.log(`✅ Shape brought to front: ${shapeId} (zIndex: ${maxZIndex + 1})`);
     } catch (error) {
       console.error('❌ Error bringing shape to front:', error);
       throw error;
@@ -54,8 +52,6 @@ class ZIndexService {
       });
       
       await batch.commit();
-      
-      console.log(`✅ Batch brought ${shapeIds.length} shapes to front atomically (preserving relative order)`);
     } catch (error) {
       console.error('❌ Error batch bringing shapes to front:', error);
       throw error;
@@ -73,8 +69,6 @@ class ZIndexService {
         zIndex: minZIndex - 1,
         updatedAt: serverTimestamp(),
       });
-
-      console.log(`✅ Shape sent to back: ${shapeId} (zIndex: ${minZIndex - 1})`);
     } catch (error) {
       console.error('❌ Error sending shape to back:', error);
       throw error;
@@ -104,8 +98,6 @@ class ZIndexService {
       });
       
       await batch.commit();
-      
-      console.log(`✅ Batch sent ${shapeIds.length} shapes to back atomically (preserving relative order)`);
     } catch (error) {
       console.error('❌ Error batch sending shapes to back:', error);
       throw error;
@@ -125,13 +117,6 @@ class ZIndexService {
       const overlappingShapesAbove = findOverlappingShapesAbove(currentShape, shapes);
       
       if (overlappingShapesAbove.length === 0) {
-        const anyShapesAbove = shapes.filter(s => (s.zIndex || 0) > currentZIndex);
-        
-        if (anyShapesAbove.length === 0) {
-          console.log(`ℹ️ Shape ${shapeId} is already at the top`);
-        } else {
-          console.log(`ℹ️ No overlapping shapes above ${shapeId} - no visual change would occur`);
-        }
         return;
       }
 
@@ -154,8 +139,6 @@ class ZIndexService {
       });
       
       await batch.commit();
-      
-      console.log(`✅ Shape brought forward: ${shapeId} (${currentZIndex} → ${shapeAboveZIndex}), swapped with overlapping shape ${shapeAbove.id}`);
     } catch (error) {
       console.error('❌ Error bringing shape forward:', error);
       throw error;
@@ -188,7 +171,6 @@ class ZIndexService {
       });
       
       if (overlappingShapesAbove.length === 0) {
-        console.log(`ℹ️ No overlapping shapes above to swap forward`);
         return;
       }
       
@@ -216,7 +198,6 @@ class ZIndexService {
       });
       
       await batch.commit();
-      console.log(`✅ Batch brought ${shapeIds.length} shapes forward together (shift: +${zIndexShift})`);
     } catch (error) {
       console.error('❌ Error batch bringing shapes forward:', error);
       throw error;
@@ -236,13 +217,6 @@ class ZIndexService {
       const overlappingShapesBelow = findOverlappingShapesBelow(currentShape, shapes);
       
       if (overlappingShapesBelow.length === 0) {
-        const anyShapesBelow = shapes.filter(s => (s.zIndex || 0) < currentZIndex);
-        
-        if (anyShapesBelow.length === 0) {
-          console.log(`ℹ️ Shape ${shapeId} is already at the bottom`);
-        } else {
-          console.log(`ℹ️ No overlapping shapes below ${shapeId} - no visual change would occur`);
-        }
         return;
       }
 
@@ -265,8 +239,6 @@ class ZIndexService {
       });
       
       await batch.commit();
-      
-      console.log(`✅ Shape sent backward: ${shapeId} (${currentZIndex} → ${shapeBelowZIndex}), swapped with overlapping shape ${shapeBelow.id}`);
     } catch (error) {
       console.error('❌ Error sending shape backward:', error);
       throw error;
@@ -299,7 +271,6 @@ class ZIndexService {
       });
       
       if (overlappingShapesBelow.length === 0) {
-        console.log(`ℹ️ No overlapping shapes below to swap backward`);
         return;
       }
       
@@ -327,7 +298,6 @@ class ZIndexService {
       });
       
       await batch.commit();
-      console.log(`✅ Batch sent ${shapeIds.length} shapes backward together (shift: ${zIndexShift})`);
     } catch (error) {
       console.error('❌ Error batch sending shapes backward:', error);
       throw error;

@@ -46,8 +46,6 @@ class PresenceService {
         username,
         color,
       });
-
-      console.log(`✅ User ${username} set online on canvas ${canvasId}`);
     } catch (error) {
       console.error('❌ [Presence] Failed to set user online:', error);
       throw error;
@@ -189,8 +187,6 @@ class PresenceService {
 
       // Also clean up cursor on disconnect
       await onDisconnect(cursorRef).remove();
-
-      console.log(`✅ Disconnect handler setup for user ${userId} on canvas ${canvasId}`);
     } catch (error) {
       console.error('❌ [Presence] Failed to setup disconnect handler:', error);
       throw error;
@@ -252,10 +248,6 @@ class PresenceService {
       });
 
       await Promise.all(removePromises);
-      
-      if (toRemove.length > 0) {
-        console.log(`✅ Cleaned up ${toRemove.length} old presence records from canvas ${canvasId}`);
-      }
     } catch (error) {
       console.error('❌ [Presence] Failed to cleanup old presence:', error);
     }

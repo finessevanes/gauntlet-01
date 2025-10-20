@@ -71,7 +71,6 @@ export async function saveMessage(canvasId: string, message: Omit<ChatMessageInp
       createdAt: serverTimestamp()
     });
 
-    console.log(`✅ Chat message saved to canvas ${canvasId}: ${docRef.id}`);
     return docRef.id;
   } catch (error) {
     console.error('Failed to save message:', error);
@@ -129,7 +128,6 @@ export async function loadChatHistory(
       };
     });
 
-    console.log(`✅ Loaded ${messages.length} chat messages for canvas ${canvasId}`);
     return messages;
   } catch (error) {
     console.error('Failed to load chat history:', error);
@@ -160,7 +158,6 @@ export async function deleteMessage(canvasId: string, messageId: string): Promis
     const messagesPath = getChatMessagesPath(canvasId);
     const messageRef = doc(firestore, messagesPath, messageId);
     await deleteDoc(messageRef);
-    console.log(`✅ Chat message deleted from canvas ${canvasId}: ${messageId}`);
   } catch (error) {
     console.error('Failed to delete message:', error);
     throw error;

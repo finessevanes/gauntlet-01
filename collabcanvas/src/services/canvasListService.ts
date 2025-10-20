@@ -62,7 +62,6 @@ class CanvasListService {
         canvases.push(this.convertToMetadata(doc));
       });
 
-      console.log(`✅ Retrieved ${canvases.length} canvases for user ${userId}`);
       return canvases;
     } catch (error) {
       console.error('❌ Error fetching canvases:', error);
@@ -97,7 +96,6 @@ class CanvasListService {
             canvases.push(this.convertToMetadata(doc));
           });
           callback(canvases);
-          console.log(`✅ Canvas list updated: ${canvases.length} canvases`);
         },
         (error) => {
           console.error('❌ Error in canvas subscription:', error);
@@ -123,7 +121,6 @@ class CanvasListService {
       const canvasDoc = await getDoc(canvasRef);
 
       if (!canvasDoc.exists()) {
-        console.warn(`⚠️ Canvas not found: ${canvasId}`);
         return null;
       }
 
@@ -145,10 +142,8 @@ class CanvasListService {
       await updateDoc(canvasRef, {
         lastAccessedAt: serverTimestamp(),
       });
-      console.log(`✅ Updated canvas access: ${canvasId}`);
     } catch (error) {
       // Fail silently - non-critical operation
-      console.warn('⚠️ Could not update canvas access timestamp:', error);
     }
   }
 
@@ -172,7 +167,6 @@ class CanvasListService {
       };
 
       await updateDoc(canvasRef, updateData);
-      console.log(`✅ Updated canvas metadata: ${canvasId}`, updates);
     } catch (error) {
       console.error('❌ Error updating canvas metadata:', error);
       throw error;
@@ -231,7 +225,6 @@ class CanvasListService {
 
       await setDoc(canvasRef, canvasData);
 
-      console.log(`✅ Canvas created: ${canvasId} - "${canvasName}"`);
       return canvasId;
     } catch (error) {
       console.error('❌ Error creating canvas:', error);
@@ -260,8 +253,6 @@ class CanvasListService {
       await this.updateCanvasMetadata(canvasId, {
         name: trimmedName,
       });
-
-      console.log(`✅ Canvas renamed: ${canvasId} → "${trimmedName}"`);
     } catch (error) {
       console.error('❌ Error renaming canvas:', error);
       throw error;

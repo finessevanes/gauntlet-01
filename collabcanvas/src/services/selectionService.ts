@@ -34,13 +34,6 @@ class SelectionService {
         selectedShapes: shapeIds,
         updatedAt: serverTimestamp(),
       });
-      
-      console.log('✅ User selection updated in Firestore:', {
-        userId,
-        username,
-        shapeCount: shapeIds.length,
-        shapeIds,
-      });
     } catch (error) {
       console.error('❌ Error updating user selection:', error);
       throw error;

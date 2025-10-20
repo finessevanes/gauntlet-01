@@ -19,10 +19,6 @@ export function useMultiShapeDrag(props: UseMultiShapeDragProps) {
     if (!selectedShapes.includes(draggedShapeId) || selectedShapes.length <= 1) {
       return;
     }
-
-    console.log('🟢 MULTI-DRAG START - Dragging', selectedShapes.length, 'shapes together');
-    console.log('   Dragged shape ID:', draggedShapeId);
-    console.log('   All selected shapes:', selectedShapes);
     
     const initialPositions = new Map<string, { x: number; y: number }>();
     
@@ -33,13 +29,6 @@ export function useMultiShapeDrag(props: UseMultiShapeDragProps) {
       } else {
         console.error('❌ ERROR: Shape not found in multi-drag:', id);
       }
-    }
-    
-    if (initialPositions.size !== selectedShapes.length) {
-      console.error('❌ ERROR: Could not grab all selected shapes!');
-      console.error('   Expected:', selectedShapes.length, 'Got:', initialPositions.size);
-    } else {
-      console.log('✅ All', initialPositions.size, 'shapes grabbed successfully');
     }
     
     setMultiDragInitialPositions(initialPositions);
@@ -146,9 +135,6 @@ export function useMultiShapeDrag(props: UseMultiShapeDragProps) {
     const deltaX = finalX - initialPos.x;
     const deltaY = finalY - initialPos.y;
     
-    console.log('🟢 MULTI-DRAG END - Moving', selectedShapes.length, 'shapes');
-    console.log('   Delta: dx=' + deltaX.toFixed(2) + ', dy=' + deltaY.toFixed(2));
-    
     // Prepare batch updates for all selected shapes
     const batchUpdates: Array<{ shapeId: string; updates: { x: number; y: number } }> = [];
     
@@ -202,7 +188,6 @@ export function useMultiShapeDrag(props: UseMultiShapeDragProps) {
     // Send all updates in a single batch operation
     try {
       await batchUpdateShapes(batchUpdates);
-      console.log('✅ All', selectedShapes.length, 'shapes updated atomically in Firestore');
     } catch (error) {
       console.error('❌ ERROR: Failed to batch update shapes:', error);
     }

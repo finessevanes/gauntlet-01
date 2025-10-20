@@ -110,7 +110,6 @@ export class AIService {
       }
       
       // If we hit max iterations, return what we have
-      console.warn('⚠️ Hit max iterations in function calling loop');
       return {
         success: allResults.length > 0,
         message: this.generateSuccessMessage(allResults),
@@ -129,13 +128,10 @@ export class AIService {
   
   private async executeToolCalls(toolCalls: any[], userId: string, canvasId: string) {
     const results = [];
-    console.log(`🤖 AI making ${toolCalls.length} tool call(s):`, toolCalls.map(c => c.function.name));
     
     for (const call of toolCalls) {
       try {
-        console.log(`🔧 Executing: ${call.function.name}`, JSON.parse(call.function.arguments));
         const result = await this.executeSingleTool(call, userId, canvasId);
-        console.log(`✅ ${call.function.name} succeeded:`, result);
         results.push({
           tool: call.function.name,
           success: true,
